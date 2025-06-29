@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/controllers/login_controller.dart';
-import 'package:guardian/views/register_view.dart';
 
-class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+class RegisterView extends StatefulWidget {
+  const RegisterView({super.key});
 
   @override
-  State<LoginView> createState() => _LoginViewState();
+  State<RegisterView> createState() => _RegisterViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
+class _RegisterViewState extends State<RegisterView> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final LoginController _loginController = LoginController();
@@ -29,14 +28,20 @@ class _LoginViewState extends State<LoginView> {
     return emailRegex.hasMatch(email);
   }
 
-  Future<void> _handleEmailLogin() async {
+  bool _isPasswordValid(String password) {
+    // Al menos 6 caracteres, una letra y un número
+    final passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$');
+    return passwordRegex.hasMatch(password);
+  }
+
+  Future<void> _register() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, completa todos los campos')),
+        const SnackBar(content: Text('Correo y contraseña son obligatorios')),
       );
       return;
     }
@@ -49,16 +54,26 @@ class _LoginViewState extends State<LoginView> {
       return;
     }
 
+    if (!_isPasswordValid(password)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La contraseña debe tener al menos 6 caracteres, incluyendo una letra y un número'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    final error = await _loginController.signInWithEmail(email, password);
+    final error = await _loginController.registerWithEmail(email, password);
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicio de sesión exitoso')),
+        const SnackBar(content: Text('Cuenta registrada con éxito')),
       );
-      // Puedes redirigir aquí
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
@@ -66,15 +81,17 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  Future<void> _handleGoogleLogin() async {
+  Future<void> _registerWithGoogle() async {
+    setState(() => _isLoading = true);
     final error = await _loginController.signInWithGoogle();
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
     if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicio con Google exitoso')),
+        const SnackBar(content: Text('Registro con Google exitoso')),
       );
-      // Puedes redirigir aquí
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
@@ -92,22 +109,36 @@ class _LoginViewState extends State<LoginView> {
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
             horizontal: 24,
-            vertical: mediaQuery.size.height * 0.08,
+            vertical: mediaQuery.size.height * 0.07,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Bienvenido a',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F2937),
+              const Center(
+                child: Text(
+                  'Crear cuenta nueva',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              Image.asset('assets/images/guardian_logo.png', width: 140),
-              const SizedBox(height: 64),
+              const Center(
+                child: Text(
+                  'Únete a Guardian para continuar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Image.asset('assets/images/guardian_logo.png', width: 120),
+              ),
+              const SizedBox(height: 40),
 
               TextField(
                 controller: _emailController,
@@ -136,9 +167,7 @@ class _LoginViewState extends State<LoginView> {
                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
                     ),
                     onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
+                      setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
                   filled: true,
@@ -149,12 +178,12 @@ class _LoginViewState extends State<LoginView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 28),
 
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleEmailLogin,
+                  onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1F2937),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -165,7 +194,7 @@ class _LoginViewState extends State<LoginView> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Iniciar sesión',
+                          'Registrarse con correo',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
@@ -174,17 +203,26 @@ class _LoginViewState extends State<LoginView> {
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('o'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
 
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  icon: Image.asset(
-                    'assets/images/google_icon.png',
-                    height: 24,
-                  ),
+                  icon: Image.asset('assets/images/google_icon.png', height: 24),
                   label: const Text(
-                    'Iniciar con Google',
+                    'Registrarse con Google',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -194,23 +232,22 @@ class _LoginViewState extends State<LoginView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: _handleGoogleLogin,
+                  onPressed: _isLoading ? null : _registerWithGoogle,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RegisterView()),
-                  );
-                },
-                child: const Text(
-                  '¿No tienes cuenta? Regístrate',
-                  style: TextStyle(
-                    color: Color(0xFF1F2937),
-                    fontWeight: FontWeight.w600,
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    '¿Ya tienes cuenta? Inicia sesión',
+                    style: TextStyle(
+                      color: Color(0xFF1F2937),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
