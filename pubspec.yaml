@@ -11,6 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  firebase_core: ^3.14.0
+  firebase_auth: ^5.6.0
+  google_sign_in: ^6.1.4
+
 
 dev_dependencies:
   flutter_test:
@@ -22,6 +26,7 @@ flutter:
 
   assets:
     - assets/images/guardian_logo.png
+    - assets/images/google_icon.png
 
   fonts:
     - family: Inter

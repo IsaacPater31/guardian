@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/controllers/login_controller.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -10,13 +11,53 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final LoginController _loginController = LoginController();
+
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleEmailLogin() async {
+    setState(() => _isLoading = true);
+
+    final email = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    final error = await _loginController.signInWithEmail(email, password);
+
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicio de sesión exitoso')),
+      );
+      // TODO: redirigir a la pantalla principal
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    final error = await _loginController.signInWithGoogle();
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inicio con Google exitoso')),
+      );
+      // TODO: redirigir a la pantalla principal
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   @override
@@ -29,12 +70,11 @@ class _LoginViewState extends State<LoginView> {
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
             horizontal: 24,
-            vertical: mediaQuery.size.height * 0.08, // 🔽 Baja el contenido
+            vertical: mediaQuery.size.height * 0.08,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Título más impactante
               const Text(
                 'Bienvenido a',
                 style: TextStyle(
@@ -44,21 +84,17 @@ class _LoginViewState extends State<LoginView> {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Logo
               Image.asset(
                 'assets/images/guardian_logo.png',
                 width: 140,
               ),
-              const SizedBox(height: 64), // Buen espaciado antes del formulario
+              const SizedBox(height: 64),
 
-              // Campo usuario
+              // Usuario
               TextField(
                 controller: _usernameController,
-                style: const TextStyle(color: Color(0xFF1F2937)),
                 decoration: InputDecoration(
-                  labelText: 'Usuario',
-                  labelStyle: const TextStyle(color: Color(0xFF1F2937)),
+                  labelText: 'Correo electrónico',
                   prefixIcon: const Icon(Icons.person_outline),
                   filled: true,
                   fillColor: Colors.white,
@@ -70,19 +106,16 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 16),
 
-              // Campo contraseña
+              // Contraseña
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
-                style: const TextStyle(color: Color(0xFF1F2937)),
                 decoration: InputDecoration(
                   labelText: 'Contraseña',
-                  labelStyle: const TextStyle(color: Color(0xFF1F2937)),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      color: const Color(0xFF1F2937),
                     ),
                     onPressed: () {
                       setState(() {
@@ -104,30 +137,48 @@ class _LoginViewState extends State<LoginView> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    final username = _usernameController.text.trim();
-                    final password = _passwordController.text;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Usuario: $username\nContraseña: $password')),
-                    );
-                  },
+                  onPressed: _isLoading ? null : _handleEmailLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1F2937),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    elevation: 4,
                   ),
-                  child: const Text(
-                    'Iniciar sesión',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Iniciar sesión',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Botón Google
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: Image.asset(
+                    'assets/images/google_icon.png', // Asegúrate de tenerlo
+                    height: 24,
+                  ),
+                  label: const Text(
+                    'Iniciar con Google',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Color(0xFF1F2937)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  onPressed: _handleGoogleLogin,
                 ),
               ),
               const SizedBox(height: 32),
