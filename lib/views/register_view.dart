@@ -28,11 +28,21 @@ class _RegisterViewState extends State<RegisterView> {
     return emailRegex.hasMatch(email);
   }
 
+  // ==== Password Requisitos ====
+  bool hasMinLength(String password) => password.length >= 8;
+  bool hasUppercase(String password) => password.contains(RegExp(r'[A-Z]'));
+  bool hasLowercase(String password) => password.contains(RegExp(r'[a-z]'));
+  bool hasDigit(String password)     => password.contains(RegExp(r'\d'));
+  bool hasSpecialChar(String password) => password.contains(RegExp(r'[!@#\$&*~_.,;:<>?\[\]()\-+=%]'));
+
   bool _isPasswordValid(String password) {
-    // Al menos 6 caracteres, una letra y un número
-    final passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$');
-    return passwordRegex.hasMatch(password);
+    return hasMinLength(password) &&
+        hasUppercase(password) &&
+        hasLowercase(password) &&
+        hasDigit(password) &&
+        hasSpecialChar(password);
   }
+  // ============================
 
   Future<void> _register() async {
     final email = _emailController.text.trim();
@@ -58,7 +68,15 @@ class _RegisterViewState extends State<RegisterView> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('La contraseña debe tener al menos 6 caracteres, incluyendo una letra y un número'),
+          content: Text(
+            'La contraseña debe tener al menos:\n'
+            '- 8 caracteres\n'
+            '- 1 mayúscula\n'
+            '- 1 minúscula\n'
+            '- 1 número\n'
+            '- 1 símbolo especial',
+            style: TextStyle(height: 1.6),
+          ),
         ),
       );
       return;
@@ -81,27 +99,11 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  Future<void> _registerWithGoogle() async {
-    setState(() => _isLoading = true);
-    final error = await _loginController.signInWithGoogle();
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro con Google exitoso')),
-      );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+
+    final password = _passwordController.text;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -159,6 +161,7 @@ class _RegisterViewState extends State<RegisterView> {
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Contraseña',
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -178,7 +181,9 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 12),
+              PasswordValidationWidget(password: password),
+              const SizedBox(height: 24),
 
               SizedBox(
                 width: double.infinity,
@@ -194,45 +199,13 @@ class _RegisterViewState extends State<RegisterView> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Registrarse con correo',
+                          'Registrarse',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: const [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('o'),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: Image.asset('assets/images/google_icon.png', height: 24),
-                  label: const Text(
-                    'Registrarse con Google',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: Color(0xFF1F2937)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: _isLoading ? null : _registerWithGoogle,
                 ),
               ),
               const SizedBox(height: 24),
@@ -255,6 +228,50 @@ class _RegisterViewState extends State<RegisterView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ==================== WIDGET VALIDACIÓN EN VIVO ===================
+
+class PasswordValidationWidget extends StatelessWidget {
+  final String password;
+  const PasswordValidationWidget({super.key, required this.password});
+
+  @override
+  Widget build(BuildContext context) {
+    final styleOk = TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold);
+    final styleBad = TextStyle(color: Colors.grey[600]);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RequirementText('Mínimo 8 caracteres', password.length >= 8, styleOk, styleBad),
+        _RequirementText('Al menos 1 mayúscula', password.contains(RegExp(r'[A-Z]')), styleOk, styleBad),
+        _RequirementText('Al menos 1 minúscula', password.contains(RegExp(r'[a-z]')), styleOk, styleBad),
+        _RequirementText('Al menos 1 número', password.contains(RegExp(r'\d')), styleOk, styleBad),
+        _RequirementText('Al menos 1 símbolo especial', password.contains(RegExp(r'[!@#\$&*~_.,;:<>?\[\]()\-+=%]')), styleOk, styleBad),
+      ],
+    );
+  }
+}
+
+class _RequirementText extends StatelessWidget {
+  final String label;
+  final bool fulfilled;
+  final TextStyle styleOk, styleBad;
+
+  const _RequirementText(this.label, this.fulfilled, this.styleOk, this.styleBad, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(fulfilled ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: fulfilled ? Colors.green : Colors.grey, size: 20),
+        const SizedBox(width: 6),
+        Text(label, style: fulfilled ? styleOk : styleBad),
+      ],
     );
   }
 }
