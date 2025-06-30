@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:guardian/views/login_view.dart';
+import 'package:guardian/views/auth/auth_gate.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Inicializa Firebase
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(fontWeight: FontWeight.w400),
         ),
       ),
-      home: const LoginView(),
+      home: const AuthGate(), // <-- Cambio aquí
     );
   }
 }
