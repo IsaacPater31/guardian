@@ -15,11 +15,12 @@ dependencies:
   firebase_auth: ^5.6.0
   google_sign_in: ^6.1.4
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
@@ -41,3 +42,21 @@ flutter:
         - asset: assets/fonts/Inter_24pt-BoldItalic.ttf
           weight: 700
           style: italic
+
+# --- ICONO DE LA APP ---
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/guardian_logo.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+
+# --- SPLASH SCREEN ---
+flutter_native_splash:
+  color: "#F3F4F6"
+  image: assets/images/guardian_logo.png
+  android_12:
+    color: "#F3F4F6"
+    image: assets/images/guardian_logo.png
+  web: false
