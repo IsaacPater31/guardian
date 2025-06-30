@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/controllers/login_controller.dart';
-import 'package:guardian/views/main_app/main_view.dart';
 import 'package:guardian/views/register_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -54,35 +53,29 @@ class _LoginViewState extends State<LoginView> {
     if (!mounted) return;
     setState(() => _isLoadingEmail = false);
 
-    if (error == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainView()),
-      );
-    } else {
+    if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
       );
     }
+    // Si el login fue exitoso, AuthGate llevará automáticamente a MainView
   }
+
 
   Future<void> _handleGoogleLogin() async {
-    setState(() => _isLoadingGoogle = true);
-    final error = await _loginController.signInWithGoogle();
-    if (!mounted) return;
-    setState(() => _isLoadingGoogle = false);
+  setState(() => _isLoadingGoogle = true);
+  final error = await _loginController.signInWithGoogle();
+  if (!mounted) return;
+  setState(() => _isLoadingGoogle = false);
 
-    if (error == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainView()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
-    }
+  if (error != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
   }
+  // Si el login fue exitoso, AuthGate llevará automáticamente a MainView
+}
+
 
   @override
   Widget build(BuildContext context) {
