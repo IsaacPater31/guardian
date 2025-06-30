@@ -43,7 +43,7 @@ flutter:
           weight: 700
           style: italic
 
-# --- ICONO DE LA APP ---
+# --- APP ICON ---
 flutter_launcher_icons:
   android: true
   ios: true
@@ -51,12 +51,23 @@ flutter_launcher_icons:
   min_sdk_android: 21
   remove_alpha_ios: true
 
-
 # --- SPLASH SCREEN ---
 flutter_native_splash:
   color: "#F3F4F6"
-  image: assets/images/guardian_logo.png
+  color_dark: "#181A1B"
+  image: assets/images/guardian_logo2.png
+  image_dark: assets/images/guardian_logo2.png
+  android: true
+  ios: true
+  web: false
+
+  android_gravity: center
+  ios_content_mode: center
+
   android_12:
     color: "#F3F4F6"
-    image: assets/images/guardian_logo.png
-  web: false
+    color_dark: "#181A1B"
+    image: assets/images/guardian_logo2.png
+    image_dark: assets/images/guardian_logo2.png
+    icon_background_color: "#F3F4F6"
+    icon_background_color_dark: "#181A1B"
