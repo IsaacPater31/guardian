@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/controllers/login_controller.dart';
+import 'package:guardian/views/main_app/main_view.dart';
 import 'package:guardian/views/register_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -13,10 +14,9 @@ class _LoginViewState extends State<LoginView> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final LoginController _loginController = LoginController();
-
   bool _obscurePassword = true;
-  bool _isLoading = false;
-
+  bool _isLoadingEmail = false;  
+  bool _isLoadingGoogle = false;  
   @override
   void dispose() {
     _emailController.dispose();
@@ -49,16 +49,16 @@ class _LoginViewState extends State<LoginView> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isLoadingEmail = true);
     final error = await _loginController.signInWithEmail(email, password);
     if (!mounted) return;
-    setState(() => _isLoading = false);
+    setState(() => _isLoadingEmail = false);
 
     if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicio de sesión exitoso')),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainView()),
       );
-      // Puedes redirigir aquí
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
@@ -67,14 +67,16 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _handleGoogleLogin() async {
+    setState(() => _isLoadingGoogle = true);
     final error = await _loginController.signInWithGoogle();
     if (!mounted) return;
+    setState(() => _isLoadingGoogle = false);
 
     if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicio con Google exitoso')),
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainView()),
       );
-      // Puedes redirigir aquí
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error)),
@@ -151,10 +153,11 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 36),
 
+              // Botón Email
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleEmailLogin,
+                  onPressed: (_isLoadingEmail || _isLoadingGoogle) ? null : _handleEmailLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1F2937),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -162,7 +165,7 @@ class _LoginViewState extends State<LoginView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: _isLoading
+                  child: _isLoadingEmail
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'Iniciar sesión',
@@ -176,6 +179,7 @@ class _LoginViewState extends State<LoginView> {
               ),
               const SizedBox(height: 16),
 
+              // Botón Google
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -183,10 +187,16 @@ class _LoginViewState extends State<LoginView> {
                     'assets/images/google_icon.png',
                     height: 24,
                   ),
-                  label: const Text(
-                    'Iniciar con Google',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                  label: _isLoadingGoogle
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Iniciar con Google',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: const BorderSide(color: Color(0xFF1F2937)),
@@ -194,7 +204,7 @@ class _LoginViewState extends State<LoginView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: _handleGoogleLogin,
+                  onPressed: (_isLoadingGoogle || _isLoadingEmail) ? null : _handleGoogleLogin,
                 ),
               ),
               const SizedBox(height: 32),
