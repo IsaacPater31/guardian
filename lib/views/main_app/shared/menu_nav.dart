@@ -11,13 +11,17 @@ class MenuNav extends StatelessWidget {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTap,
-      selectedItemColor: const Color(0xFFD32F2F),
-      unselectedItemColor: const Color(0xFF757575),
+      backgroundColor: Colors.white,
+      selectedItemColor: const Color(0xFF1F2937), // Azul Guardian
+      unselectedItemColor: const Color(0xFF757575), // Gris
+      selectedIconTheme: const IconThemeData(size: 28), // Un poco más grande el ícono seleccionado
+      unselectedIconTheme: const IconThemeData(size: 24),
       type: BottomNavigationBarType.fixed,
+      showUnselectedLabels: true,
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.people), label: "Comunidades"),
         BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Estadísticas"),
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"), 
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
         BottomNavigationBarItem(icon: Icon(Icons.map), label: "Mapa"),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: "Perfil"),
       ],

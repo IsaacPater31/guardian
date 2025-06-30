@@ -10,7 +10,7 @@ class AlertButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue,
+        backgroundColor: Colors.red,
         shape: const CircleBorder(),
         padding: const EdgeInsets.all(40),
         elevation: 6,
