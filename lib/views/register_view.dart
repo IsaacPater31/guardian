@@ -261,6 +261,7 @@ class _RequirementText extends StatelessWidget {
   final bool fulfilled;
   final TextStyle styleOk, styleBad;
 
+  // ignore: unused_element_parameter
   const _RequirementText(this.label, this.fulfilled, this.styleOk, this.styleBad, {super.key});
 
   @override
