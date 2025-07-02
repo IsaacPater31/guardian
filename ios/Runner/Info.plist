@@ -47,5 +47,24 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+
+		<!-- PERMISOS PERSONALIZADOS (NOTIFICACIONES, UBICACIÓN, ETC) -->
+
+		<!-- Notificaciones Push -->
+		<key>NSUserNotificationUsageDescription</key>
+		<string>Guardian needs permission to send you important notifications.</string>
+		
+		<!-- Ubicación (Foreground) -->
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Guardian needs access to your location to provide community features and services near you.</string>
+		
+		<!-- Modos en segundo plano -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+			<string>location</string>
+			<string>fetch</string>
+		</array>
+
 	</dict>
 </plist>
