@@ -1,3 +1,3 @@
 class MainController {
-  int currentIndex = 2;
+  int currentIndex = 0;
 }

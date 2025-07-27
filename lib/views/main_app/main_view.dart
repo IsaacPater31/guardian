@@ -20,9 +20,9 @@ class _MainViewState extends State<MainView> {
   final MainController _controller = MainController();
 
   final List<Widget> _views = const [
+    HomeView(),
     ComunidadesView(),
     EstadisticasView(),
-    HomeView(),
     MapaView(),
     PerfilView(),
   ];
