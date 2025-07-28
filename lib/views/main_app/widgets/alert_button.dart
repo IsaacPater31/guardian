@@ -105,35 +105,293 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _showEmergencyDialog(String emergencyType) {
+    final emergencyData = _emergencyTypes.values.firstWhere(
+      (data) => data['type'] == emergencyType,
+    );
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(emergencyType),
-        content: Text('¿Estás seguro de que quieres reportar una emergencia de $emergencyType?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _hideEmergencyOptions();
-            },
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _hideEmergencyOptions();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('¡Emergencia de $emergencyType reportada!'),
-                  backgroundColor: Colors.red,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenHeight = MediaQuery.of(context).size.height;
+            final maxHeight = screenHeight * 0.8; // Máximo 80% de la pantalla
+            
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: maxHeight,
+                maxWidth: constraints.maxWidth * 0.9, // Máximo 90% del ancho
+              ),
+              padding: EdgeInsets.all(
+                constraints.maxWidth < 400 ? 16 : 24, // Padding adaptativo
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header con ícono y color
+                    Container(
+                      width: constraints.maxWidth < 400 ? 60 : 80,
+                      height: constraints.maxWidth < 400 ? 60 : 80,
+                      decoration: BoxDecoration(
+                        color: emergencyData['color'].withOpacity(0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: emergencyData['color'],
+                          width: 3,
+                        ),
+                      ),
+                      child: Icon(
+                        emergencyData['icon'],
+                        color: emergencyData['color'],
+                        size: constraints.maxWidth < 400 ? 28 : 36,
+                      ),
+                    ),
+                    
+                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
+                    
+                    // Título
+                    Text(
+                      emergencyType,
+                      style: TextStyle(
+                        fontSize: constraints.maxWidth < 400 ? 20 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1A1A1A),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    SizedBox(height: constraints.maxWidth < 400 ? 8 : 12),
+                    
+                    // Descripción
+                    Text(
+                      'Are you sure you want to report this emergency? This will immediately notify the community and nearby guardians.',
+                      style: TextStyle(
+                        fontSize: constraints.maxWidth < 400 ? 14 : 16,
+                        color: Colors.grey[600],
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 24),
+                    
+                    // Información adicional
+                    Container(
+                      padding: EdgeInsets.all(
+                        constraints.maxWidth < 400 ? 12 : 16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFFF9800).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: const Color(0xFFFF9800),
+                            size: constraints.maxWidth < 400 ? 16 : 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'This action cannot be undone. The community will be notified immediately.',
+                              style: TextStyle(
+                                fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                color: const Color(0xFFFF9800),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 24),
+                    
+                    // Botones
+                    Row(
+                      children: [
+                        // Botón Cancelar
+                        Expanded(
+                          child: Container(
+                            height: constraints.maxWidth < 400 ? 44 : 50,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _hideEmergencyOptions();
+                              },
+                              style: TextButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: constraints.maxWidth < 400 ? 14 : 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
+                        
+                        // Botón Reportar
+                        Expanded(
+                          child: Container(
+                            height: constraints.maxWidth < 400 ? 44 : 50,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  emergencyData['color'],
+                                  emergencyData['color'].withOpacity(0.8),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: emergencyData['color'].withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _hideEmergencyOptions();
+                                _showSuccessSnackBar(emergencyType);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.emergency,
+                                    color: Colors.white,
+                                    size: constraints.maxWidth < 400 ? 16 : 20,
+                                  ),
+                                  SizedBox(width: constraints.maxWidth < 400 ? 6 : 8),
+                                  Flexible(
+                                    child: Text(
+                                      'Report Emergency',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: constraints.maxWidth < 400 ? 14 : 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reportar', style: TextStyle(color: Colors.white)),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String emergencyType) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF4CAF50),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Report Sent',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Text(
+                      'Emergency has been reported to the community',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+        backgroundColor: const Color(0xFF4CAF50),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: EdgeInsets.all(screenWidth < 400 ? 8 : 16),
       ),
     );
   }
