@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:async'; // Added for Timer
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -21,6 +24,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // Variables para mostrar el desplazamiento
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
+  
+  // Variables para long press
+  bool _isLongPressing = false;
+  Timer? _longPressTimer;
+  
+  // Variables para alerta detallada
+  File? _selectedImage;
+  final TextEditingController _descriptionController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
   
   final Map<String, Map<String, dynamic>> _emergencyTypes = {
     'up': {
@@ -83,6 +95,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   @override
   void dispose() {
     _animationController.dispose();
+    _descriptionController.dispose();
+    _longPressTimer?.cancel();
     super.dispose();
   }
 
@@ -136,7 +150,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 1),
+                    color: Colors.black.withOpacity(0.1),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -235,7 +249,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         // Botón Cancelar
                         Expanded(
                           child: Container(
-                            height: constraints.maxWidth < 400 ? 44 : 50,
+                            height: constraints.maxWidth < 400 ? 48 : 50,
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
@@ -251,12 +265,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: constraints.maxWidth < 400 ? 14 : 16,
-                                  fontWeight: FontWeight.w600,
+                              child: Flexible(
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
@@ -268,7 +286,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         // Botón Reportar
                         Expanded(
                           child: Container(
-                            height: constraints.maxWidth < 400 ? 44 : 50,
+                            height: constraints.maxWidth < 400 ? 48 : 50,
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
@@ -300,27 +318,31 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.emergency,
-                                    color: Colors.white,
-                                    size: constraints.maxWidth < 400 ? 16 : 20,
-                                  ),
-                                  SizedBox(width: constraints.maxWidth < 400 ? 6 : 8),
-                                  Flexible(
-                                    child: Text(
-                                      'Report Emergency',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: constraints.maxWidth < 400 ? 14 : 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                              child: Flexible(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.emergency,
+                                      color: Colors.white,
+                                      size: constraints.maxWidth < 400 ? 14 : 18,
                                     ),
-                                  ),
-                                ],
+                                    SizedBox(width: constraints.maxWidth < 400 ? 4 : 6),
+                                    Flexible(
+                                      child: Text(
+                                        'Send Alert',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -435,10 +457,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     return GestureDetector(
       onPanStart: (details) {
+        // Cancelar long press si empieza a arrastrar
+        _longPressTimer?.cancel();
         setState(() {
           _isDragging = true;
           _dragOffset = Offset.zero;
           _isGestureActive = false;
+          _isLongPressing = false;
         });
       },
       onPanUpdate: (details) {
@@ -458,6 +483,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           _isDragging = false;
           _dragOffset = Offset.zero;
         });
+      },
+      onLongPressStart: (details) {
+        _startLongPress();
+      },
+      onLongPressEnd: (details) {
+        _endLongPress();
       },
       child: Stack(
         alignment: Alignment.center,
@@ -497,11 +528,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: _isLongPressing ? Colors.orange : Colors.red,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
+                        color: (_isLongPressing ? Colors.orange : Colors.red).withOpacity(0.3),
                         blurRadius: 20,
                         spreadRadius: 8,
                       ),
@@ -510,17 +541,34 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: widget.onPressed,
+                      onTap: _isLongPressing ? null : widget.onPressed,
                       borderRadius: BorderRadius.circular(90),
-                      child: const Center(
-                        child: Text(
-                          "HELP",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2.0,
-                          ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "HELP",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                            if (_isLongPressing)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  "Hold for detailed alert",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -594,5 +642,470 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       case 'upRight': return 'ARRIBA-DER';
       default: return '';
     }
+  }
+
+  void _startLongPress() {
+    _longPressTimer = Timer(const Duration(milliseconds: 1000), () {
+      if (!_isDragging && !_showEmergencyOptions) {
+        setState(() {
+          _isLongPressing = true;
+        });
+        _showDetailedAlertDialog();
+      }
+    });
+  }
+
+  void _endLongPress() {
+    _longPressTimer?.cancel();
+    setState(() {
+      _isLongPressing = false;
+    });
+  }
+
+  void _showDetailedAlertDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenHeight = MediaQuery.of(context).size.height;
+            final maxHeight = screenHeight * 0.9;
+            
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: maxHeight,
+                maxWidth: constraints.maxWidth * 0.95,
+              ),
+              padding: EdgeInsets.all(
+                constraints.maxWidth < 400 ? 16 : 24,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.red,
+                          width: 3,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.emergency,
+                        color: Colors.red,
+                        size: 36,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    const Text(
+                      'Detailed Emergency Report',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    Text(
+                      'Add more details to help the community respond faster',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Sección de foto
+                    _buildPhotoSection(constraints),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Sección de descripción
+                    _buildDescriptionSection(constraints),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Sección de ubicación
+                    _buildLocationSection(constraints),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Botones
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _clearForm();
+                              },
+                              style: TextButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Color(0xFF1A1A1A),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 16),
+                        
+                        Expanded(
+                          child: Container(
+                            height: 50,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Colors.red, Color(0xFFD32F2F)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _sendDetailedAlert();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.send,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Send Alert',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoSection(BoxConstraints constraints) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.camera_alt, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Photo (Optional)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey[300]!,
+                style: BorderStyle.solid,
+              ),
+            ),
+            child: _selectedImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      _selectedImage!,
+                      width: double.infinity,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo,
+                        size: 32,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to add photo',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDescriptionSection(BoxConstraints constraints) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.description, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Description',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _descriptionController,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Describe what happened...',
+            hintStyle: TextStyle(color: Colors.grey[400]),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationSection(BoxConstraints constraints) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Location',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE8F5E8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF4CAF50).withOpacity(0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: const Color(0xFF4CAF50),
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Current location will be automatically included',
+                  style: TextStyle(
+                    color: const Color(0xFF4CAF50),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _clearForm() {
+    setState(() {
+      _selectedImage = null;
+      _descriptionController.clear();
+    });
+  }
+
+  void _sendDetailedAlert() {
+    // TODO: Implementar envío a Firebase con datos detallados
+    final description = _descriptionController.text.trim();
+    final hasImage = _selectedImage != null;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: Color(0xFF4CAF50),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Detailed Alert Sent',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    'Emergency reported with ${hasImage ? 'photo and ' : ''}description',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF4CAF50),
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+    
+    _clearForm();
   }
 }
