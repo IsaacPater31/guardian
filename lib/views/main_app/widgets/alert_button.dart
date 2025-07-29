@@ -77,6 +77,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     },
   };
 
+  // --- Declarar variable de estado para el tipo de alerta seleccionado en el formulario detallado ---
+  String? _selectedDetailedAlertType;
+
   @override
   void initState() {
     super.initState();
@@ -528,11 +531,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
-                    color: _isLongPressing ? Colors.orange : Colors.red,
+                    color: Colors.red,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (_isLongPressing ? Colors.orange : Colors.red).withOpacity(0.3),
+                        color: Colors.red.withOpacity(0.3),
                         blurRadius: 20,
                         spreadRadius: 8,
                       ),
@@ -547,7 +550,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               "HELP",
                               style: TextStyle(
                                 color: Colors.white,
@@ -663,6 +666,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _showDetailedAlertDialog() {
+    // Al abrir el formulario, si hay tipo de alerta por drag, se preselecciona, si no, queda vacío
+    _selectedDetailedAlertType = _currentEmergencyType.isNotEmpty ? _currentEmergencyType : null;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -705,22 +710,67 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withOpacity(0.15),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.red,
                           width: 3,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withOpacity(0.18),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: const Icon(
                         Icons.emergency,
                         color: Colors.red,
-                        size: 36,
+                        size: 38,
                       ),
                     ),
-                    
                     const SizedBox(height: 20),
-                    
+                    // --- ComboBox para tipo de alerta ---
+                    DropdownButtonFormField<String>(
+                      value: _selectedDetailedAlertType,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Tipo de alerta',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Selecciona el tipo de alerta'),
+                        ),
+                        ..._emergencyTypes.entries.map((entry) => DropdownMenuItem<String>(
+                          value: entry.key,
+                          child: Row(
+                            children: [
+                              Icon(entry.value['icon'], color: entry.value['color'], size: 20),
+                              const SizedBox(width: 8),
+                              Text(entry.value['type']),
+                            ],
+                          ),
+                        )),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedDetailedAlertType = value;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecciona un tipo de alerta';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
                     const Text(
                       'Detailed Emergency Report',
                       style: TextStyle(
@@ -743,7 +793,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       textAlign: TextAlign.center,
                     ),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     
                     // Sección de foto
                     _buildPhotoSection(constraints),
@@ -764,22 +814,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     Row(
                       children: [
                         Expanded(
-                          child: Container(
+                          child: SizedBox(
                             height: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
                             child: TextButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
                                 _clearForm();
                               },
                               style: TextButton.styleFrom(
+                                backgroundColor: Colors.grey[100],
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
+                                side: BorderSide(color: Colors.grey[300]!),
+                                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
                               ),
                               child: const Text(
                                 'Cancel',
@@ -792,47 +840,27 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             ),
                           ),
                         ),
-                        
                         const SizedBox(width: 16),
-                        
                         Expanded(
-                          child: Container(
+                          child: SizedBox(
                             height: 50,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Colors.red, Color(0xFFD32F2F)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.red.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
                             child: ElevatedButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
                                 _sendDetailedAlert();
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
+                                backgroundColor: Colors.red,
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
+                                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.send,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                                children: const [
+                                  Icon(Icons.send, color: Colors.white, size: 20),
                                   SizedBox(width: 8),
                                   Text(
                                     'Send Alert',
@@ -878,48 +906,87 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ],
         ),
         const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _pickImage,
-          child: Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.grey[300]!,
-                style: BorderStyle.solid,
+        // --- En la sección de foto, pon ambos recuadros en una fila: cámara a la izquierda, galería a la derecha ---
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            _selectedImage!,
+                            width: double.infinity,
+                            height: 120,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo, color: Colors.grey[500], size: 36),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Tap to add photo',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                ),
               ),
             ),
-            child: _selectedImage != null
-                ? ClipRRect(
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: _pickImageFromGallery,
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      _selectedImage!,
-                      width: double.infinity,
-                      height: 120,
-                      fit: BoxFit.cover,
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      style: BorderStyle.solid,
                     ),
-                  )
-                : Column(
+                  ),
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.add_a_photo,
-                        size: 32,
-                        color: Colors.grey[400],
-                      ),
+                      Icon(Icons.photo_library, color: Colors.grey[500], size: 36),
                       const SizedBox(height: 8),
-                      Text(
-                        'Tap to add photo',
+                      const Text(
+                        'Tap to select from gallery',
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: Colors.grey,
                           fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-          ),
+                ),
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -1036,6 +1103,29 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error seleccionando imagen: $e'),
           backgroundColor: Colors.red,
         ),
       );
