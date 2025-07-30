@@ -121,6 +121,64 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
+  void _sendQuickAlert() {
+    // Enviar alerta rápida sin especificar tipo
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.emergency,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Quick Alert Sent',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Text(
+                      'Emergency alert has been sent to the community',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   void _showEmergencyDialog(String emergencyType) {
     final emergencyData = _emergencyTypes.values.firstWhere(
       (data) => data['type'] == emergencyType,
@@ -544,7 +602,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: _isLongPressing ? null : widget.onPressed,
+                      onTap: _isLongPressing ? null : _sendQuickAlert,
                       borderRadius: BorderRadius.circular(90),
                       child: Center(
                         child: Column(
