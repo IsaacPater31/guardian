@@ -221,24 +221,24 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header con ícono y color
-                    Container(
-                      width: constraints.maxWidth < 400 ? 60 : 80,
-                      height: constraints.maxWidth < 400 ? 60 : 80,
-                      decoration: BoxDecoration(
-                        color: emergencyData['color'].withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: emergencyData['color'],
-                          width: 3,
-                        ),
-                      ),
-                      child: Icon(
-                        emergencyData['icon'],
-                        color: emergencyData['color'],
-                        size: constraints.maxWidth < 400 ? 28 : 36,
-                      ),
-                    ),
+                                         // Header con ícono y color
+                     Container(
+                       width: constraints.maxWidth < 400 ? 60 : 80,
+                       height: constraints.maxWidth < 400 ? 60 : 80,
+                       decoration: BoxDecoration(
+                         color: Colors.red.withOpacity(0.1),
+                         shape: BoxShape.circle,
+                         border: Border.all(
+                           color: Colors.red,
+                           width: 3,
+                         ),
+                       ),
+                       child: Icon(
+                         emergencyData['icon'],
+                         color: Colors.red,
+                         size: constraints.maxWidth < 400 ? 28 : 36,
+                       ),
+                     ),
                     
                     SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
                     
@@ -344,28 +344,28 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         
                         SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
                         
-                        // Botón Reportar
-                        Expanded(
-                          child: Container(
-                            height: constraints.maxWidth < 400 ? 48 : 50,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  emergencyData['color'],
-                                  emergencyData['color'].withOpacity(0.8),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: emergencyData['color'].withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
+                                                 // Botón Reportar
+                         Expanded(
+                           child: Container(
+                             height: constraints.maxWidth < 400 ? 48 : 50,
+                             decoration: BoxDecoration(
+                               gradient: LinearGradient(
+                                 colors: [
+                                   Colors.red,
+                                   Colors.red.withOpacity(0.8),
+                                 ],
+                                 begin: Alignment.topLeft,
+                                 end: Alignment.bottomRight,
+                               ),
+                               borderRadius: BorderRadius.circular(12),
+                               boxShadow: [
+                                 BoxShadow(
+                                   color: Colors.red.withOpacity(0.3),
+                                   blurRadius: 8,
+                                   offset: const Offset(0, 4),
+                                 ),
+                               ],
+                             ),
                             child: ElevatedButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
@@ -639,52 +639,52 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             },
           ),
           
-          // Opciones de emergencia que aparecen con animación
-          if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
-            AnimatedBuilder(
-              animation: _opacityAnimation,
-              builder: (context, child) {
-                final emergencyData = _emergencyTypes[_currentEmergencyType]!;
-                return Opacity(
-                  opacity: _opacityAnimation.value,
-                  child: Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: emergencyData['color'],
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: emergencyData['color'].withOpacity(0.3),
-                          blurRadius: 15,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          emergencyData['icon'],
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          emergencyData['type'],
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                     // Opciones de emergencia que aparecen con animación
+           if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
+             AnimatedBuilder(
+               animation: _opacityAnimation,
+               builder: (context, child) {
+                 final emergencyData = _emergencyTypes[_currentEmergencyType]!;
+                 return Opacity(
+                   opacity: _opacityAnimation.value,
+                   child: Container(
+                     width: 140,
+                     height: 140,
+                     decoration: BoxDecoration(
+                       color: Colors.red,
+                       shape: BoxShape.circle,
+                       boxShadow: [
+                         BoxShadow(
+                           color: Colors.red.withOpacity(0.3),
+                           blurRadius: 15,
+                           spreadRadius: 5,
+                         ),
+                       ],
+                     ),
+                     child: Column(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                         Icon(
+                           emergencyData['icon'],
+                           color: Colors.white,
+                           size: 32,
+                         ),
+                         const SizedBox(height: 8),
+                         Text(
+                           emergencyData['type'],
+                           textAlign: TextAlign.center,
+                           style: const TextStyle(
+                             color: Colors.white,
+                             fontSize: 14,
+                             fontWeight: FontWeight.bold,
+                           ),
+                         ),
+                       ],
+                     ),
+                   ),
+                 );
+               },
+             ),
         ],
       ),
     );
