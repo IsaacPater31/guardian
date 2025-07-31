@@ -211,7 +211,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -226,7 +226,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                        width: constraints.maxWidth < 400 ? 60 : 80,
                        height: constraints.maxWidth < 400 ? 60 : 80,
                        decoration: BoxDecoration(
-                         color: Colors.red.withOpacity(0.1),
+                         color: Colors.red.withValues(alpha: 0.1),
                          shape: BoxShape.circle,
                          border: Border.all(
                            color: Colors.red,
@@ -277,7 +277,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         color: const Color(0xFFFFF3E0),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFFFF9800).withOpacity(0.3),
+                          color: const Color(0xFFFF9800).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -352,7 +352,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                gradient: LinearGradient(
                                  colors: [
                                    Colors.red,
-                                   Colors.red.withOpacity(0.8),
+                                   Colors.red.withValues(alpha: 0.8),
                                  ],
                                  begin: Alignment.topLeft,
                                  end: Alignment.bottomRight,
@@ -360,7 +360,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                borderRadius: BorderRadius.circular(12),
                                boxShadow: [
                                  BoxShadow(
-                                   color: Colors.red.withOpacity(0.3),
+                                   color: Colors.red.withValues(alpha: 0.3),
                                    blurRadius: 8,
                                    offset: const Offset(0, 4),
                                  ),
@@ -562,7 +562,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.3),
+                  color: Colors.red.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.red, width: 2),
                 ),
@@ -593,7 +593,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
+                        color: Colors.red.withValues(alpha: 0.3),
                         blurRadius: 20,
                         spreadRadius: 8,
                       ),
@@ -655,7 +655,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                        shape: BoxShape.circle,
                        boxShadow: [
                          BoxShadow(
-                           color: Colors.red.withOpacity(0.3),
+                           color: Colors.red.withValues(alpha: 0.3),
                            blurRadius: 15,
                            spreadRadius: 5,
                          ),
@@ -753,7 +753,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
@@ -768,7 +768,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.15),
+                        color: Colors.red.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Colors.red,
@@ -776,7 +776,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.red.withOpacity(0.18),
+                            color: Colors.red.withValues(alpha: 0.18),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -1115,7 +1115,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             color: const Color(0xFFE8F5E8),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFF4CAF50).withOpacity(0.3),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
             ),
           ),
           child: Row(
