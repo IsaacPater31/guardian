@@ -905,6 +905,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
                                     _selectedImages = selectedImages;
+                                    _isLongPressing = false;
+                                    _isGestureActive = false;
                                   });
                                 },
                                 style: TextButton.styleFrom(
@@ -940,6 +942,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
                                     _selectedImages = selectedImages;
+                                    _isLongPressing = false;
+                                    _isGestureActive = false;
                                   });
                                   _sendDetailedAlert();
                                 },
