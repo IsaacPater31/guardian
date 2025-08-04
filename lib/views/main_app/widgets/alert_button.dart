@@ -743,292 +743,358 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenHeight = MediaQuery.of(context).size.height;
-            final maxHeight = screenHeight * 0.9;
-            
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: maxHeight,
-                maxWidth: constraints.maxWidth * 0.95,
-              ),
-              padding: EdgeInsets.all(
-                constraints.maxWidth < 400 ? 16 : 24,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header fijo
-                  Container(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: Column(
-                      children: [
-                        // Icono de emergencia
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.red,
-                              width: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final screenHeight = MediaQuery.of(context).size.height;
+              final maxHeight = screenHeight * 0.92;
+              
+              return Container(
+                constraints: BoxConstraints(
+                  maxHeight: maxHeight,
+                  maxWidth: constraints.maxWidth * 0.92,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header profesional con colores de la app
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1F2937),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          // Icono con diseño profesional
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.emergency,
+                              color: Colors.white,
+                              size: 28,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.emergency,
-                            color: Colors.red,
-                            size: 28,
+                          const SizedBox(height: 20),
+                          
+                          // Título con tipografía profesional
+                          const Text(
+                            'Report Emergency',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.3,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Título principal
-                        const Text(
-                          'Report Emergency',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A),
+                          
+                          const SizedBox(height: 8),
+                          
+                          // Subtítulo profesional
+                          Text(
+                            'Help keep our community safe by providing detailed information',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.9),
+                              height: 1.4,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        
-                        const SizedBox(height: 8),
-                        
-                        // Subtítulo
-                        Text(
-                          'Provide details to help the community respond effectively',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            height: 1.3,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Contenido scrolleable
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                                                     // 1. Tipo de emergencia (más importante primero)
-                           _buildEmergencyTypeSection(selectedType, (value) {
-                             setDialogState(() {
-                               selectedType = value;
-                             });
-                           }),
-                          
-                          const SizedBox(height: 24),
-                          
-                                                     // 2. Descripción (contexto inmediato)
-                           _buildDescriptionSection(descriptionController),
-                          
-                          const SizedBox(height: 24),
-                          
-                                                     // 3. Configuración de privacidad (decisiones importantes)
-                           _buildPrivacySettingsSection(
-                             shareLocation,
-                             anonymousAlert,
-                             (value) {
-                               setDialogState(() {
-                                 shareLocation = value ?? false;
-                               });
-                             },
-                             (value) {
-                               setDialogState(() {
-                                 anonymousAlert = value ?? false;
-                               });
-                             },
-                           ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // 4. Foto (opcional, al final)
-                          _buildPhotoSection(selectedImage, (image) {
-                            setDialogState(() {
-                              selectedImage = image;
-                            });
-                          }),
                         ],
                       ),
                     ),
-                  ),
-                  
-                  // Botones fijos en la parte inferior
-                  Container(
-                    padding: const EdgeInsets.only(top: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 48,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                // Actualizar el estado principal con los valores del diálogo
-                                setState(() {
-                                  _selectedDetailedAlertType = selectedType;
-                                  _descriptionController.text = descriptionController.text;
-                                  _shareLocation = shareLocation;
-                                  _anonymousAlert = anonymousAlert;
-                                  _selectedImage = selectedImage;
+                    
+                    // Contenido scrolleable con espaciado profesional
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Tipo de emergencia con diseño profesional
+                            _buildEmergencyTypeSection(selectedType, (value) {
+                              setDialogState(() {
+                                selectedType = value;
+                              });
+                            }),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // 2. Descripción con diseño profesional
+                            _buildDescriptionSection(descriptionController),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // 3. Configuración de privacidad con diseño profesional
+                            _buildPrivacySettingsSection(
+                              shareLocation,
+                              anonymousAlert,
+                              (value) {
+                                setDialogState(() {
+                                  shareLocation = value ?? false;
                                 });
                               },
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.grey[100],
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                              (value) {
+                                setDialogState(() {
+                                  anonymousAlert = value ?? false;
+                                });
+                              },
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // 4. Foto con diseño profesional
+                            _buildPhotoSection(selectedImage, (image) {
+                              setDialogState(() {
+                                selectedImage = image;
+                              });
+                            }),
+                            
+                            // Espacio adicional al final
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    // Botones con diseño profesional
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 48,
+                              child: TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  // Actualizar el estado principal con los valores del diálogo
+                                  setState(() {
+                                    _selectedDetailedAlertType = selectedType;
+                                    _descriptionController.text = descriptionController.text;
+                                    _shareLocation = shareLocation;
+                                    _anonymousAlert = anonymousAlert;
+                                    _selectedImage = selectedImage;
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                                  ),
+                                  elevation: 0,
                                 ),
-                                side: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: Color(0xFF1A1A1A),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                // Actualizar el estado principal y enviar la alerta
-                                setState(() {
-                                  _selectedDetailedAlertType = selectedType;
-                                  _descriptionController.text = descriptionController.text;
-                                  _shareLocation = shareLocation;
-                                  _anonymousAlert = anonymousAlert;
-                                  _selectedImage = selectedImage;
-                                });
-                                _sendDetailedAlert();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  // Actualizar el estado principal y enviar la alerta
+                                  setState(() {
+                                    _selectedDetailedAlertType = selectedType;
+                                    _descriptionController.text = descriptionController.text;
+                                    _shareLocation = shareLocation;
+                                    _anonymousAlert = anonymousAlert;
+                                    _selectedImage = selectedImage;
+                                  });
+                                  _sendDetailedAlert();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1F2937),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.send, color: Colors.white, size: 18),
-                                  const SizedBox(width: 6),
-                                  const Flexible(
-                                    child: Text(
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 8),
+                                    Text(
                                       'Send Alert',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildEmergencyTypeSection(String? selectedType, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header de sección profesional
         Row(
           children: [
-            Icon(Icons.category, color: Colors.grey[700], size: 20),
-            const SizedBox(width: 8),
-            Text(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.category_rounded,
+                color: Color(0xFF1F2937),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
               'Emergency Type',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.2,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: selectedType,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: 'Select emergency type',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+        
+        // Dropdown con diseño profesional
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selectedType != null ? const Color(0xFF1F2937).withValues(alpha: 0.3) : const Color(0xFFE5E7EB),
+              width: 1,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
-          items: [
-            DropdownMenuItem<String>(
-              value: null,
-              child: Text('Choose emergency type'),
-            ),
-            ..._emergencyTypes.entries.map((entry) => DropdownMenuItem<String>(
-              value: entry.key,
-              child: Row(
-                children: [
-                  Icon(entry.value['icon'], color: entry.value['color'], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      entry.value['type'],
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+          child: DropdownButtonFormField<String>(
+            value: selectedType,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Select emergency type',
+              labelStyle: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-            )),
-          ],
-          onChanged: onChanged,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please select an emergency type';
-            }
-            return null;
-          },
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              suffixIcon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF9CA3AF),
+                size: 20,
+              ),
+            ),
+            items: [
+              DropdownMenuItem<String>(
+                value: null,
+                child: const Text(
+                  'Choose emergency type',
+                  style: TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              ..._emergencyTypes.entries.map((entry) => DropdownMenuItem<String>(
+                value: entry.key,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        entry.value['icon'],
+                        color: const Color(0xFF1F2937),
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        entry.value['type'],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1F2937),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+            ],
+            onChanged: onChanged,
+            dropdownColor: Colors.white,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1F2937),
+            ),
+            icon: const SizedBox.shrink(),
+          ),
         ),
       ],
     );
@@ -1038,37 +1104,87 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header de sección profesional
         Row(
           children: [
-            Icon(Icons.description, color: Colors.grey[700], size: 20),
-            const SizedBox(width: 8),
-            Text(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.description_rounded,
+                color: Color(0xFF1F2937),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
               'Description',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.2,
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: controller,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Describe what happened, location details, and any relevant information...',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-            filled: true,
-            fillColor: Colors.grey[50],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[300]!),
+        
+        // TextField con diseño profesional
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFE5E7EB),
+              width: 1,
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.red, width: 2),
+          ),
+          child: TextField(
+            controller: controller,
+            maxLines: 4,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF1F2937),
             ),
+            decoration: InputDecoration(
+              hintText: 'Describe what happened, location details, and any relevant information...',
+              hintStyle: const TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.all(16),
+              counter: Container(
+                padding: const EdgeInsets.only(top: 8, right: 16, bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${controller.text.length}/500',
+                      style: TextStyle(
+                        color: controller.text.length > 450 ? const Color(0xFFF59E0B) : const Color(0xFF9CA3AF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            onChanged: (value) {
+              if (value.length > 500) {
+                controller.text = value.substring(0, 500);
+                controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: 500),
+                );
+              }
+            },
           ),
         ),
       ],
@@ -1079,49 +1195,96 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header de sección profesional
         Row(
           children: [
-            Icon(Icons.privacy_tip, color: Colors.grey[700], size: 20),
-            const SizedBox(width: 8),
-            Text(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.privacy_tip_rounded,
+                color: Color(0xFF1F2937),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
               'Privacy Settings',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.2,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         
-        // Location sharing
-        Container(
+        // Location sharing con diseño profesional
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: shareLocation ? const Color(0xFFE8F5E8) : const Color(0xFFF5F5F5),
+            color: shareLocation ? const Color(0xFFF0F9FF) : const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: shareLocation 
-                ? const Color(0xFF4CAF50).withValues(alpha: 0.3)
-                : Colors.grey[300]!,
+              color: shareLocation ? const Color(0xFF1F2937).withValues(alpha: 0.2) : const Color(0xFFE5E7EB),
+              width: 1,
             ),
           ),
           child: Row(
             children: [
-              Checkbox(
-                value: shareLocation,
-                onChanged: onShareLocationChanged,
-                activeColor: const Color(0xFF4CAF50),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: shareLocation ? const Color(0xFF1F2937).withValues(alpha: 0.1) : const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.location_on_rounded,
+                  color: shareLocation ? const Color(0xFF1F2937) : const Color(0xFF9CA3AF),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Share Location',
-                  style: TextStyle(
-                    color: shareLocation ? const Color(0xFF4CAF50) : Colors.grey[700],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Share Location',
+                      style: TextStyle(
+                        color: shareLocation ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      shareLocation 
+                        ? 'Your current location will be included in the alert'
+                        : 'Location sharing is disabled for this alert',
+                      style: TextStyle(
+                        color: shareLocation ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Transform.scale(
+                scale: 1.1,
+                child: Checkbox(
+                  value: shareLocation,
+                  onChanged: onShareLocationChanged,
+                  activeColor: const Color(0xFF1F2937),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
@@ -1129,35 +1292,69 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ),
         ),
         
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         
-        // Anonymous alert
-        Container(
+        // Anonymous alert con diseño profesional
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: anonymousAlert ? const Color(0xFFE3F2FD) : const Color(0xFFF5F5F5),
+            color: anonymousAlert ? const Color(0xFFF0F9FF) : const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: anonymousAlert 
-                ? const Color(0xFF2196F3).withValues(alpha: 0.3)
-                : Colors.grey[300]!,
+              color: anonymousAlert ? const Color(0xFF1F2937).withValues(alpha: 0.2) : const Color(0xFFE5E7EB),
+              width: 1,
             ),
           ),
           child: Row(
             children: [
-              Checkbox(
-                value: anonymousAlert,
-                onChanged: onAnonymousChanged,
-                activeColor: const Color(0xFF2196F3),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: anonymousAlert ? const Color(0xFF1F2937).withValues(alpha: 0.1) : const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.visibility_off_rounded,
+                  color: anonymousAlert ? const Color(0xFF1F2937) : const Color(0xFF9CA3AF),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Anonymous Report',
-                  style: TextStyle(
-                    color: anonymousAlert ? const Color(0xFF2196F3) : Colors.grey[700],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Anonymous Report',
+                      style: TextStyle(
+                        color: anonymousAlert ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      anonymousAlert 
+                        ? 'Your identity will be hidden from other users'
+                        : 'Your profile will be visible to the community',
+                      style: TextStyle(
+                        color: anonymousAlert ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Transform.scale(
+                scale: 1.1,
+                child: Checkbox(
+                  value: anonymousAlert,
+                  onChanged: onAnonymousChanged,
+                  activeColor: const Color(0xFF1F2937),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
@@ -1168,20 +1365,49 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildPhotoSection(File? selectedImage, ValueChanged<File?> onImageChanged) {
+         Widget _buildPhotoSection(File? selectedImage, ValueChanged<File?> onImageChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header de sección profesional
         Row(
           children: [
-            Icon(Icons.camera_alt, color: Colors.grey[700], size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Photo Evidence (Optional)',
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                color: Color(0xFF1F2937),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Photo Evidence',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
+                color: Color(0xFF1F2937),
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Optional',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1189,38 +1415,56 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         const SizedBox(height: 12),
         
         if (selectedImage != null)
+          // Imagen seleccionada con diseño profesional
           Container(
             width: double.infinity,
-            height: 200,
+            height: 180,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Stack(
                 children: [
-                                     Image.file(
-                     selectedImage!,
-                     width: double.infinity,
-                     height: 200,
-                     fit: BoxFit.cover,
-                   ),
+                  Image.file(
+                    selectedImage!,
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.cover,
+                  ),
+                  // Overlay sutil para mejor legibilidad del botón
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.2),
+                            Colors.transparent,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Botón de eliminar profesional
                   Positioned(
                     top: 8,
                     right: 8,
                     child: GestureDetector(
-                                             onTap: () {
-                         onImageChanged(null);
-                       },
+                      onTap: () {
+                        onImageChanged(null);
+                      },
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.7),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.close,
+                          Icons.close_rounded,
                           color: Colors.white,
                           size: 16,
                         ),
@@ -1232,49 +1476,70 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             ),
           )
         else
+          // Opciones de selección de imagen profesionales
           Row(
             children: [
               Expanded(
-                                 child: GestureDetector(
-                   onTap: () async {
-                     try {
-                       final XFile? image = await _picker.pickImage(
-                         source: ImageSource.camera,
-                         maxWidth: 1024,
-                         maxHeight: 1024,
-                         imageQuality: 80,
-                       );
-                       
-                       if (image != null) {
-                         onImageChanged(File(image.path));
-                       }
-                     } catch (e) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         SnackBar(
-                           content: Text('Error picking image: $e'),
-                           backgroundColor: Colors.red,
-                         ),
-                       );
-                     }
-                   },
+                child: GestureDetector(
+                  onTap: () async {
+                    try {
+                      final XFile? image = await _picker.pickImage(
+                        source: ImageSource.camera,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 80,
+                      );
+                      
+                      if (image != null) {
+                        onImageChanged(File(image.path));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error picking image: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
                   child: Container(
                     height: 100,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: const Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt, color: Colors.grey[500], size: 24),
-                        const SizedBox(height: 4),
-                        Text(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Color(0xFF1F2937),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
                           'Take Photo',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1F2937),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Use camera',
+                          style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
@@ -1284,45 +1549,65 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
               const SizedBox(width: 12),
               Expanded(
-                                 child: GestureDetector(
-                   onTap: () async {
-                     try {
-                       final XFile? image = await _picker.pickImage(
-                         source: ImageSource.gallery,
-                         maxWidth: 1024,
-                         maxHeight: 1024,
-                         imageQuality: 80,
-                       );
-                       if (image != null) {
-                         onImageChanged(File(image.path));
-                       }
-                     } catch (e) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         SnackBar(
-                           content: Text('Error seleccionando imagen: $e'),
-                           backgroundColor: Colors.red,
-                         ),
-                       );
-                     }
-                   },
+                child: GestureDetector(
+                  onTap: () async {
+                    try {
+                      final XFile? image = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1024,
+                        maxHeight: 1024,
+                        imageQuality: 80,
+                      );
+                      if (image != null) {
+                        onImageChanged(File(image.path));
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error seleccionando imagen: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
                   child: Container(
                     height: 100,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: const Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.photo_library, color: Colors.grey[500], size: 24),
-                        const SizedBox(height: 4),
-                        Text(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.photo_library_rounded,
+                            color: Color(0xFF1F2937),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
                           'Gallery',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1F2937),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Choose existing',
+                          style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
