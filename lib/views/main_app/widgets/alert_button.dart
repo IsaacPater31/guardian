@@ -30,7 +30,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   Timer? _longPressTimer;
   
   // Variables para alerta detallada
-  File? _selectedImage;
+  List<File> _selectedImages = [];
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   
@@ -710,7 +710,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _startLongPress() {
-    _longPressTimer = Timer(const Duration(milliseconds: 1000), () {
+    _longPressTimer = Timer(const Duration(milliseconds: 500), () {
       if (!_isDragging && !_showEmergencyOptions) {
         setState(() {
           _isLongPressing = true;
@@ -736,7 +736,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     bool anonymousAlert = _anonymousAlert;
     String? selectedType = _selectedDetailedAlertType;
     final TextEditingController descriptionController = TextEditingController(text: _descriptionController.text);
-    File? selectedImage = _selectedImage;
+    List<File> selectedImages = List.from(_selectedImages);
     
     showDialog(
       context: context,
@@ -874,9 +874,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             const SizedBox(height: 24),
                             
                             // 4. Foto con diseño profesional
-                            _buildPhotoSection(selectedImage, (image) {
+                            _buildPhotoSection(selectedImages, (images) {
                               setDialogState(() {
-                                selectedImage = image;
+                                selectedImages = images;
                               });
                             }),
                             
@@ -904,7 +904,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _descriptionController.text = descriptionController.text;
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
-                                    _selectedImage = selectedImage;
+                                    _selectedImages = selectedImages;
                                   });
                                 },
                                 style: TextButton.styleFrom(
@@ -927,7 +927,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(
+                          Flexible(
                             child: SizedBox(
                               height: 48,
                               child: ElevatedButton(
@@ -939,7 +939,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _descriptionController.text = descriptionController.text;
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
-                                    _selectedImage = selectedImage;
+                                    _selectedImages = selectedImages;
                                   });
                                   _sendDetailedAlert();
                                 },
@@ -956,12 +956,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   children: [
                                     Icon(Icons.send_rounded, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Text(
-                                      'Send Alert',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
+                                    Flexible(
+                                      child: Text(
+                                        'Send Alert',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -1127,6 +1130,22 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1F2937),
                 letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Optional',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -1365,7 +1384,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-         Widget _buildPhotoSection(File? selectedImage, ValueChanged<File?> onImageChanged) {
+         Widget _buildPhotoSection(List<File> selectedImages, ValueChanged<List<File>> onImagesChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1414,69 +1433,95 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         ),
         const SizedBox(height: 12),
         
-        if (selectedImage != null)
-          // Imagen seleccionada con diseño profesional
+        // Imágenes seleccionadas con diseño profesional
+        if (selectedImages.isNotEmpty)
+          Column(
+            children: selectedImages.map((image) {
+              return Container(
+                width: double.infinity,
+                height: 180,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    children: [
+                      Image.file(
+                        image,
+                        width: double.infinity,
+                        height: 180,
+                        fit: BoxFit.cover,
+                      ),
+                      // Overlay sutil para mejor legibilidad del botón
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomLeft,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.2),
+                                Colors.transparent,
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Botón de eliminar profesional
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            selectedImages.remove(image);
+                            onImagesChanged(selectedImages);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        
+        // Contador de fotos
+        if (selectedImages.isNotEmpty)
           Container(
-            width: double.infinity,
-            height: 180,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+              color: const Color(0xFF1F2937).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  Image.file(
-                    selectedImage!,
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                  ),
-                  // Overlay sutil para mejor legibilidad del botón
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topRight,
-                          end: Alignment.bottomLeft,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.2),
-                            Colors.transparent,
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Botón de eliminar profesional
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () {
-                        onImageChanged(null);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            child: Text(
+              '${selectedImages.length} photo${selectedImages.length == 1 ? '' : 's'} selected',
+              style: const TextStyle(
+                color: Color(0xFF1F2937),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          )
-        else
-          // Opciones de selección de imagen profesionales
+          ),
+        
+        // Opciones de selección de imagen profesionales (siempre visibles)
+        if (selectedImages.length < 3)
           Row(
             children: [
               Expanded(
@@ -1491,7 +1536,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       );
                       
                       if (image != null) {
-                        onImageChanged(File(image.path));
+                        selectedImages.add(File(image.path));
+                        onImagesChanged(selectedImages);
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1559,7 +1605,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         imageQuality: 80,
                       );
                       if (image != null) {
-                        onImageChanged(File(image.path));
+                        selectedImages.add(File(image.path));
+                        onImagesChanged(selectedImages);
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1616,6 +1663,36 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 ),
               ),
             ],
+          )
+        else
+          // Mensaje cuando se alcanza el límite de fotos
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: const Color(0xFFFF9800),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Maximum 3 photos allowed',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFFFF9800),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
       ],
     );
@@ -1632,7 +1709,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       
       if (image != null) {
         setState(() {
-          _selectedImage = File(image.path);
+          _selectedImages.add(File(image.path));
         });
       }
     } catch (e) {
@@ -1655,7 +1732,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       );
       if (image != null) {
         setState(() {
-          _selectedImage = File(image.path);
+          _selectedImages.add(File(image.path));
         });
       }
     } catch (e) {
@@ -1670,7 +1747,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _clearForm() {
     setState(() {
-      _selectedImage = null;
+      _selectedImages = [];
       _descriptionController.clear();
       _shareLocation = true;
       _anonymousAlert = false;
@@ -1680,11 +1757,17 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   void _sendDetailedAlert() {
     // TODO: Implementar envío a Firebase con datos detallados
     final description = _descriptionController.text.trim();
-    final hasImage = _selectedImage != null;
+    final hasImage = _selectedImages.isNotEmpty;
     
     // Construir mensaje de confirmación
     String confirmationMessage = 'Emergency reported';
-    if (hasImage) confirmationMessage += ' with photo';
+    if (hasImage) {
+      if (_selectedImages.length == 1) {
+        confirmationMessage += ' with photo';
+      } else {
+        confirmationMessage += ' with ${_selectedImages.length} photos';
+      }
+    }
     if (description.isNotEmpty) confirmationMessage += hasImage ? ' and description' : ' with description';
     if (_shareLocation) confirmationMessage += ' and location';
     if (_anonymousAlert) confirmationMessage += ' (anonymous)';
