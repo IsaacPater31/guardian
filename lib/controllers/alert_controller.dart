@@ -49,9 +49,9 @@ class AlertController {
       // Guardar en Firestore
       final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
 
-      // Si hay imágenes, convertirlas a Base64 y actualizar el documento
+      // Si hay imagen, convertirla a Base64 y actualizar el documento
       if (images != null && images.isNotEmpty) {
-        await _convertImagesToBase64AndUpdateAlert(images, docRef);
+        await _convertImageToBase64AndUpdateAlert(images.first, docRef);
       }
 
       return true;
@@ -168,36 +168,38 @@ class AlertController {
     }
   }
 
-  /// Convierte imágenes a Base64 y actualiza la alerta
-  Future<void> _convertImagesToBase64AndUpdateAlert(List<File> images, DocumentReference docRef) async {
+  /// Convierte imagen a Base64 y actualiza la alerta
+  Future<void> _convertImageToBase64AndUpdateAlert(File image, DocumentReference docRef) async {
     try {
-      List<String> base64Images = [];
+      // Verificar tamaño de la imagen antes de convertir
+      final bytes = await image.length();
+      final sizeInKB = bytes / 1024;
       
-      for (int i = 0; i < images.length; i++) {
-        final file = images[i];
-        
-        // Leer el archivo como bytes
-        final bytes = await file.readAsBytes();
-        
-        // Convertir a Base64
-        final base64String = base64Encode(bytes);
-        base64Images.add(base64String);
+      if (sizeInKB > 500) {
+        throw Exception('La imagen es demasiado grande. Máximo 500KB permitido.');
       }
       
-      // Actualizar el documento con las imágenes en Base64
+      // Leer el archivo como bytes
+      final imageBytes = await image.readAsBytes();
+      
+      // Convertir a Base64
+      final base64String = base64Encode(imageBytes);
+      
+      // Actualizar el documento con la imagen en Base64
       await docRef.update({
         'hasImages': true,
-        'imageCount': images.length,
-        'imageBase64': base64Images,
+        'imageCount': 1,
+        'imageBase64': [base64String],
       });
     } catch (e) {
-      // Error converting images to Base64: $e
-      // Si falla la conversión, al menos actualizar que hay imágenes
+      // Error converting image to Base64: $e
+      // Si falla la conversión, al menos actualizar que hay imagen
       await docRef.update({
         'hasImages': true,
-        'imageCount': images.length,
+        'imageCount': 1,
         'imageBase64': [],
       });
+      rethrow; // Re-lanzar el error para que se maneje en la UI
     }
   }
 

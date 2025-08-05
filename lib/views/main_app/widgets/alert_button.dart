@@ -31,7 +31,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   Timer? _longPressTimer;
   
   // Variables para alerta detallada
-  List<File> _selectedImages = [];
+  File? _selectedImage;
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   
@@ -838,7 +838,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     bool anonymousAlert = _anonymousAlert;
     String? selectedType = _selectedDetailedAlertType;
     final TextEditingController descriptionController = TextEditingController(text: _descriptionController.text);
-    List<File> selectedImages = List.from(_selectedImages);
+            File? selectedImage = _selectedImage;
     
     showDialog(
       context: context,
@@ -976,9 +976,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             const SizedBox(height: 24),
                             
                             // 4. Foto con diseño profesional
-                            _buildPhotoSection(selectedImages, (images) {
+                            _buildPhotoSection(selectedImage, (image) {
                               setDialogState(() {
-                                selectedImages = images;
+                                selectedImage = image;
                               });
                             }),
                             
@@ -1006,7 +1006,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _descriptionController.text = descriptionController.text;
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
-                                    _selectedImages = selectedImages;
+                                    _selectedImage = selectedImage;
                                     // Reiniciar el estado del botón para permitir alertas rápidas
                                     _isLongPressing = false;
                                     _isGestureActive = false;
@@ -1044,7 +1044,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _descriptionController.text = descriptionController.text;
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
-                                    _selectedImages = selectedImages;
+                                    _selectedImage = selectedImage;
                                     // Reiniciar el estado del botón para permitir alertas rápidas
                                     _isLongPressing = false;
                                     _isGestureActive = false;
@@ -1492,7 +1492,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-         Widget _buildPhotoSection(List<File> selectedImages, ValueChanged<List<File>> onImagesChanged) {
+         Widget _buildPhotoSection(File? selectedImage, ValueChanged<File?> onImageChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1541,95 +1541,71 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         ),
         const SizedBox(height: 12),
         
-        // Imágenes seleccionadas con diseño profesional
-        if (selectedImages.isNotEmpty)
-          Column(
-            children: selectedImages.map((image) {
-              return Container(
-                width: double.infinity,
-                height: 180,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    children: [
-                      Image.file(
-                        image,
-                        width: double.infinity,
-                        height: 180,
-                        fit: BoxFit.cover,
-                      ),
-                      // Overlay sutil para mejor legibilidad del botón
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topRight,
-                              end: Alignment.bottomLeft,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.2),
-                                Colors.transparent,
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Botón de eliminar profesional
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () {
-                            selectedImages.remove(image);
-                            onImagesChanged(selectedImages);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.7),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        
-        // Contador de fotos
-        if (selectedImages.isNotEmpty)
+        // Imagen seleccionada con diseño profesional
+        if (selectedImage != null)
           Container(
+            width: double.infinity,
+            height: 180,
             margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
             ),
-            child: Text(
-              '${selectedImages.length} photo${selectedImages.length == 1 ? '' : 's'} selected',
-              style: const TextStyle(
-                color: Color(0xFF1F2937),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  Image.file(
+                    selectedImage,
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.cover,
+                  ),
+                  // Overlay sutil para mejor legibilidad del botón
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.2),
+                            Colors.transparent,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Botón de eliminar profesional
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () {
+                        onImageChanged(null);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         
-        // Opciones de selección de imagen profesionales (siempre visibles)
-        if (selectedImages.length < 3)
+        // Opciones de selección de imagen profesionales (solo si no hay imagen)
+        if (selectedImage == null)
           Row(
             children: [
               Expanded(
@@ -1644,13 +1620,29 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       );
                       
                       if (image != null) {
-                        selectedImages.add(File(image.path));
-                        onImagesChanged(selectedImages);
+                        final file = File(image.path);
+                        // Verificar tamaño de la imagen
+                        final bytes = await file.length();
+                        final sizeInKB = bytes / 1024;
+                        
+                        if (sizeInKB > 500) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('La imagen es demasiado grande. Máximo 500KB permitido.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        onImageChanged(file);
                       }
                     } catch (e) {
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Error picking image: $e'),
+                          content: Text('Error al tomar foto: $e'),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -1713,10 +1705,26 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         imageQuality: 80,
                       );
                       if (image != null) {
-                        selectedImages.add(File(image.path));
-                        onImagesChanged(selectedImages);
+                        final file = File(image.path);
+                        // Verificar tamaño de la imagen
+                        final bytes = await file.length();
+                        final sizeInKB = bytes / 1024;
+                        
+                        if (sizeInKB > 500) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('La imagen es demasiado grande. Máximo 500KB permitido.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        onImageChanged(file);
                       }
                     } catch (e) {
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Error seleccionando imagen: $e'),
@@ -1771,46 +1779,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 ),
               ),
             ],
-          )
-        else
-          // Mensaje cuando se alcanza el límite de fotos
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E0),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: const Color(0xFFFF9800),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Maximum 3 photos allowed',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: const Color(0xFFFF9800),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
-      ],
-    );
+        ],
+      );
   }
 
 
 
   void _clearForm() {
     setState(() {
-      _selectedImages = [];
+      _selectedImage = null;
       _descriptionController.clear();
       _shareLocation = true;
       _anonymousAlert = false;
@@ -1866,7 +1844,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final success = await _alertController.sendDetailedAlert(
       alertType: _selectedDetailedAlertType!,
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-      images: _selectedImages.isEmpty ? null : _selectedImages,
+      images: _selectedImage != null ? [_selectedImage!] : null,
       shareLocation: _shareLocation,
       isAnonymous: _anonymousAlert,
     );
@@ -1875,16 +1853,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
     if (success) {
       final description = _descriptionController.text.trim();
-      final hasImage = _selectedImages.isNotEmpty;
+      final hasImage = _selectedImage != null;
       
       // Construir mensaje de confirmación
       String confirmationMessage = 'Emergency reported';
       if (hasImage) {
-        if (_selectedImages.length == 1) {
-          confirmationMessage += ' with photo';
-        } else {
-          confirmationMessage += ' with ${_selectedImages.length} photos';
-        }
+        confirmationMessage += ' with photo';
       }
       if (description.isNotEmpty) confirmationMessage += hasImage ? ' and description' : ' with description';
       if (_shareLocation) confirmationMessage += ' and location';
