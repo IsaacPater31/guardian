@@ -11,6 +11,7 @@ class AlertModel {
   final LocationData? location;
   final String? userId;
   final String? userEmail;
+  final String? userName;
   final List<String>? imageBase64;
 
   AlertModel({
@@ -24,6 +25,7 @@ class AlertModel {
     this.location,
     this.userId,
     this.userEmail,
+    this.userName,
     this.imageBase64,
   });
 
@@ -40,6 +42,7 @@ class AlertModel {
       location: data['location'] != null ? LocationData.fromMap(data['location']) : null,
       userId: data['userId'],
       userEmail: data['userEmail'],
+      userName: data['userName'],
       imageBase64: data['imageBase64'] != null ? List<String>.from(data['imageBase64']) : null,
     );
   }
@@ -55,6 +58,7 @@ class AlertModel {
       'location': location?.toMap(),
       'userId': userId,
       'userEmail': userEmail,
+      'userName': userName,
       'imageBase64': imageBase64,
     };
   }

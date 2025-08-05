@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/models/alert_model.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:convert';
 
 class AlertDetailDialog extends StatelessWidget {
@@ -25,7 +27,7 @@ class AlertDetailDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               spreadRadius: 5,
             ),
@@ -54,8 +56,10 @@ class AlertDetailDialog extends StatelessWidget {
                       _buildDescriptionSection(),
                     
                     // Ubicación
-                    if (alert.shareLocation && alert.location != null)
+                    if (alert.shareLocation && alert.location != null) ...[
                       _buildLocationSection(),
+                      _buildLocationMapSection(),
+                    ],
                     
                     // Información adicional
                     _buildAdditionalInfoSection(),
@@ -96,7 +100,7 @@ class AlertDetailDialog extends StatelessWidget {
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -108,11 +112,11 @@ class AlertDetailDialog extends StatelessWidget {
           
           const SizedBox(height: 16),
           
-          // Título
+          // Título de la alerta
           Text(
             alert.alertType,
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -121,12 +125,12 @@ class AlertDetailDialog extends StatelessWidget {
           
           const SizedBox(height: 8),
           
-          // Tiempo
+          // Fecha y hora
           Text(
-            _getFormattedTime(alert.timestamp),
+            _formatDateTime(alert.timestamp),
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -138,23 +142,16 @@ class AlertDetailDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _getAlertColor(alert.alertType).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: _getAlertColor(alert.alertType).withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F2937).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.category_rounded,
-              color: Color(0xFF1F2937),
-              size: 20,
-            ),
+          Icon(
+            _getAlertIcon(alert.alertType),
+            color: _getAlertColor(alert.alertType),
+            size: 24,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -162,7 +159,7 @@ class AlertDetailDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Tipo de Alerta',
+                  'Alert Type',
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -171,11 +168,11 @@ class AlertDetailDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  alert.type.toUpperCase(),
-                  style: const TextStyle(
+                  alert.alertType,
+                  style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    fontWeight: FontWeight.bold,
+                    color: _getAlertColor(alert.alertType),
                   ),
                 ),
               ],
@@ -200,7 +197,7 @@ class AlertDetailDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F2937).withOpacity(0.1),
+              color: const Color(0xFF1F2937).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -215,7 +212,7 @@ class AlertDetailDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Descripción',
+                  'Description',
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -252,7 +249,7 @@ class AlertDetailDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -267,7 +264,7 @@ class AlertDetailDialog extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Ubicación',
+                  'Location',
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -286,16 +283,59 @@ class AlertDetailDialog extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {
-              // TODO: Abrir mapa con la ubicación
-            },
-            icon: const Icon(
-              Icons.open_in_new_rounded,
-              color: Color(0xFF1976D2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationMapSection() {
+    if (alert.location == null) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: LatLng(alert.location!.latitude, alert.location!.longitude),
+            initialZoom: 15.0,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.none,
             ),
           ),
-        ],
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.guardian',
+            ),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: LatLng(alert.location!.latitude, alert.location!.longitude),
+                  width: 30,
+                  height: 30,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -312,7 +352,7 @@ class AlertDetailDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Información Adicional',
+            'Additional Information',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -331,7 +371,7 @@ class AlertDetailDialog extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                alert.isAnonymous ? 'Reporte anónimo' : 'Reporte identificado',
+                alert.isAnonymous ? 'Anonymous report' : 'Identified report',
                 style: TextStyle(
                   fontSize: 13,
                   color: alert.isAnonymous ? Colors.orange : Colors.green,
@@ -353,7 +393,7 @@ class AlertDetailDialog extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                alert.shareLocation ? 'Ubicación compartida' : 'Ubicación no compartida',
+                alert.shareLocation ? 'Location shared' : 'Location not shared',
                 style: TextStyle(
                   fontSize: 13,
                   color: alert.shareLocation ? Colors.green : Colors.grey,
@@ -364,7 +404,7 @@ class AlertDetailDialog extends StatelessWidget {
           ),
           
           // Información del usuario (si no es anónimo)
-          if (!alert.isAnonymous && alert.userEmail != null) ...[
+          if (!alert.isAnonymous && alert.userName != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -375,7 +415,7 @@ class AlertDetailDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Reportado por: ${alert.userEmail}',
+                  'Reported by: ${alert.userName}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF6B7280),
@@ -406,7 +446,7 @@ class AlertDetailDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937).withOpacity(0.1),
+                  color: const Color(0xFF1F2937).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -417,7 +457,7 @@ class AlertDetailDialog extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               const Text(
-                'Evidencia Fotográfica',
+                'Images',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -429,92 +469,108 @@ class AlertDetailDialog extends StatelessWidget {
           
           const SizedBox(height: 12),
           
-          // Mostrar la primera imagen (si hay)
-          if (alert.imageBase64!.isNotEmpty)
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  base64Decode(alert.imageBase64!.first),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(
-                          Icons.broken_image,
-                          color: Colors.grey,
-                          size: 48,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+          // Mostrar imágenes
+          if (alert.imageBase64 != null && alert.imageBase64!.isNotEmpty)
+            ...alert.imageBase64!.map((base64String) => _buildImageItem(base64String)),
         ],
       ),
     );
   }
 
+  Widget _buildImageItem(String base64String) {
+    try {
+      final bytes = base64Decode(base64String);
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: 200,
+          ),
+        ),
+      );
+    } catch (e) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.grey),
+            SizedBox(width: 8),
+            Text(
+              'Error loading image',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   Widget _buildActionButtons(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
-            child: SizedBox(
-              height: 48,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFF3F4F6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Cerrar',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
           
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           
           Expanded(
-            child: SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implementar acción de respuesta
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F2937),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            child: ElevatedButton(
+              onPressed: () {
+                // TODO: Implementar acción de respuesta
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _getAlertColor(alert.alertType),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Responder',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              child: const Text(
+                'Respond',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -573,18 +629,18 @@ class AlertDetailDialog extends StatelessWidget {
     }
   }
 
-  String _getFormattedTime(DateTime timestamp) {
+  String _formatDateTime(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(timestamp);
+    final difference = now.difference(dateTime);
 
     if (difference.inMinutes < 1) {
-      return 'Hace un momento';
+      return 'Just now';
     } else if (difference.inMinutes < 60) {
-      return 'Hace ${difference.inMinutes} minutos';
+      return '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
-      return 'Hace ${difference.inHours} horas';
+      return '${difference.inHours}h ago';
     } else {
-      return 'Hace ${difference.inDays} días';
+      return '${difference.inDays}d ago';
     }
   }
 } 

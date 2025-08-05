@@ -3,6 +3,7 @@ import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
+import 'package:guardian/views/main_app/mapa_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -83,11 +84,11 @@ class _HomeViewState extends State<HomeView> {
             // Header elegante
             _buildHeader(),
             
-            // Sección de alertas recientes
-            _buildRecentAlertsSection(),
-            
-            // Espaciador
-            const SizedBox(height: 20),
+            // Sección de alertas recientes con altura fija
+            Container(
+              height: 280, // Altura fija para respetar el círculo
+              child: _buildRecentAlertsSection(),
+            ),
             
             // Área principal del botón de alerta
             Expanded(
@@ -247,13 +248,14 @@ class _HomeViewState extends State<HomeView> {
           
           const SizedBox(height: 16),
           
-          // Estado de alertas
-          if (_isLoading)
-            _buildLoadingState()
-          else if (_recentAlerts.isEmpty)
-            _buildNoAlertsState()
-          else
-            _buildAlertsList(),
+          // Estado de alertas con scroll
+          Expanded(
+            child: _isLoading
+                ? _buildLoadingState()
+                : _recentAlerts.isEmpty
+                    ? _buildNoAlertsState()
+                    : _buildAlertsList(),
+          ),
         ],
       ),
     );
@@ -289,33 +291,34 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildNoAlertsState() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.check_circle_outline,
-            size: 48,
+            size: 40,
             color: Colors.grey[400],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'No alerts currently',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             'Everything is quiet in your area',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: Colors.grey[500],
             ),
             textAlign: TextAlign.center,
@@ -326,75 +329,26 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildAlertsList() {
-    return Column(
-      children: [
-        // Mostrar solo las 3 alertas más recientes
-        ..._recentAlerts.take(3).map((alert) => _buildAlertCard(alert)),
-        
-        // Botón para ver más alertas si hay más de 3
-        if (_recentAlerts.length > 3)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: TextButton(
-              onPressed: () {
-                _showAllAlerts();
-              },
-              child: Text(
-                'Ver ${_recentAlerts.length - 3} alertas más',
-                style: const TextStyle(
-                  color: Color(0xFF1976D2),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-      ],
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const BouncingScrollPhysics(),
+      itemCount: _recentAlerts.length,
+      itemBuilder: (context, index) {
+        final alert = _recentAlerts[index];
+        return _buildAlertCard(alert);
+      },
     );
   }
 
   void _showAlertDetail(AlertModel alert) {
+    // Mostrar el detalle de la alerta en un diálogo
     showDialog(
       context: context,
       builder: (context) => AlertDetailDialog(alert: alert),
     );
   }
 
-  void _showAllAlerts() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Todas las Alertas'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: ListView.builder(
-            itemCount: _recentAlerts.length,
-            itemBuilder: (context, index) {
-              final alert = _recentAlerts[index];
-              return ListTile(
-                leading: Icon(
-                  _getAlertIcon(alert.alertType),
-                  color: _getAlertColor(alert.alertType),
-                ),
-                title: Text(alert.alertType),
-                subtitle: Text(_getTimeAgo(alert.timestamp)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showAlertDetail(alert);
-                },
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildAlertCard(AlertModel alert) {
     final alertIcon = _getAlertIcon(alert.alertType);
@@ -629,16 +583,19 @@ class _HomeViewState extends State<HomeView> {
           
           const SizedBox(height: 30),
           
-          // Botón de alerta
+          // Botón de alerta con tamaño fijo para mantener proporción
           Expanded(
             child: Center(
-              child: SizedBox(
-                width: 300,
-                height: 300,
-                child: AlertButton(
-                  onPressed: () {
-                    // TODO: Implement general alert
-                  },
+              child: AspectRatio(
+                aspectRatio: 1.0,
+                child: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: AlertButton(
+                    onPressed: () {
+                      // TODO: Implement general alert
+                    },
+                  ),
                 ),
               ),
             ),

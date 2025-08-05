@@ -33,6 +33,12 @@ class AlertController {
         locationData = locationMap;
       }
 
+      // Obtener nombre del usuario
+      String? userName;
+      if (!isAnonymous && _auth.currentUser != null) {
+        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
+      }
+
       // Crear modelo de alerta
       final alert = AlertModel(
         type: 'detailed',
@@ -44,6 +50,7 @@ class AlertController {
         location: locationData,
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userName: userName,
       );
 
       // Guardar en Firestore
@@ -76,6 +83,12 @@ class AlertController {
       }
       final locationData = locationMap;
 
+      // Obtener nombre del usuario
+      String? userName;
+      if (!isAnonymous && _auth.currentUser != null) {
+        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
+      }
+
       // Crear modelo de alerta
       final alert = AlertModel(
         type: 'quick',
@@ -86,6 +99,7 @@ class AlertController {
         location: locationData,
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userName: userName,
       );
 
       // Guardar en Firestore
@@ -113,6 +127,12 @@ class AlertController {
       }
       final locationData = locationMap;
 
+      // Obtener nombre del usuario
+      String? userName;
+      if (!isAnonymous && _auth.currentUser != null) {
+        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
+      }
+
       // Crear modelo de alerta
       final alert = AlertModel(
         type: 'swiped',
@@ -123,6 +143,7 @@ class AlertController {
         location: locationData,
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userName: userName,
       );
 
       // Guardar en Firestore
