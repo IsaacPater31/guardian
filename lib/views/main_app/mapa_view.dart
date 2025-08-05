@@ -346,170 +346,181 @@ class _MapaViewState extends State<MapaView> {
     
     final alert = _selectedAlertForDetails!;
     
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        constraints: const BoxConstraints(maxHeight: 300), // Limit height
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView( // Make it scrollable if needed
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _getAlertColor(alert.alertType),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        _getAlertIcon(alert.alertType),
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            alert.alertType,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            _getTimeAgo(alert.timestamp),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: _hideAlertDetails,
-                    ),
-                  ],
+    return Container(
+      margin: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxHeight: 300), // Limit height
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView( // Make it scrollable if needed
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _getAlertColor(alert.alertType),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
               ),
-              
-              // Contenido de la alerta
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Información del usuario
-                    Row(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _getAlertIcon(alert.alertType),
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          alert.isAnonymous ? Icons.visibility_off : Icons.person,
-                          size: 16,
-                          color: Colors.grey[600],
+                        Text(
+                          alert.alertType,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            alert.isAnonymous 
-                                ? 'Anonymous Report'
-                                : 'Reported by ${alert.userName ?? 'Unknown User'}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          _getTimeAgo(alert.timestamp),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
                     ),
-                    
-                    // Descripción
-                    if (alert.description != null && alert.description!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        alert.description!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF1F2937),
-                        ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: _hideAlertDetails,
+                  ),
+                ],
+              ),
+            ),
+            
+            // Contenido de la alerta
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Información del usuario
+                  Row(
+                    children: [
+                      Icon(
+                        alert.isAnonymous ? Icons.visibility_off : Icons.person,
+                        size: 16,
+                        color: Colors.grey[600],
                       ),
+                      const SizedBox(width: 8),
+                                             Expanded(
+                         child: Column(
+                           crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                             Text(
+                               alert.isAnonymous 
+                                   ? 'Anonymous Report'
+                                   : 'Reported by:',
+                               style: TextStyle(
+                                 fontSize: 12,
+                                 color: Colors.grey[600],
+                                 fontWeight: FontWeight.w500,
+                               ),
+                             ),
+                             if (!alert.isAnonymous)
+                               Text(
+                                 alert.userName ?? 'Unknown User',
+                                 style: TextStyle(
+                                   fontSize: 14,
+                                   color: Colors.grey[800],
+                                   fontWeight: FontWeight.w600,
+                                 ),
+                                 overflow: TextOverflow.ellipsis,
+                                 maxLines: 2,
+                               ),
+                           ],
+                         ),
+                       ),
                     ],
-                    
-                    // Información adicional
+                  ),
+                  
+                  // Descripción
+                  if (alert.description != null && alert.description!.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        if (alert.shareLocation && alert.location != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              '📍 Location',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
+                    Text(
+                      alert.description!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                  
+                  // Información adicional
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (alert.shareLocation && alert.location != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getAlertColor(alert.alertType).withValues(alpha: 0.1),
+                            color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(
-                            alert.type.toUpperCase(),
+                          child: const Text(
+                            '📍 Location',
                             style: TextStyle(
                               fontSize: 12,
-                              color: _getAlertColor(alert.alertType),
+                              color: Colors.green,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getAlertColor(alert.alertType).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          alert.type.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _getAlertColor(alert.alertType),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+          
         ),
       ),
     );
@@ -543,6 +554,7 @@ class _MapaViewState extends State<MapaView> {
       ),
       body: Stack(
         children: [
+          // Mapa como fondo
           flutter_map.FlutterMap(
             mapController: _mapController,
             options: flutter_map.MapOptions(
@@ -576,9 +588,6 @@ class _MapaViewState extends State<MapaView> {
             child: _buildLegend(),
           ),
           
-          // Panel de detalles de alerta
-          _buildAlertDetailsPanel(),
-          
           // Debug info
           if (_alerts.isEmpty)
             Positioned(
@@ -598,6 +607,15 @@ class _MapaViewState extends State<MapaView> {
                   ),
                 ),
               ),
+            ),
+          
+          // Panel de detalles de alerta (en la parte superior para no bloquear el mapa)
+          if (_selectedAlertForDetails != null)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildAlertDetailsPanel(),
             ),
         ],
       ),

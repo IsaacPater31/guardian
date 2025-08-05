@@ -13,23 +13,24 @@ class AlertDetailDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
       ),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxWidth: MediaQuery.of(context).size.width * 0.95,
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              spreadRadius: 5,
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 25,
+              spreadRadius: 0,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -49,7 +50,7 @@ class AlertDetailDialog extends StatelessWidget {
                     // Tipo de alerta
                     _buildAlertTypeSection(),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     
                     // Descripción
                     if (alert.description != null && alert.description!.isNotEmpty)
@@ -57,16 +58,22 @@ class AlertDetailDialog extends StatelessWidget {
                     
                     // Ubicación
                     if (alert.shareLocation && alert.location != null) ...[
+                      const SizedBox(height: 24),
                       _buildLocationSection(),
                       _buildLocationMapSection(),
                     ],
                     
                     // Información adicional
+                    const SizedBox(height: 24),
                     _buildAdditionalInfoSection(),
                     
                     // Imágenes (si las hay)
-                    if (alert.imageBase64 != null && alert.imageBase64!.isNotEmpty)
+                    if (alert.imageBase64 != null && alert.imageBase64!.isNotEmpty) ...[
+                      const SizedBox(height: 24),
                       _buildImagesSection(),
+                    ],
+                    
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -88,37 +95,52 @@ class AlertDetailDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: alertColor,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: alertColor.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
           // Icono de alerta
           Container(
-            width: 60,
-            height: 60,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withValues(alpha: 0.25),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               alertIcon,
               color: Colors.white,
-              size: 30,
+              size: 35,
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           
           // Título de la alerta
           Text(
             alert.alertType,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
+              letterSpacing: 0.5,
             ),
             textAlign: TextAlign.center,
           ),
@@ -126,11 +148,19 @@ class AlertDetailDialog extends StatelessWidget {
           const SizedBox(height: 8),
           
           // Fecha y hora
-          Text(
-            _formatDateTime(alert.timestamp),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _formatDateTime(alert.timestamp),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -293,46 +323,84 @@ class AlertDetailDialog extends StatelessWidget {
     
     return Container(
       margin: const EdgeInsets.only(top: 12),
-      height: 200,
+      height: 250,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: LatLng(alert.location!.latitude, alert.location!.longitude),
-            initialZoom: 15.0,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.none,
-            ),
-          ),
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.guardian',
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: LatLng(alert.location!.latitude, alert.location!.longitude),
-                  width: 30,
-                  height: 30,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(alert.location!.latitude, alert.location!.longitude),
+                initialZoom: 16.0,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.guardian',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(alert.location!.latitude, alert.location!.longitude),
+                      width: 40,
+                      height: 40,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _getAlertColor(alert.alertType),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          _getAlertIcon(alert.alertType),
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
+                  ],
                 ),
               ],
+            ),
+            // Overlay con información
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  '📍 Alert Location',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -414,12 +482,29 @@ class AlertDetailDialog extends StatelessWidget {
                   size: 16,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Reported by: ${alert.userName}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reported by:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        alert.userName!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF374151),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -522,12 +607,19 @@ class AlertDetailDialog extends StatelessWidget {
   Widget _buildActionButtons(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -537,7 +629,11 @@ class AlertDetailDialog extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1.5,
                 ),
               ),
               child: const Text(
@@ -545,12 +641,13 @@ class AlertDetailDialog extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
                 ),
               ),
             ),
           ),
           
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           
           Expanded(
             child: ElevatedButton(
@@ -563,8 +660,10 @@ class AlertDetailDialog extends StatelessWidget {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
+                elevation: 2,
+                shadowColor: _getAlertColor(alert.alertType).withValues(alpha: 0.3),
               ),
               child: const Text(
                 'Respond',
