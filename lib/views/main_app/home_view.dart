@@ -1,8 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
+import 'package:guardian/controllers/main_app/home_controller.dart';
+import 'package:guardian/models/alert_model.dart';
+import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 
-class HomeView extends StatelessWidget {
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
+
+  @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  final HomeController _homeController = HomeController();
+  List<AlertModel> _recentAlerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeController();
+  }
+
+  Future<void> _initializeController() async {
+    // Configurar callbacks
+    _homeController.onAlertsUpdated = (alerts) {
+      setState(() {
+        _recentAlerts = alerts;
+        _isLoading = false;
+      });
+    };
+
+    _homeController.onNewAlertReceived = (alert) {
+      // Mostrar un snackbar adicional para alertas nuevas
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Nueva alerta: ${alert.alertType}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Ver',
+              textColor: Colors.white,
+              onPressed: () {
+                _showAlertDetail(alert);
+              },
+            ),
+          ),
+        );
+      }
+    };
+
+    // Inicializar el controlador
+    await _homeController.initialize();
+  }
+
+  @override
+  void dispose() {
+    _homeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +106,7 @@ class HomeView extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -123,7 +192,7 @@ class HomeView extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -156,13 +225,63 @@ class HomeView extends StatelessWidget {
                   color: Color(0xFF1A1A1A),
                 ),
               ),
+              const Spacer(),
+              if (_recentAlerts.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_recentAlerts.length}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
             ],
           ),
           
           const SizedBox(height: 16),
           
           // Estado de alertas
-          _buildNoAlertsState(),
+          if (_isLoading)
+            _buildLoadingState()
+          else if (_recentAlerts.isEmpty)
+            _buildNoAlertsState()
+          else
+            _buildAlertsList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Loading recent alerts...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF6B7280),
+            ),
+          ),
         ],
       ),
     );
@@ -204,6 +323,284 @@ class HomeView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildAlertsList() {
+    return Column(
+      children: [
+        // Mostrar solo las 3 alertas más recientes
+        ..._recentAlerts.take(3).map((alert) => _buildAlertCard(alert)),
+        
+        // Botón para ver más alertas si hay más de 3
+        if (_recentAlerts.length > 3)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: TextButton(
+              onPressed: () {
+                _showAllAlerts();
+              },
+              child: Text(
+                'Ver ${_recentAlerts.length - 3} alertas más',
+                style: const TextStyle(
+                  color: Color(0xFF1976D2),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showAlertDetail(AlertModel alert) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDetailDialog(alert: alert),
+    );
+  }
+
+  void _showAllAlerts() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Todas las Alertas'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: _recentAlerts.length,
+            itemBuilder: (context, index) {
+              final alert = _recentAlerts[index];
+              return ListTile(
+                leading: Icon(
+                  _getAlertIcon(alert.alertType),
+                  color: _getAlertColor(alert.alertType),
+                ),
+                title: Text(alert.alertType),
+                subtitle: Text(_getTimeAgo(alert.timestamp)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showAlertDetail(alert);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAlertCard(AlertModel alert) {
+    final alertIcon = _getAlertIcon(alert.alertType);
+    final alertColor = _getAlertColor(alert.alertType);
+    final timeAgo = _getTimeAgo(alert.timestamp);
+
+    return GestureDetector(
+      onTap: () => _showAlertDetail(alert),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: alertColor.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: alertColor.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icono de alerta
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: alertColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                alertIcon,
+                color: alertColor,
+                size: 20,
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // Contenido de la alerta
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          alert.alertType,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        timeAgo,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  if (alert.description != null && alert.description!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      alert.description!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Información adicional
+                  Row(
+                    children: [
+                      if (alert.shareLocation && alert.location != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '📍 Location',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      
+                      if (alert.isAnonymous) ...[
+                        if (alert.shareLocation && alert.location != null)
+                          const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '👤 Anonymous',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                      
+                      const Spacer(),
+                      
+                      Text(
+                        alert.type.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getAlertIcon(String alertType) {
+    switch (alertType) {
+      case 'ROBBERY':
+        return Icons.person_off;
+      case 'FIRE':
+        return Icons.local_fire_department;
+      case 'ACCIDENT':
+        return Icons.car_crash;
+      case 'STREET ESCORT':
+        return Icons.people;
+      case 'UNSAFETY':
+        return Icons.warning;
+      case 'PHYSICAL RISK':
+        return Icons.accessibility;
+      case 'PUBLIC SERVICES EMERGENCY':
+        return Icons.construction;
+      case 'VIAL EMERGENCY':
+        return Icons.directions_car;
+      case 'ASSISTANCE':
+        return Icons.help;
+      case 'EMERGENCY':
+        return Icons.emergency;
+      default:
+        return Icons.warning;
+    }
+  }
+
+  Color _getAlertColor(String alertType) {
+    switch (alertType) {
+      case 'ROBBERY':
+      case 'FIRE':
+      case 'EMERGENCY':
+        return Colors.red;
+      case 'ACCIDENT':
+      case 'VIAL EMERGENCY':
+        return Colors.orange;
+      case 'UNSAFETY':
+      case 'PHYSICAL RISK':
+        return Colors.purple;
+      case 'STREET ESCORT':
+      case 'ASSISTANCE':
+        return Colors.blue;
+      case 'PUBLIC SERVICES EMERGENCY':
+        return Colors.yellow;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return '${difference.inDays}d ago';
+    }
   }
 
   Widget _buildAlertButtonSection() {
@@ -254,7 +651,7 @@ class HomeView extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFFE8F5E8),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+              border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
