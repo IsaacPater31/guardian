@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 
+	REEMPLAZA ESTE ARCHIVO CON EL GoogleService-Info.plist REAL DE FIREBASE CONSOLE
+	
+	Para obtener este archivo:
+	1. Ve a Firebase Console (https://console.firebase.google.com/)
+	2. Selecciona tu proyecto
+	3. Haz clic en el ícono de iOS
+	4. Registra tu app con el Bundle ID: com.example.guardian
+	5. Descarga el archivo GoogleService-Info.plist
+	6. Reemplaza este archivo con el descargado
+	-->
+	<key>CLIENT_ID</key>
+	<string>REEMPLAZAR_CON_CLIENT_ID_REAL</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>REEMPLAZAR_CON_REVERSED_CLIENT_ID_REAL</string>
+	<key>API_KEY</key>
+	<string>REEMPLAZAR_CON_API_KEY_REAL</string>
+	<key>GCM_SENDER_ID</key>
+	<string>REEMPLAZAR_CON_GCM_SENDER_ID_REAL</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.guardian</string>
+	<key>PROJECT_ID</key>
+	<string>REEMPLAZAR_CON_PROJECT_ID_REAL</string>
+	<key>STORAGE_BUCKET</key>
+	<string>REEMPLAZAR_CON_STORAGE_BUCKET_REAL</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>REEMPLAZAR_CON_GOOGLE_APP_ID_REAL</string>
+</dict>
+</plist> 

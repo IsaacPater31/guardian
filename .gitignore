@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 *.json
+*.env
 
 # IntelliJ related
 *.iml
@@ -44,3 +45,4 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+FIREBASE_SETUP.md

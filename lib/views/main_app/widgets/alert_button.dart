@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:async'; // Added for Timer
+import 'package:guardian/controllers/alert_controller.dart';
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -37,6 +38,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // Variables para checkboxes
   bool _shareLocation = true;
   bool _anonymousAlert = false;
+
+  // Instancia del controlador de alertas
+  final AlertController _alertController = AlertController();
 
   final Map<String, Map<String, dynamic>> _emergencyTypes = {
     'up': {
@@ -125,55 +129,25 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  void _sendQuickAlert() {
-    // Enviar alerta rápida sin especificar tipo
+  void _sendQuickAlert() async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.emergency,
-                  color: Colors.red,
-                  size: 20,
-                ),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Quick Alert Sent',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Text(
-                      'Emergency alert has been sent to the community',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 16),
+            const Text('Sending quick alert...'),
+          ],
         ),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -181,6 +155,83 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         margin: const EdgeInsets.all(16),
       ),
     );
+
+    final success = await _alertController.sendQuickAlert(
+      alertType: 'EMERGENCY',
+      isAnonymous: false, // Quick alerts are never anonymous
+    );
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF4CAF50),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Quick Alert Sent',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Text(
+                        'Emergency alert has been sent to the community',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Error sending alert. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   void _showEmergencyDialog(String emergencyType) {
@@ -424,63 +475,114 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-  void _showSuccessSnackBar(String emergencyType) {
-    final screenWidth = MediaQuery.of(context).size.width;
+  void _showSuccessSnackBar(String emergencyType) async {
+    // Use the emergencyType parameter directly - it already contains the correct alert type
+    final alertType = emergencyType;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF4CAF50),
-                  size: 20,
-                ),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Report Sent',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Text(
-                      'Emergency has been reported to the community',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 16),
+            const Text('Sending swiped alert...'),
+          ],
         ),
         backgroundColor: const Color(0xFF4CAF50),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        margin: EdgeInsets.all(screenWidth < 400 ? 8 : 16),
+        margin: EdgeInsets.all(16),
       ),
     );
+
+    final success = await _alertController.sendSwipedAlert(
+      alertType: alertType,
+      isAnonymous: false, // Swiped alerts are never anonymous
+    );
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    if (success) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF4CAF50),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Report Sent',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Text(
+                        'Emergency has been reported to the community',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: EdgeInsets.all(screenWidth < 400 ? 8 : 16),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Error sending alert. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   void _hideEmergencyOptions() {
@@ -495,8 +597,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   String _getDirection(Offset offset) {
-    final dx = offset.dx;
-    final dy = offset.dy;
     final distance = offset.distance;
     
     if (distance < 50) return '';
@@ -724,12 +824,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     _longPressTimer?.cancel();
     setState(() {
       _isLongPressing = false;
+      // También reiniciar el estado de gesto activo
+      _isGestureActive = false;
     });
   }
 
   void _showDetailedAlertDialog() {
     // Al abrir el formulario, si hay tipo de alerta por drag, se preselecciona, si no, queda vacío
-    _selectedDetailedAlertType = _currentEmergencyType.isNotEmpty ? _currentEmergencyType : null;
+    _selectedDetailedAlertType = _currentEmergencyType.isNotEmpty ? _emergencyTypes[_currentEmergencyType]!['type'] : null;
     
     // Variables locales para el estado del diálogo
     bool shareLocation = _shareLocation;
@@ -905,6 +1007,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
                                     _selectedImages = selectedImages;
+                                    // Reiniciar el estado del botón para permitir alertas rápidas
                                     _isLongPressing = false;
                                     _isGestureActive = false;
                                   });
@@ -942,6 +1045,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     _shareLocation = shareLocation;
                                     _anonymousAlert = anonymousAlert;
                                     _selectedImages = selectedImages;
+                                    // Reiniciar el estado del botón para permitir alertas rápidas
                                     _isLongPressing = false;
                                     _isGestureActive = false;
                                   });
@@ -1062,7 +1166,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 ),
               ),
               ..._emergencyTypes.entries.map((entry) => DropdownMenuItem<String>(
-                value: entry.key,
+                value: entry.value['type'],
                 child: Row(
                   children: [
                     Container(
@@ -1702,52 +1806,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 80,
-      );
-      
-      if (image != null) {
-        setState(() {
-          _selectedImages.add(File(image.path));
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
-  Future<void> _pickImageFromGallery() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 80,
-      );
-      if (image != null) {
-        setState(() {
-          _selectedImages.add(File(image.path));
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error seleccionando imagen: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   void _clearForm() {
     setState(() {
@@ -1755,79 +1814,148 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       _descriptionController.clear();
       _shareLocation = true;
       _anonymousAlert = false;
+      // Reiniciar el estado del botón para permitir alertas rápidas
+      _isLongPressing = false;
+      _isGestureActive = false;
     });
   }
 
-  void _sendDetailedAlert() {
-    // TODO: Implementar envío a Firebase con datos detallados
-    final description = _descriptionController.text.trim();
-    final hasImage = _selectedImages.isNotEmpty;
-    
-    // Construir mensaje de confirmación
-    String confirmationMessage = 'Emergency reported';
-    if (hasImage) {
-      if (_selectedImages.length == 1) {
-        confirmationMessage += ' with photo';
-      } else {
-        confirmationMessage += ' with ${_selectedImages.length} photos';
-      }
+  void _sendDetailedAlert() async {
+    if (_selectedDetailedAlertType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select an emergency type'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
     }
-    if (description.isNotEmpty) confirmationMessage += hasImage ? ' and description' : ' with description';
-    if (_shareLocation) confirmationMessage += ' and location';
-    if (_anonymousAlert) confirmationMessage += ' (anonymous)';
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle,
-                color: Color(0xFF4CAF50),
-                size: 20,
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Detailed Alert Sent',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    confirmationMessage,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const Text('Sending detailed alert...'),
           ],
         ),
-        backgroundColor: const Color(0xFF4CAF50),
-        duration: const Duration(seconds: 4),
+        backgroundColor: const Color(0xFF1F2937),
+        duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        margin: const EdgeInsets.all(16),
+        margin: EdgeInsets.all(16),
       ),
     );
-    
-    _clearForm();
+
+    final success = await _alertController.sendDetailedAlert(
+      alertType: _selectedDetailedAlertType!,
+      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      images: _selectedImages.isEmpty ? null : _selectedImages,
+      shareLocation: _shareLocation,
+      isAnonymous: _anonymousAlert,
+    );
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    if (success) {
+      final description = _descriptionController.text.trim();
+      final hasImage = _selectedImages.isNotEmpty;
+      
+      // Construir mensaje de confirmación
+      String confirmationMessage = 'Emergency reported';
+      if (hasImage) {
+        if (_selectedImages.length == 1) {
+          confirmationMessage += ' with photo';
+        } else {
+          confirmationMessage += ' with ${_selectedImages.length} photos';
+        }
+      }
+      if (description.isNotEmpty) confirmationMessage += hasImage ? ' and description' : ' with description';
+      if (_shareLocation) confirmationMessage += ' and location';
+      if (_anonymousAlert) confirmationMessage += ' (anonymous)';
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF4CAF50),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Detailed Alert Sent',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      confirmationMessage,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          duration: const Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: EdgeInsets.all(16),
+        ),
+      );
+      
+      _clearForm();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Error sending alert. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 }
