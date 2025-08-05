@@ -329,7 +329,7 @@ class _MapaViewState extends State<MapaView> {
             ),
           ),
           const SizedBox(width: 6),
-          Flexible(
+          Expanded(
             child: Text(
               label,
               style: const TextStyle(fontSize: 9),

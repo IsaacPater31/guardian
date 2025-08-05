@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/alert_model.dart';
+import '../services/alert_notification_service.dart';
 
 class AlertController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AlertNotificationService _notificationService = AlertNotificationService();
 
   /// Envía una alerta detallada a Firebase
   /// [alertType] - Tipo de alerta (ej: "Robo", "Accidente", etc.)
@@ -51,6 +53,8 @@ class AlertController {
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
         userName: userName,
+        viewedCount: 0,
+        viewedBy: [],
       );
 
       // Guardar en Firestore
@@ -60,6 +64,10 @@ class AlertController {
       if (images != null && images.isNotEmpty) {
         await _convertImageToBase64AndUpdateAlert(images.first, docRef);
       }
+
+      // Enviar notificación push a otros usuarios
+      final alertWithId = alert.copyWith(id: docRef.id);
+      await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
@@ -100,10 +108,16 @@ class AlertController {
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
         userName: userName,
+        viewedCount: 0,
+        viewedBy: [],
       );
 
       // Guardar en Firestore
-      await _firestore.collection('alerts').add(alert.toFirestore());
+      final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
+
+      // Enviar notificación push a otros usuarios
+      final alertWithId = alert.copyWith(id: docRef.id);
+      await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
@@ -144,15 +158,50 @@ class AlertController {
         userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
         userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
         userName: userName,
+        viewedCount: 0,
+        viewedBy: [],
       );
 
       // Guardar en Firestore
-      await _firestore.collection('alerts').add(alert.toFirestore());
+      final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
+
+      // Enviar notificación push a otros usuarios
+      final alertWithId = alert.copyWith(id: docRef.id);
+      await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
       // Error enviando alerta deslizada: $e
       return false;
+    }
+  }
+
+  /// Marca una alerta como vista por el usuario actual
+  Future<void> markAlertAsViewed(String alertId) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      final alertRef = _firestore.collection('alerts').doc(alertId);
+      
+      await _firestore.runTransaction((transaction) async {
+        final alertDoc = await transaction.get(alertRef);
+        if (alertDoc.exists) {
+          final currentViewedBy = List<String>.from(alertDoc.data()?['viewedBy'] ?? []);
+          final currentViewedCount = alertDoc.data()?['viewedCount'] ?? 0;
+          
+          // Solo incrementar si el usuario no ha visto la alerta antes
+          if (!currentViewedBy.contains(currentUser.uid)) {
+            currentViewedBy.add(currentUser.uid);
+            transaction.update(alertRef, {
+              'viewedBy': currentViewedBy,
+              'viewedCount': currentViewedCount + 1,
+            });
+          }
+        }
+      });
+    } catch (e) {
+      print('Error marking alert as viewed: $e');
     }
   }
 

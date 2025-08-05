@@ -381,17 +381,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Flexible(
-                                child: Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: Colors.grey[700],
-                                    fontSize: constraints.maxWidth < 400 ? 12 : 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -434,31 +432,29 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: Flexible(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.emergency,
-                                      color: Colors.white,
-                                      size: constraints.maxWidth < 400 ? 14 : 18,
-                                    ),
-                                    SizedBox(width: constraints.maxWidth < 400 ? 4 : 6),
-                                    Flexible(
-                                      child: Text(
-                                        'Send Alert',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: constraints.maxWidth < 400 ? 12 : 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.emergency,
+                                    color: Colors.white,
+                                    size: constraints.maxWidth < 400 ? 14 : 18,
+                                  ),
+                                  SizedBox(width: constraints.maxWidth < 400 ? 4 : 6),
+                                  Flexible(
+                                    child: Text(
+                                      'Send Alert',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                        fontWeight: FontWeight.bold,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -1064,16 +1060,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   children: [
                                     Icon(Icons.send_rounded, color: Colors.white, size: 18),
                                     SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        'Send Alert',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                    Text(
+                                      'Send Alert',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
                                       ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),

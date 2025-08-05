@@ -471,6 +471,27 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ),
                       ],
+
+                      // Contador de vistas
+                      if (alert.viewedCount > 0) ...[
+                        if (alert.shareLocation && alert.location != null || alert.isAnonymous)
+                          const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '👁️ ${alert.viewedCount}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                       
                       const Spacer(),
                       

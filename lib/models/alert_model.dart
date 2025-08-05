@@ -13,6 +13,8 @@ class AlertModel {
   final String? userEmail;
   final String? userName;
   final List<String>? imageBase64;
+  final int viewedCount; // Contador de personas que han visto la alerta
+  final List<String> viewedBy; // Lista de IDs de usuarios que han visto la alerta
 
   AlertModel({
     this.id,
@@ -27,6 +29,8 @@ class AlertModel {
     this.userEmail,
     this.userName,
     this.imageBase64,
+    this.viewedCount = 0,
+    this.viewedBy = const [],
   });
 
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
@@ -44,6 +48,8 @@ class AlertModel {
       userEmail: data['userEmail'],
       userName: data['userName'],
       imageBase64: data['imageBase64'] != null ? List<String>.from(data['imageBase64']) : null,
+      viewedCount: data['viewedCount'] ?? 0,
+      viewedBy: data['viewedBy'] != null ? List<String>.from(data['viewedBy']) : [],
     );
   }
 
@@ -60,7 +66,44 @@ class AlertModel {
       'userEmail': userEmail,
       'userName': userName,
       'imageBase64': imageBase64,
+      'viewedCount': viewedCount,
+      'viewedBy': viewedBy,
     };
+  }
+
+  // Método para crear una copia con el contador de vistas actualizado
+  AlertModel copyWith({
+    String? id,
+    String? type,
+    String? alertType,
+    String? description,
+    DateTime? timestamp,
+    bool? isAnonymous,
+    bool? shareLocation,
+    LocationData? location,
+    String? userId,
+    String? userEmail,
+    String? userName,
+    List<String>? imageBase64,
+    int? viewedCount,
+    List<String>? viewedBy,
+  }) {
+    return AlertModel(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      alertType: alertType ?? this.alertType,
+      description: description ?? this.description,
+      timestamp: timestamp ?? this.timestamp,
+      isAnonymous: isAnonymous ?? this.isAnonymous,
+      shareLocation: shareLocation ?? this.shareLocation,
+      location: location ?? this.location,
+      userId: userId ?? this.userId,
+      userEmail: userEmail ?? this.userEmail,
+      userName: userName ?? this.userName,
+      imageBase64: imageBase64 ?? this.imageBase64,
+      viewedCount: viewedCount ?? this.viewedCount,
+      viewedBy: viewedBy ?? this.viewedBy,
+    );
   }
 }
 

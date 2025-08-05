@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 //import 'package:firebase_auth/firebase_auth.dart';        // <-- agrega esto
 import 'package:guardian/views/auth/auth_gate.dart';
+import 'package:guardian/services/notification_service.dart';
+
+// Top-level function to handle background messages
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('Handling a background message: ${message.messageId}');
+  
+  // Aquí puedes procesar la notificación en segundo plano
+  if (message.data.containsKey('alertId')) {
+    print('Background alert received: ${message.data['alertId']}');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Configurar el handler para mensajes en segundo plano
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   //await FirebaseAuth.instance.signOut();  
 

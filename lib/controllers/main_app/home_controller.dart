@@ -5,13 +5,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 import '../../models/alert_model.dart';
+import '../../services/notification_service.dart';
+import '../../services/background_service.dart';
 
 class HomeController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final NotificationService _notificationService = NotificationService();
+  final BackgroundService _backgroundService = BackgroundService();
   
   StreamSubscription<QuerySnapshot>? _alertsSubscription;
+  StreamSubscription<AlertModel>? _notificationSubscription;
   List<AlertModel> _recentAlerts = [];
   bool _isInitialized = false;
   
@@ -26,7 +31,12 @@ class HomeController {
     if (_isInitialized) return;
     
     await _setupNotifications();
+    await _notificationService.initialize();
+    await _backgroundService.initialize();
     await _startListeningToAlerts();
+    await _startListeningToNotifications();
+    await _backgroundService.startBackgroundMonitoring();
+    await _notificationService.saveTokenToFirestore();
     _isInitialized = true;
   }
   
@@ -79,6 +89,13 @@ class HomeController {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .listen(_handleAlertsUpdate);
+  }
+
+  /// Inicia la escucha de notificaciones push
+  Future<void> _startListeningToNotifications() async {
+    _notificationSubscription = _notificationService.alertStream.listen((alert) {
+      onNewAlertReceived?.call(alert);
+    });
   }
   
   /// Maneja las actualizaciones de alertas
@@ -219,6 +236,11 @@ class HomeController {
     if (alert.isAnonymous) {
       body += '\n👤 Reporte anónimo';
     }
+
+    // Agregar información sobre el contador de vistas
+    if (alert.viewedCount > 0) {
+      body += '\n👁️ Visto por ${alert.viewedCount} persona${alert.viewedCount > 1 ? 's' : ''}';
+    }
     
     return body;
   }
@@ -243,15 +265,16 @@ class HomeController {
     // usando el payload (ID de la alerta)
     final alertId = response.payload;
     if (alertId != null) {
+      markAlertAsViewed(alertId);
       // TODO: Navegar a la vista de detalles de la alerta
       print('Alert tapped: $alertId');
     }
   }
   
-  /// Marca una alerta como vista (detiene la vibración)
-  void markAlertAsViewed(String alertId) {
+  /// Marca una alerta como vista (detiene la vibración y actualiza el contador)
+  Future<void> markAlertAsViewed(String alertId) async {
+    await _notificationService.markAlertAsViewed(alertId);
     stopVibration();
-    // Aquí puedes implementar lógica adicional para marcar la alerta como vista
   }
   
   /// Obtiene alertas recientes (últimas 24 horas)
@@ -280,10 +303,24 @@ class HomeController {
     
     return stats;
   }
+
+  /// Obtiene estadísticas de vistas
+  Map<String, int> getViewStatistics() {
+    final stats = <String, int>{};
+    
+    for (final alert in _recentAlerts) {
+      stats[alert.alertType] = (stats[alert.alertType] ?? 0) + alert.viewedCount;
+    }
+    
+    return stats;
+  }
   
   /// Limpia los recursos del controlador
   void dispose() {
     _alertsSubscription?.cancel();
+    _notificationSubscription?.cancel();
     stopVibration();
+    _backgroundService.stopBackgroundMonitoring();
+    _notificationService.dispose();
   }
 } 
