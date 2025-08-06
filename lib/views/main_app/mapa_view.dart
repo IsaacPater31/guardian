@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import 'dart:math';
 import '../../models/alert_model.dart';
 import '../../controllers/map_controller.dart' as map_data;
 
@@ -164,11 +165,77 @@ class _MapaViewState extends State<MapaView> {
     }
   }
 
+  // Función para calcular la distancia entre dos puntos
+  double _calculateDistance(LatLng point1, LatLng point2) {
+    const double earthRadius = 6371000; // Radio de la Tierra en metros
+    final double lat1Rad = point1.latitude * pi / 180;
+    final double lat2Rad = point2.latitude * pi / 180;
+    final double deltaLatRad = (point2.latitude - point1.latitude) * pi / 180;
+    final double deltaLonRad = (point2.longitude - point1.longitude) * pi / 180;
+
+    final double a = sin(deltaLatRad / 2) * sin(deltaLatRad / 2) +
+        cos(lat1Rad) * cos(lat2Rad) * sin(deltaLonRad / 2) * sin(deltaLonRad / 2);
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  // Función para aplicar offset a marcadores superpuestos
+  List<Map<String, dynamic>> _applyMarkerOffsets(List<AlertModel> alerts) {
+    if (alerts.isEmpty) return [];
+
+    final List<Map<String, dynamic>> markersWithOffsets = [];
+    const double overlapThreshold = 50.0; // Distancia en metros para considerar superposición
+    const double offsetDistance = 0.0001; // Aproximadamente 10 metros en grados
+
+    for (int i = 0; i < alerts.length; i++) {
+      final alert = alerts[i];
+      if (alert.location == null) continue;
+
+      final originalLatLng = LatLng(alert.location!.latitude, alert.location!.longitude);
+      LatLng adjustedLatLng = originalLatLng;
+      int offsetLevel = 0;
+
+      // Verificar si hay superposición con marcadores ya procesados
+      for (int j = 0; j < markersWithOffsets.length; j++) {
+        final existingMarker = markersWithOffsets[j];
+        final existingLatLng = existingMarker['latLng'] as LatLng;
+        
+        final distance = _calculateDistance(originalLatLng, existingLatLng);
+        
+        if (distance < overlapThreshold) {
+          // Aplicar offset en espiral
+          offsetLevel++;
+          final angle = (offsetLevel * 2 * pi) / 8; // 8 posiciones en círculo
+          final radius = offsetDistance * offsetLevel;
+          
+          adjustedLatLng = LatLng(
+            originalLatLng.latitude + radius * cos(angle),
+            originalLatLng.longitude + radius * sin(angle),
+          );
+        }
+      }
+
+      markersWithOffsets.add({
+        'alert': alert,
+        'latLng': adjustedLatLng,
+        'originalLatLng': originalLatLng,
+        'hasOffset': offsetLevel > 0,
+        'offsetLevel': offsetLevel,
+      });
+    }
+
+    return markersWithOffsets;
+  }
+
   List<flutter_map.Marker> _createMarkers() {
-    return _alerts.map((alert) {
-      if (alert.location == null) return null;
-      
-      final latLng = LatLng(alert.location!.latitude, alert.location!.longitude);
+    final markersWithOffsets = _applyMarkerOffsets(_alerts);
+    
+    return markersWithOffsets.map((markerData) {
+      final alert = markerData['alert'] as AlertModel;
+      final latLng = markerData['latLng'] as LatLng;
+      final hasOffset = markerData['hasOffset'] as bool;
+      final offsetLevel = markerData['offsetLevel'] as int;
       
       return flutter_map.Marker(
         point: latLng,
@@ -176,28 +243,61 @@ class _MapaViewState extends State<MapaView> {
         height: 40,
         child: GestureDetector(
           onTap: () => _showAlertDetails(alert),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _getAlertColor(alert.alertType),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
+          child: Stack(
+            children: [
+              // Marcador principal
+              Container(
+                decoration: BoxDecoration(
+                  color: _getAlertColor(alert.alertType),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: hasOffset ? Colors.yellow : Colors.white, 
+                    width: hasOffset ? 3 : 2
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Icon(
-              _getAlertIcon(alert.alertType),
-              color: Colors.white,
-              size: 20,
-            ),
+                child: Icon(
+                  _getAlertIcon(alert.alertType),
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              
+              // Indicador de offset (pequeño punto amarillo)
+              if (hasOffset)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.yellow,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${offsetLevel + 1}',
+                        style: const TextStyle(
+                          fontSize: 6,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       );
-    }).where((marker) => marker != null).cast<flutter_map.Marker>().toList();
+    }).toList();
   }
 
   void _showAlertDetails(AlertModel alert) {
@@ -253,8 +353,8 @@ class _MapaViewState extends State<MapaView> {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(8),
-      width: 180, // Make it more compact
-      constraints: const BoxConstraints(maxHeight: 300), // Limit height
+      width: 200, // Slightly wider to accommodate offset info
+      constraints: const BoxConstraints(maxHeight: 350), // Slightly taller
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -280,6 +380,46 @@ class _MapaViewState extends State<MapaView> {
             ),
             const SizedBox(height: 6),
             ...categories.entries.map((category) => _buildCategorySection(category.key, category.value)),
+            
+            // Información sobre marcadores con offset
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.yellow.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.yellow.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(
+                      color: Colors.yellow,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '1',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text(
+                      'Multiple alerts at same location',
+                      style: TextStyle(fontSize: 9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
