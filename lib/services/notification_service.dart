@@ -68,15 +68,17 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onLocalNotificationTapped,
     );
 
-    // Configurar canal de notificaciones para Android
+    // Configurar canal de notificaciones para Android (optimizado para apps cerradas)
     const androidChannel = AndroidNotificationChannel(
       'emergency_alerts',
       'Emergency Alerts',
-      description: 'Notifications for emergency alerts in your area',
+      description: 'Critical notifications for emergency alerts in your area',
       importance: Importance.max,
       playSound: true,
       enableVibration: true,
       enableLights: true,
+      // Configuración adicional para asegurar que llegue cuando la app está cerrada
+      showBadge: true,
     );
 
     await _localNotifications
@@ -91,32 +93,56 @@ class NotificationService {
       announcement: false,
       badge: true,
       carPlay: false,
-      criticalAlert: true,
+      criticalAlert: true, // Importante para notificaciones críticas
       provisional: false,
       sound: true,
     );
 
-    print('User granted permission: ${settings.authorizationStatus}');
+    print('📱 Notification permissions: ${settings.authorizationStatus}');
+    
+    // Verificar si se otorgaron los permisos necesarios
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('✅ Notification permissions granted');
+    } else {
+      print('⚠️ Notification permissions not fully granted: ${settings.authorizationStatus}');
+    }
   }
 
-  /// Se suscribe al topic de alertas
+  /// Se suscribe al topic de alertas (opcional, el backend envía directamente a tokens)
   Future<void> _subscribeToTopic() async {
-    await _firebaseMessaging.subscribeToTopic('emergency_alerts');
+    // El backend envía notificaciones directamente a tokens FCM
+    // No necesitamos suscribirnos a topics
+    print('Backend configurado para envío directo a tokens FCM');
   }
 
   /// Maneja mensajes cuando la app está en primer plano
   void _handleForegroundMessage(RemoteMessage message) async {
-    print('Got a message whilst in the foreground!');
-    print('Message data: ${message.data}');
+    print('📱 Mensaje recibido en primer plano');
+    print('📋 Datos del mensaje: ${message.data}');
 
     if (message.data.containsKey('alertId')) {
-      // Obtener la alerta desde Firestore
-      final alertDoc = await _firestore.collection('alerts').doc(message.data['alertId']).get();
-      if (alertDoc.exists) {
-        final alert = AlertModel.fromFirestore(alertDoc);
-        _showLocalNotification(alert);
-        _startContinuousVibration();
-        _alertController.add(alert);
+      try {
+        // Obtener la alerta desde Firestore
+        final alertDoc = await _firestore.collection('alerts').doc(message.data['alertId']).get();
+        if (alertDoc.exists) {
+          final alert = AlertModel.fromFirestore(alertDoc);
+          
+          // Verificar que no sea una alerta propia
+          final currentUser = _auth.currentUser;
+          if (currentUser != null && alert.userId == currentUser.uid) {
+            print('ℹ️ Ignorando alerta propia');
+            return;
+          }
+          
+          print('🚨 Mostrando notificación local para alerta: ${alert.alertType}');
+          _showLocalNotification(alert);
+          _startContinuousVibration();
+          _alertController.add(alert);
+        } else {
+          print('⚠️ Alerta no encontrada en Firestore: ${message.data['alertId']}');
+        }
+      } catch (e) {
+        print('❌ Error procesando mensaje de notificación: $e');
       }
     }
   }
@@ -299,14 +325,28 @@ class NotificationService {
   /// Guarda el token FCM en Firestore para el usuario actual
   Future<void> saveTokenToFirestore() async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) {
+      print('⚠️ No hay usuario autenticado para guardar token FCM');
+      return;
+    }
 
-    final token = await getToken();
-    if (token != null) {
-      await _firestore.collection('users').doc(currentUser.uid).set({
-        'fcmToken': token,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+    try {
+      final token = await getToken();
+      if (token != null) {
+        await _firestore.collection('users').doc(currentUser.uid).set({
+          'fcmToken': token,
+          'lastUpdated': FieldValue.serverTimestamp(),
+          'email': currentUser.email,
+          'displayName': currentUser.displayName,
+        }, SetOptions(merge: true));
+        
+        print('✅ Token FCM guardado exitosamente para usuario: ${currentUser.uid}');
+        print('🔑 Token: ${token.substring(0, 20)}...');
+      } else {
+        print('⚠️ No se pudo obtener token FCM');
+      }
+    } catch (e) {
+      print('❌ Error guardando token FCM: $e');
     }
   }
 

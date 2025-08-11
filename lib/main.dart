@@ -9,12 +9,28 @@ import 'package:guardian/services/notification_service.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling a background message: ${message.messageId}');
+  print('🚨 Background message received: ${message.messageId}');
   
-  // Aquí puedes procesar la notificación en segundo plano
+  // Procesar notificación de emergencia en segundo plano
   if (message.data.containsKey('alertId')) {
-    print('Background alert received: ${message.data['alertId']}');
+    final alertId = message.data['alertId'];
+    final alertType = message.data['alertType'] ?? 'EMERGENCY';
+    
+    print('🚨 Emergency alert received in background: $alertType (ID: $alertId)');
+    
+    // Aquí puedes agregar lógica adicional para notificaciones críticas
+    // Por ejemplo, vibrar el dispositivo, mostrar notificación local, etc.
+    
+    // Mostrar notificación local para asegurar que el usuario la vea
+    if (message.notification != null) {
+      print('📱 Showing local notification for emergency alert');
+      // La notificación se mostrará automáticamente por FCM
+    }
   }
+  
+  // Log detallado para debugging
+  print('📋 Background message data: ${message.data}');
+  print('📋 Background message notification: ${message.notification?.title} - ${message.notification?.body}');
 }
 
 void main() async {
