@@ -4,6 +4,9 @@ import android.app.*
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -18,6 +21,10 @@ class GuardianBackgroundService : Service() {
         private const val CHANNEL_NAME = "Guardian Background Service"
         private const val CHANNEL_DESCRIPTION = "Mantiene Guardian escuchando alertas en segundo plano"
         
+        private const val ALERTS_CHANNEL_ID = "emergency_alerts"
+        private const val ALERTS_CHANNEL_NAME = "Emergency Alerts"
+        private const val ALERTS_CHANNEL_DESCRIPTION = "Notificaciones de alertas de emergencia"
+        
         private var isServiceRunning = false
         
         fun isRunning(): Boolean = isServiceRunning
@@ -29,7 +36,7 @@ class GuardianBackgroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         firestore = FirebaseFirestore.getInstance()
-        createNotificationChannel()
+        createNotificationChannels()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,9 +79,12 @@ class GuardianBackgroundService : Service() {
         println("✅ Guardian Background Service stopped successfully")
     }
     
-    private fun createNotificationChannel() {
+    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            
+            // Canal para la notificación persistente del servicio
+            val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
@@ -86,8 +96,23 @@ class GuardianBackgroundService : Service() {
                 setSound(null, null)
             }
             
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+            // Canal para las alertas de emergencia
+            val alertsChannel = NotificationChannel(
+                ALERTS_CHANNEL_ID,
+                ALERTS_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = ALERTS_CHANNEL_DESCRIPTION
+                setShowBadge(true)
+                enableLights(true)
+                enableVibration(true)
+                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
+                vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
+                lightColor = 0xFFD32F2F.toInt()
+            }
+            
+            notificationManager.createNotificationChannel(serviceChannel)
+            notificationManager.createNotificationChannel(alertsChannel)
         }
     }
     
@@ -152,6 +177,9 @@ class GuardianBackgroundService : Service() {
         // Crear notificación de alerta
         showAlertNotification(alertType, description, isAnonymous, shareLocation)
         
+        // Vibración manual adicional
+        triggerVibration()
+        
         println("🚨 Alert received in background service: $alertType")
     }
     
@@ -173,7 +201,7 @@ class GuardianBackgroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(this, "emergency_alerts")
+        val notification = NotificationCompat.Builder(this, ALERTS_CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(body)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -185,6 +213,7 @@ class GuardianBackgroundService : Service() {
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
             .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000))
             .setLights(0xFFD32F2F.toInt(), 1000, 1000)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
         
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -228,6 +257,34 @@ class GuardianBackgroundService : Service() {
         }
         
         return body.toString()
+    }
+    
+    private fun triggerVibration() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(VibratorManager::class.java)
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Vibrator::class.java)
+            }
+            
+            if (vibrator.hasVibrator()) {
+                val vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val vibrationEffect = VibrationEffect.createWaveform(vibrationPattern, -1)
+                    vibrator.vibrate(vibrationEffect)
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(vibrationPattern, -1)
+                }
+                
+                println("📳 Vibración manual activada")
+            }
+        } catch (e: Exception) {
+            println("❌ Error en vibración manual: ${e.message}")
+        }
     }
     
     override fun onDestroy() {
