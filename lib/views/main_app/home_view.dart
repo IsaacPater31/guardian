@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'dart:io';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/mapa_view.dart';
+import 'package:guardian/services/background_service.dart';
+import 'package:guardian/services/background/background_service_factory.dart';
+import 'package:guardian/services/background_service_dialog_service.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -14,13 +19,31 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   final HomeController _homeController = HomeController();
+  final BackgroundService _backgroundService = BackgroundService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
+  bool _isServiceRunning = false;
+  bool _isServiceLoading = true;
+  Map<String, dynamic> _platformCapabilities = {};
 
   @override
   void initState() {
     super.initState();
     _initializeController();
+    _loadPlatformInfo();
+    _checkServiceStatus();
+    
+    // Refrescar el estado del servicio cada 2 segundos para sincronización
+    _startServiceStatusRefresh();
+  }
+
+  void _startServiceStatusRefresh() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _checkServiceStatus();
+        _startServiceStatusRefresh(); // Continuar refrescando
+      }
+    });
   }
 
   Future<void> _initializeController() async {
@@ -67,6 +90,59 @@ class _HomeViewState extends State<HomeView> {
     // Inicializar el controlador
     await _homeController.initialize();
   }
+
+  Future<void> _loadPlatformInfo() async {
+    _platformCapabilities = BackgroundServiceFactory.getPlatformCapabilities();
+    setState(() {});
+  }
+
+  Future<void> _checkServiceStatus() async {
+    try {
+      await _backgroundService.initialize();
+      final isRunning = await _backgroundService.isServiceRunning();
+      print('🔍 Background service status: $isRunning');
+      setState(() {
+        _isServiceRunning = isRunning;
+        _isServiceLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error checking service status: $e');
+      setState(() {
+        _isServiceLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleBackgroundService() async {
+    try {
+      if (_isServiceRunning) {
+        print('🛑 Stopping background service...');
+        await _backgroundService.stopBackgroundMonitoring();
+      } else {
+        print('🚀 Starting background service...');
+        await _backgroundService.startBackgroundMonitoring();
+      }
+      
+      await _checkServiceStatus();
+    } catch (e) {
+      print('❌ Error toggling background service: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Método para refrescar el estado del servicio desde otros lugares
+  Future<void> refreshServiceStatus() async {
+    await _checkServiceStatus();
+  }
+
+
 
   @override
   void dispose() {
@@ -146,9 +222,17 @@ class _HomeViewState extends State<HomeView> {
           Row(
             children: [
               _buildHeaderButton(
-                icon: Icons.notifications_outlined,
+                icon: BackgroundServiceDialogService.getServiceIcon(
+                  isServiceLoading: _isServiceLoading,
+                  isServiceRunning: _isServiceRunning,
+                ),
                 onPressed: () {
-                  // TODO: Implement notifications
+                  BackgroundServiceDialogService.showServiceDialog(
+                    context,
+                    isServiceRunning: _isServiceRunning,
+                    isServiceLoading: _isServiceLoading,
+                    onToggleService: _toggleBackgroundService,
+                  );
                 },
               ),
               const SizedBox(width: 12),

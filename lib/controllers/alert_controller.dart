@@ -1,15 +1,18 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart';
 import '../models/alert_model.dart';
-import '../services/alert_notification_service.dart';
+import '../services/alert_repository.dart';
+import '../services/location_service.dart';
+import '../services/image_service.dart';
+import '../services/user_service.dart';
+import '../services/notification_service.dart';
 
 class AlertController {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final AlertNotificationService _notificationService = AlertNotificationService();
+  final AlertRepository _alertRepository = AlertRepository();
+  final LocationService _locationService = LocationService();
+  final ImageService _imageService = ImageService();
+  final UserService _userService = UserService();
+  final NotificationService _notificationService = NotificationService();
 
   /// Envía una alerta detallada a Firebase
   /// [alertType] - Tipo de alerta (ej: "Robo", "Accidente", etc.)
@@ -25,21 +28,23 @@ class AlertController {
     required bool isAnonymous,
   }) async {
     try {
+      // Verificar que el usuario puede enviar alertas
+      if (!_userService.canUserSendAlerts()) {
+        throw Exception('Usuario no autenticado');
+      }
+
       // Obtener ubicación si es requerida
       LocationData? locationData;
       if (shareLocation) {
-        final locationMap = await _getCurrentLocation();
-        if (locationMap == null) {
+        locationData = await _locationService.getCurrentLocation();
+        if (locationData == null) {
           throw Exception('No se pudo obtener la ubicación');
         }
-        locationData = locationMap;
       }
 
-      // Obtener nombre del usuario
-      String? userName;
-      if (!isAnonymous && _auth.currentUser != null) {
-        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
-      }
+      // Obtener información del usuario
+      final userInfo = _userService.getUserInfoForAlert();
+      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
 
       // Crear modelo de alerta
       final alert = AlertModel(
@@ -50,28 +55,29 @@ class AlertController {
         isAnonymous: isAnonymous,
         shareLocation: shareLocation,
         location: locationData,
-        userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
-        userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userId: !isAnonymous ? userInfo['userId'] : null,
+        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
       );
 
       // Guardar en Firestore
-      final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
+      final alertId = await _alertRepository.saveAlert(alert);
 
       // Si hay imagen, convertirla a Base64 y actualizar el documento
       if (images != null && images.isNotEmpty) {
-        await _convertImageToBase64AndUpdateAlert(images.first, docRef);
+        await _imageService.convertImageToBase64AndUpdateAlert(images.first, 
+          FirebaseFirestore.instance.collection('alerts').doc(alertId));
       }
 
       // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: docRef.id);
+      final alertWithId = alert.copyWith(id: alertId);
       await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
-      // Error enviando alerta detallada: $e
+      print('Error enviando alerta detallada: $e');
       return false;
     }
   }
@@ -84,18 +90,20 @@ class AlertController {
     required bool isAnonymous,
   }) async {
     try {
+      // Verificar que el usuario puede enviar alertas
+      if (!_userService.canUserSendAlerts()) {
+        throw Exception('Usuario no autenticado');
+      }
+
       // Obtener ubicación (siempre requerida para alertas rápidas)
-      final locationMap = await _getCurrentLocation();
-      if (locationMap == null) {
+      final locationData = await _locationService.getCurrentLocation();
+      if (locationData == null) {
         throw Exception('No se pudo obtener la ubicación');
       }
-      final locationData = locationMap;
 
-      // Obtener nombre del usuario
-      String? userName;
-      if (!isAnonymous && _auth.currentUser != null) {
-        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
-      }
+      // Obtener información del usuario
+      final userInfo = _userService.getUserInfoForAlert();
+      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
 
       // Crear modelo de alerta
       final alert = AlertModel(
@@ -105,23 +113,23 @@ class AlertController {
         isAnonymous: isAnonymous,
         shareLocation: true,
         location: locationData,
-        userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
-        userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userId: !isAnonymous ? userInfo['userId'] : null,
+        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
       );
 
       // Guardar en Firestore
-      final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
+      final alertId = await _alertRepository.saveAlert(alert);
 
       // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: docRef.id);
+      final alertWithId = alert.copyWith(id: alertId);
       await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
-      // Error enviando alerta rápida: $e
+      print('Error enviando alerta rápida: $e');
       return false;
     }
   }
@@ -134,44 +142,46 @@ class AlertController {
     required bool isAnonymous,
   }) async {
     try {
+      // Verificar que el usuario puede enviar alertas
+      if (!_userService.canUserSendAlerts()) {
+        throw Exception('Usuario no autenticado');
+      }
+
       // Obtener ubicación (siempre requerida para alertas deslizadas)
-      final locationMap = await _getCurrentLocation();
-      if (locationMap == null) {
+      final locationData = await _locationService.getCurrentLocation();
+      if (locationData == null) {
         throw Exception('No se pudo obtener la ubicación');
       }
-      final locationData = locationMap;
 
-      // Obtener nombre del usuario
-      String? userName;
-      if (!isAnonymous && _auth.currentUser != null) {
-        userName = _auth.currentUser!.displayName ?? _auth.currentUser!.email?.split('@')[0];
-      }
+      // Obtener información del usuario
+      final userInfo = _userService.getUserInfoForAlert();
+      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
 
       // Crear modelo de alerta
       final alert = AlertModel(
         type: 'swiped',
-        alertType: alertType, // Usar el tipo de alerta correcto
+        alertType: alertType,
         timestamp: DateTime.now(),
         isAnonymous: isAnonymous,
         shareLocation: true,
         location: locationData,
-        userId: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.uid : null,
-        userEmail: !isAnonymous && _auth.currentUser != null ? _auth.currentUser!.email : null,
+        userId: !isAnonymous ? userInfo['userId'] : null,
+        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
       );
 
       // Guardar en Firestore
-      final docRef = await _firestore.collection('alerts').add(alert.toFirestore());
+      final alertId = await _alertRepository.saveAlert(alert);
 
       // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: docRef.id);
+      final alertWithId = alert.copyWith(id: alertId);
       await _notificationService.sendAlertNotification(alertWithId);
 
       return true;
     } catch (e) {
-      // Error enviando alerta deslizada: $e
+      print('Error enviando alerta deslizada: $e');
       return false;
     }
   }
@@ -179,111 +189,19 @@ class AlertController {
   /// Marca una alerta como vista por el usuario actual
   Future<void> markAlertAsViewed(String alertId) async {
     try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) return;
-
-      final alertRef = _firestore.collection('alerts').doc(alertId);
-      
-      await _firestore.runTransaction((transaction) async {
-        final alertDoc = await transaction.get(alertRef);
-        if (alertDoc.exists) {
-          final currentViewedBy = List<String>.from(alertDoc.data()?['viewedBy'] ?? []);
-          final currentViewedCount = alertDoc.data()?['viewedCount'] ?? 0;
-          
-          // Solo incrementar si el usuario no ha visto la alerta antes
-          if (!currentViewedBy.contains(currentUser.uid)) {
-            currentViewedBy.add(currentUser.uid);
-            transaction.update(alertRef, {
-              'viewedBy': currentViewedBy,
-              'viewedCount': currentViewedCount + 1,
-            });
-          }
-        }
-      });
+      await _alertRepository.markAlertAsViewed(alertId);
     } catch (e) {
       print('Error marking alert as viewed: $e');
     }
   }
 
-  /// Obtiene la ubicación actual del dispositivo
-  Future<LocationData?> _getCurrentLocation() async {
-    try {
-      // Verificar permisos de ubicación
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        return null;
-      }
-
-      // Obtener ubicación actual
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      return LocationData(
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
-    } catch (e) {
-      // Error getting location: $e
-      return null;
-    }
-  }
-
-  /// Convierte imagen a Base64 y actualiza la alerta
-  Future<void> _convertImageToBase64AndUpdateAlert(File image, DocumentReference docRef) async {
-    try {
-      // Verificar tamaño de la imagen antes de convertir
-      final bytes = await image.length();
-      final sizeInKB = bytes / 1024;
-      
-      if (sizeInKB > 500) {
-        throw Exception('La imagen es demasiado grande. Máximo 500KB permitido.');
-      }
-      
-      // Leer el archivo como bytes
-      final imageBytes = await image.readAsBytes();
-      
-      // Convertir a Base64
-      final base64String = base64Encode(imageBytes);
-      
-      // Actualizar el documento con la imagen en Base64
-      await docRef.update({
-        'hasImages': true,
-        'imageCount': 1,
-        'imageBase64': [base64String],
-      });
-    } catch (e) {
-      // Error converting image to Base64: $e
-      // Si falla la conversión, al menos actualizar que hay imagen
-      await docRef.update({
-        'hasImages': true,
-        'imageCount': 1,
-        'imageBase64': [],
-      });
-      rethrow; // Re-lanzar el error para que se maneje en la UI
-    }
-  }
-
   /// Verifica si el usuario tiene permisos de ubicación
   Future<bool> hasLocationPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    return permission == LocationPermission.whileInUse || 
-           permission == LocationPermission.always;
+    return await _locationService.hasLocationPermission();
   }
 
   /// Solicita permisos de ubicación
   Future<bool> requestLocationPermission() async {
-    LocationPermission permission = await Geolocator.requestPermission();
-    return permission == LocationPermission.whileInUse || 
-           permission == LocationPermission.always;
+    return await _locationService.requestLocationPermission();
   }
 } 

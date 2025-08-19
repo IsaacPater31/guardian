@@ -1,21 +1,22 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 import '../../models/alert_model.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_service.dart';
+import '../../services/alert_repository.dart';
+import '../../services/user_service.dart';
 
 class HomeController {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   final NotificationService _notificationService = NotificationService();
   final BackgroundService _backgroundService = BackgroundService();
+  final AlertRepository _alertRepository = AlertRepository();
+  final UserService _userService = UserService();
   
-  StreamSubscription<QuerySnapshot>? _alertsSubscription;
+  StreamSubscription<List<AlertModel>>? _alertsSubscription;
   StreamSubscription<AlertModel>? _notificationSubscription;
   List<AlertModel> _recentAlerts = [];
   bool _isInitialized = false;
@@ -77,18 +78,7 @@ class HomeController {
   
   /// Inicia la escucha de alertas en tiempo real
   Future<void> _startListeningToAlerts() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-    
-    // Escuchar alertas de los últimos 24 horas
-    final yesterday = DateTime.now().subtract(const Duration(hours: 24));
-    
-    _alertsSubscription = _firestore
-        .collection('alerts')
-        .where('timestamp', isGreaterThan: Timestamp.fromDate(yesterday))
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .listen(_handleAlertsUpdate);
+    _alertsSubscription = _alertRepository.getRecentAlertsStream().listen(_handleAlertsUpdate);
   }
 
   /// Inicia la escucha de notificaciones push
@@ -99,57 +89,45 @@ class HomeController {
   }
   
   /// Maneja las actualizaciones de alertas
-  void _handleAlertsUpdate(QuerySnapshot snapshot) {
-    final newAlerts = snapshot.docs
-        .map((doc) => AlertModel.fromFirestore(doc))
-        .where((alert) => _shouldShowAlert(alert)) // Filtrar alertas propias
-        .toList();
-    
-    _recentAlerts = newAlerts;
+  void _handleAlertsUpdate(List<AlertModel> alerts) {
+    _recentAlerts = alerts;
     
     // Notificar a la UI
     onAlertsUpdated?.call(_recentAlerts);
     
     // Verificar si hay alertas nuevas
-    _checkForNewAlerts(newAlerts);
-  }
-  
-  /// Determina si se debe mostrar una alerta (evita mostrar alertas propias)
-  bool _shouldShowAlert(AlertModel alert) {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return true;
-    
-    // Si la alerta es anónima, siempre mostrarla
-    if (alert.isAnonymous) return true;
-    
-    // Si la alerta tiene userId y coincide con el usuario actual, no mostrarla
-    if (alert.userId != null && alert.userId == currentUser.uid) {
-      return false;
-    }
-    
-    // Si la alerta tiene userEmail y coincide con el usuario actual, no mostrarla
-    if (alert.userEmail != null && alert.userEmail == currentUser.email) {
-      return false;
-    }
-    
-    return true;
+    _checkForNewAlerts(alerts);
   }
   
   /// Verifica si hay alertas nuevas y las notifica
-  void _checkForNewAlerts(List<AlertModel> alerts) {
+  void _checkForNewAlerts(List<AlertModel> alerts) async {
     // Solo procesar alertas de los últimos 30 segundos como "nuevas"
     final thirtySecondsAgo = DateTime.now().subtract(const Duration(seconds: 30));
     
+    // Obtener el usuario actual
+    final currentUser = _userService.currentUser;
+    if (currentUser == null) return;
+    
     for (final alert in alerts) {
       if (alert.timestamp.isAfter(thirtySecondsAgo)) {
-        _showAlertNotification(alert);
+        // No mostrar notificación si la alerta fue creada por el usuario actual
+        if (alert.userId != currentUser.uid) {
+          // En Android, mostrar notificación local
+          if (Platform.isAndroid) {
+            _showAlertNotification(alert);
+          }
+        }
+        // Llamar al callback para actualizar la UI (siempre)
         onNewAlertReceived?.call(alert);
       }
     }
   }
   
-  /// Muestra una notificación para una alerta
+  /// Muestra una notificación local para una alerta (solo Android)
   Future<void> _showAlertNotification(AlertModel alert) async {
+    // Solo mostrar notificaciones locales en Android
+    if (!Platform.isAndroid) return;
+    
     const androidDetails = AndroidNotificationDetails(
       'emergency_alerts',
       'Emergency Alerts',
@@ -165,17 +143,7 @@ class HomeController {
       styleInformation: BigTextStyleInformation(''),
     );
     
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      sound: 'default',
-    );
-    
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    const details = NotificationDetails(android: androidDetails);
     
     // Crear título y contenido de la notificación
     final title = _getAlertTitle(alert);
@@ -279,40 +247,17 @@ class HomeController {
   
   /// Obtiene alertas recientes (últimas 24 horas)
   Future<List<AlertModel>> getRecentAlerts() async {
-    final yesterday = DateTime.now().subtract(const Duration(hours: 24));
-    
-    final snapshot = await _firestore
-        .collection('alerts')
-        .where('timestamp', isGreaterThan: Timestamp.fromDate(yesterday))
-        .orderBy('timestamp', descending: true)
-        .get();
-    
-    return snapshot.docs
-        .map((doc) => AlertModel.fromFirestore(doc))
-        .where((alert) => _shouldShowAlert(alert))
-        .toList();
+    return await _alertRepository.getRecentAlerts();
   }
   
   /// Obtiene estadísticas de alertas
-  Map<String, int> getAlertStatistics() {
-    final stats = <String, int>{};
-    
-    for (final alert in _recentAlerts) {
-      stats[alert.alertType] = (stats[alert.alertType] ?? 0) + 1;
-    }
-    
-    return stats;
+  Future<Map<String, int>> getAlertStatistics() async {
+    return await _alertRepository.getAlertStatistics();
   }
 
   /// Obtiene estadísticas de vistas
-  Map<String, int> getViewStatistics() {
-    final stats = <String, int>{};
-    
-    for (final alert in _recentAlerts) {
-      stats[alert.alertType] = (stats[alert.alertType] ?? 0) + alert.viewedCount;
-    }
-    
-    return stats;
+  Future<Map<String, int>> getViewStatistics() async {
+    return await _alertRepository.getViewStatistics();
   }
   
   /// Limpia los recursos del controlador

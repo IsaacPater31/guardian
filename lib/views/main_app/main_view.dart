@@ -30,8 +30,28 @@ class _MainViewState extends State<MainView> {
   @override
   void initState() {
     super.initState();
-    // Solicita permisos al iniciar la vista principal
-    PermissionService.requestBasicPermissions();
+    // Solicita todos los permisos al iniciar la vista principal
+    _requestPermissionsOnStart();
+  }
+
+  Future<void> _requestPermissionsOnStart() async {
+    try {
+      // Solicitar permisos básicos del sistema (Google/Apple)
+      print('🔐 Requesting basic permissions...');
+      await PermissionService.requestBasicPermissions();
+      
+      // Verificar si tenemos todos los permisos
+      final allGranted = await PermissionService.allGranted();
+      print('✅ Permissions granted: $allGranted');
+      
+      if (allGranted) {
+        print('✅ All permissions granted - Guardian is ready!');
+      } else {
+        print('⚠️ Some permissions were denied - Guardian may have limited functionality');
+      }
+    } catch (e) {
+      print('❌ Error requesting permissions: $e');
+    }
   }
 
   @override
