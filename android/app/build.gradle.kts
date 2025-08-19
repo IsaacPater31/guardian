@@ -46,8 +46,9 @@ dependencies {
 
     // Módulos de Firebase que usarás
     implementation("com.google.firebase:firebase-analytics")
-    // implementation("com.google.firebase:firebase-auth")
-    // implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
 
     // AGREGAR ESTA LÍNEA PARA DESUGARING
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

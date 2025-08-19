@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:vibration/vibration.dart';
 import '../../models/alert_model.dart';
 import '../../services/user_service.dart';
+import '../../services/native_background_service.dart';
 import 'background_service_interface.dart';
 
 /// Implementación de servicio en segundo plano para Android
@@ -89,16 +90,17 @@ class AndroidBackgroundService implements BackgroundServiceInterface {
     if (!_isInitialized) await initialize();
     
     try {
-      // Crear notificación persistente para el servicio
-      await _showPersistentNotification();
+      // Usar el servicio nativo de Android
+      final success = await NativeBackgroundService.startService();
       
-      // Iniciar escucha de alertas
-      _startAlertsListener();
-      
-      _isServiceRunning = true;
-      onServiceStatusChanged(true);
-      
-      print('✅ Android background service started successfully');
+      if (success) {
+        _isServiceRunning = true;
+        onServiceStatusChanged(true);
+        print('✅ Android background service started successfully');
+      } else {
+        print('❌ Failed to start Android background service');
+        throw Exception('Failed to start Android background service');
+      }
     } catch (e) {
       print('❌ Error starting Android background service: $e');
       rethrow;
@@ -152,17 +154,17 @@ class AndroidBackgroundService implements BackgroundServiceInterface {
   @override
   Future<void> stopBackgroundService() async {
     try {
-      // Cancelar suscripción de alertas
-      await _alertsSubscription?.cancel();
-      _alertsSubscription = null;
+      // Usar el servicio nativo de Android
+      final success = await NativeBackgroundService.stopService();
       
-      // Ocultar notificación persistente
-      await _notifications.cancel(NOTIFICATION_ID);
-      
-      _isServiceRunning = false;
-      onServiceStatusChanged(false);
-      
-      print('✅ Android background service stopped successfully');
+      if (success) {
+        _isServiceRunning = false;
+        onServiceStatusChanged(false);
+        print('✅ Android background service stopped successfully');
+      } else {
+        print('❌ Failed to stop Android background service');
+        throw Exception('Failed to stop Android background service');
+      }
     } catch (e) {
       print('❌ Error stopping Android background service: $e');
       rethrow;
@@ -171,7 +173,8 @@ class AndroidBackgroundService implements BackgroundServiceInterface {
   
   @override
   Future<bool> isServiceRunning() async {
-    return _isServiceRunning;
+    // Verificar con el servicio nativo
+    return await NativeBackgroundService.isServiceRunning();
   }
   
   @override
