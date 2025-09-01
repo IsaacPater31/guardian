@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import java.util.*
+import com.google.firebase.auth.FirebaseAuth
 
 class GuardianBackgroundService : Service() {
     
@@ -32,10 +33,12 @@ class GuardianBackgroundService : Service() {
     
     private lateinit var firestore: FirebaseFirestore
     private var alertsListener: ListenerRegistration? = null
+    private lateinit var auth: FirebaseAuth
     
     override fun onCreate() {
         super.onCreate()
         firestore = FirebaseFirestore.getInstance()
+        auth = FirebaseAuth.getInstance()
         createNotificationChannels()
     }
     
@@ -196,6 +199,24 @@ class GuardianBackgroundService : Service() {
         val description = alertData["description"] as? String
         val isAnonymous = alertData["isAnonymous"] as? Boolean ?: false
         val shareLocation = alertData["shareLocation"] as? Boolean ?: false
+        val alertUserId = alertData["userId"] as? String
+        val alertUserEmail = alertData["userEmail"] as? String
+        
+        // Obtener usuario actual
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            println("⚠️ No user logged in, skipping notification")
+            return
+        }
+        
+        // Verificar si la alerta es del mismo usuario
+        val isOwnAlert = (alertUserId != null && alertUserId == currentUser.uid) ||
+                        (alertUserEmail != null && alertUserEmail == currentUser.email)
+        
+        if (isOwnAlert) {
+            println("🚫 Skipping notification for own alert: $alertType")
+            return
+        }
         
         // Crear notificación de alerta
         showAlertNotification(alertType, description, isAnonymous, shareLocation)

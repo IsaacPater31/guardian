@@ -90,6 +90,13 @@ class HomeController {
 
   /// Inicia la escucha de notificaciones push
   Future<void> _startListeningToNotifications() async {
+    // En Android, NO usar FCM - solo notificaciones locales desde el servicio
+    if (Platform.isAndroid) {
+      print('📱 Android detected - Skipping FCM, using local notifications only');
+      return;
+    }
+    
+    // Solo en iOS usar FCM
     _notificationSubscription = _notificationService.alertStream.listen((alert) {
       onNewAlertReceived?.call(alert);
     });
@@ -119,8 +126,9 @@ class HomeController {
       if (alert.timestamp.isAfter(thirtySecondsAgo)) {
         // No mostrar notificación si la alerta fue creada por el usuario actual
         if (alert.userId != currentUser.uid) {
-          // En Android, mostrar notificación local
-          if (Platform.isAndroid) {
+          // En Android, NO mostrar notificación local aquí (ya se maneja en el servicio)
+          // En iOS, mostrar notificación local
+          if (!Platform.isAndroid) {
             _showAlertNotification(alert);
           }
         }

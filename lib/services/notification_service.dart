@@ -30,6 +30,14 @@ class NotificationService {
   /// Inicializa el servicio de notificaciones
   Future<void> initialize() async {
     try {
+      // En Android, NO usar FCM - solo notificaciones locales desde el servicio
+      if (Platform.isAndroid) {
+        print('📱 Android detected - Skipping FCM setup, using local notifications only');
+        await _setupLocalNotifications();
+        return;
+      }
+      
+      // Solo en iOS configurar FCM
       await _setupFirebaseMessaging();
       await _setupLocalNotifications();
       // No bloquear en permisos - hacerlo en paralelo
