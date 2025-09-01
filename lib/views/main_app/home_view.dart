@@ -109,43 +109,6 @@ class _HomeViewState extends State<HomeView> {
     await _checkServiceStatus();
   }
 
-  /// Muestra información del estado del servicio sin permitir configuración
-  void _showServiceStatusInfo() {
-    final status = _isServiceRunning ? 'Activo' : 'Inactivo';
-    final icon = _isServiceRunning ? Icons.check_circle : Icons.info_outline;
-    final color = _isServiceRunning ? Colors.green : Colors.orange;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Servicio de Guardian: $status',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: color,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Permisos',
-          textColor: Colors.white,
-          onPressed: () async {
-            // Temporal: Forzar solicitud de permisos para testing
-            await PermissionService.forceRequestAllPermissions();
-          },
-        ),
-      ),
-    );
-  }
-
-
-
   @override
   void dispose() {
     _homeController.dispose();
@@ -220,15 +183,33 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           
-          // Botón de estado del servicio (solo para mostrar estado, no para configurar)
+          // Botón de notificaciones (sin funcionalidad por ahora)
           _buildHeaderButton(
-            icon: BackgroundServiceDialogService.getServiceIcon(
-              isServiceLoading: _isServiceLoading,
-              isServiceRunning: _isServiceRunning,
-            ),
+            icon: Icons.notifications_outlined,
             onPressed: () {
-              // Solo mostrar información del estado, no permitir configuración
-              _showServiceStatusInfo();
+              // Sin funcionalidad - se implementará más adelante
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notificaciones - Funcionalidad próximamente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Botón de configuración (sin funcionalidad por ahora)
+          _buildHeaderButton(
+            icon: Icons.settings_outlined,
+            onPressed: () {
+              // Sin funcionalidad - se implementará más adelante
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Configuración - Funcionalidad próximamente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
             },
           ),
         ],
