@@ -31,49 +31,56 @@ class HomeController {
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    await _setupNotifications();
-    await _notificationService.initialize();
-    await _backgroundService.initialize();
+    // Iniciar escucha de alertas INMEDIATAMENTE (sin esperar permisos)
     await _startListeningToAlerts();
+    
+    // Configurar notificaciones en paralelo (no bloquear)
+    _setupNotificationsInBackground();
+    _notificationService.initialize();
+    _backgroundService.initialize();
     await _startListeningToNotifications();
     await _backgroundService.startBackgroundMonitoring();
     await _notificationService.saveTokenToFirestore();
     _isInitialized = true;
   }
   
-  /// Configura las notificaciones locales
-  Future<void> _setupNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-    
-    await _notifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
-    );
-    
-    // Configurar canal de notificaciones para Android
-    const androidChannel = AndroidNotificationChannel(
-      'emergency_alerts',
-      'Emergency Alerts',
-      description: 'Notifications for emergency alerts in your area',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-      enableLights: true,
-    );
-    
-    await _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
+  /// Configura las notificaciones locales en segundo plano (sin bloquear)
+  Future<void> _setupNotificationsInBackground() async {
+    try {
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+      
+      const initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+      
+      await _notifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+      
+      // Configurar canal de notificaciones para Android
+      const androidChannel = AndroidNotificationChannel(
+        'emergency_alerts',
+        'Emergency Alerts',
+        description: 'Notifications for emergency alerts in your area',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        enableLights: true,
+      );
+      
+      await _notifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(androidChannel);
+    } catch (e) {
+      print('⚠️ Error setting up notifications (non-blocking): $e');
+    }
   }
   
   /// Inicia la escucha de alertas en tiempo real

@@ -29,10 +29,15 @@ class NotificationService {
 
   /// Inicializa el servicio de notificaciones
   Future<void> initialize() async {
-    await _setupFirebaseMessaging();
-    await _setupLocalNotifications();
-    await _requestPermissions();
-    await _subscribeToTopic();
+    try {
+      await _setupFirebaseMessaging();
+      await _setupLocalNotifications();
+      // No bloquear en permisos - hacerlo en paralelo
+      _requestPermissionsInBackground();
+      await _subscribeToTopic();
+    } catch (e) {
+      print('⚠️ Error initializing notification service (non-blocking): $e');
+    }
   }
 
   /// Configura Firebase Cloud Messaging
@@ -85,19 +90,23 @@ class NotificationService {
         ?.createNotificationChannel(androidChannel);
   }
 
-  /// Solicita permisos de notificación
-  Future<void> _requestPermissions() async {
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: true,
-      provisional: false,
-      sound: true,
-    );
+  /// Solicita permisos de notificación en segundo plano (sin bloquear)
+  Future<void> _requestPermissionsInBackground() async {
+    try {
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: true,
+        provisional: false,
+        sound: true,
+      );
 
-    print('User granted permission: ${settings.authorizationStatus}');
+      print('User granted permission: ${settings.authorizationStatus}');
+    } catch (e) {
+      print('⚠️ Error requesting notification permissions (non-blocking): $e');
+    }
   }
 
   /// Se suscribe al topic de alertas
