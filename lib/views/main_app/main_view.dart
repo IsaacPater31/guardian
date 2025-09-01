@@ -36,19 +36,26 @@ class _MainViewState extends State<MainView> {
 
   Future<void> _requestPermissionsOnStart() async {
     try {
-      // Solicitar permisos básicos del sistema (Google/Apple)
-      print('🔐 Requesting basic permissions...');
-      await PermissionService.requestBasicPermissions();
+      // Solicitar solo permisos esenciales al iniciar la aplicación
+      print('🔐 Requesting essential permissions for Guardian...');
+      await PermissionService.requestAllPermissionsOnFirstLaunch();
       
-      // Verificar si tenemos todos los permisos
-      final allGranted = await PermissionService.allGranted();
-      print('✅ Permissions granted: $allGranted');
+      // Verificar si tenemos los permisos esenciales
+      final essentialGranted = await PermissionService.essentialPermissionsGranted();
+      print('✅ Essential permissions granted: $essentialGranted');
       
-      if (allGranted) {
-        print('✅ All permissions granted - Guardian is ready!');
+      if (essentialGranted) {
+        print('✅ Essential permissions granted - Guardian is ready!');
       } else {
-        print('⚠️ Some permissions were denied - Guardian may have limited functionality');
+        print('⚠️ Some essential permissions were denied - Guardian may have limited functionality');
+        
+        // Intentar solicitar permisos faltantes después de un delay
+        Future.delayed(const Duration(seconds: 3), () async {
+          print('🔄 Attempting to request missing essential permissions...');
+          await PermissionService.requestMissingPermissions();
+        });
       }
+      
     } catch (e) {
       print('❌ Error requesting permissions: $e');
     }

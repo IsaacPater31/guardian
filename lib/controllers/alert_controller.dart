@@ -6,6 +6,7 @@ import '../services/location_service.dart';
 import '../services/image_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_service.dart';
 
 class AlertController {
   final AlertRepository _alertRepository = AlertRepository();
@@ -36,6 +37,12 @@ class AlertController {
       // Obtener ubicación si es requerida
       LocationData? locationData;
       if (shareLocation) {
+        // Solicitar permisos de ubicación si es necesario
+        final hasLocationPermission = await PermissionService.requestLocationPermissionForAlerts();
+        if (!hasLocationPermission) {
+          throw Exception('Permisos de ubicación requeridos para enviar alertas con ubicación');
+        }
+        
         locationData = await _locationService.getCurrentLocation();
         if (locationData == null) {
           throw Exception('No se pudo obtener la ubicación');
@@ -95,6 +102,12 @@ class AlertController {
         throw Exception('Usuario no autenticado');
       }
 
+      // Solicitar permisos de ubicación (siempre requerida para alertas rápidas)
+      final hasLocationPermission = await PermissionService.requestLocationPermissionForAlerts();
+      if (!hasLocationPermission) {
+        throw Exception('Permisos de ubicación requeridos para enviar alertas rápidas');
+      }
+
       // Obtener ubicación (siempre requerida para alertas rápidas)
       final locationData = await _locationService.getCurrentLocation();
       if (locationData == null) {
@@ -145,6 +158,12 @@ class AlertController {
       // Verificar que el usuario puede enviar alertas
       if (!_userService.canUserSendAlerts()) {
         throw Exception('Usuario no autenticado');
+      }
+
+      // Solicitar permisos de ubicación (siempre requerida para alertas deslizadas)
+      final hasLocationPermission = await PermissionService.requestLocationPermissionForAlerts();
+      if (!hasLocationPermission) {
+        throw Exception('Permisos de ubicación requeridos para enviar alertas deslizadas');
       }
 
       // Obtener ubicación (siempre requerida para alertas deslizadas)

@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'dart:io';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
-import 'package:guardian/views/main_app/mapa_view.dart';
 import 'package:guardian/services/background_service.dart';
 import 'package:guardian/services/background/background_service_factory.dart';
 import 'package:guardian/services/background_service_dialog_service.dart';
-import 'package:guardian/services/native_background_service.dart';
+import 'package:guardian/services/permission_service.dart'; // Added import for PermissionService
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -25,13 +22,11 @@ class _HomeViewState extends State<HomeView> {
   bool _isLoading = true;
   bool _isServiceRunning = false;
   bool _isServiceLoading = true;
-  Map<String, dynamic> _platformCapabilities = {};
 
   @override
   void initState() {
     super.initState();
     _initializeController();
-    _loadPlatformInfo();
     _checkServiceStatus();
     
     // Refrescar el estado del servicio cada 2 segundos para sincronización
@@ -92,11 +87,6 @@ class _HomeViewState extends State<HomeView> {
     await _homeController.initialize();
   }
 
-  Future<void> _loadPlatformInfo() async {
-    _platformCapabilities = BackgroundServiceFactory.getPlatformCapabilities();
-    setState(() {});
-  }
-
   Future<void> _checkServiceStatus() async {
     try {
       await _backgroundService.initialize();
@@ -114,33 +104,44 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  Future<void> _toggleBackgroundService() async {
-    try {
-      if (_isServiceRunning) {
-        print('🛑 Stopping background service...');
-        await _backgroundService.stopBackgroundMonitoring();
-      } else {
-        print('🚀 Starting background service...');
-        await _backgroundService.startBackgroundMonitoring();
-      }
-      
-      await _checkServiceStatus();
-    } catch (e) {
-      print('❌ Error toggling background service: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   // Método para refrescar el estado del servicio desde otros lugares
   Future<void> refreshServiceStatus() async {
     await _checkServiceStatus();
+  }
+
+  /// Muestra información del estado del servicio sin permitir configuración
+  void _showServiceStatusInfo() {
+    final status = _isServiceRunning ? 'Activo' : 'Inactivo';
+    final icon = _isServiceRunning ? Icons.check_circle : Icons.info_outline;
+    final color = _isServiceRunning ? Colors.green : Colors.orange;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Servicio de Guardian: $status',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Permisos',
+          textColor: Colors.white,
+          onPressed: () async {
+            // Temporal: Forzar solicitud de permisos para testing
+            await PermissionService.forceRequestAllPermissions();
+          },
+        ),
+      ),
+    );
   }
 
 
@@ -219,31 +220,16 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           
-          // Botones de acción
-          Row(
-            children: [
-              _buildHeaderButton(
-                icon: BackgroundServiceDialogService.getServiceIcon(
-                  isServiceLoading: _isServiceLoading,
-                  isServiceRunning: _isServiceRunning,
-                ),
-                onPressed: () {
-                  BackgroundServiceDialogService.showServiceDialog(
-                    context,
-                    isServiceRunning: _isServiceRunning,
-                    isServiceLoading: _isServiceLoading,
-                    onToggleService: _toggleBackgroundService,
-                  );
-                },
-              ),
-              const SizedBox(width: 12),
-              _buildHeaderButton(
-                icon: Icons.settings_outlined,
-                onPressed: () {
-                  // TODO: Implement settings
-                },
-              ),
-            ],
+          // Botón de estado del servicio (solo para mostrar estado, no para configurar)
+          _buildHeaderButton(
+            icon: BackgroundServiceDialogService.getServiceIcon(
+              isServiceLoading: _isServiceLoading,
+              isServiceRunning: _isServiceRunning,
+            ),
+            onPressed: () {
+              // Solo mostrar información del estado, no permitir configuración
+              _showServiceStatusInfo();
+            },
           ),
         ],
       ),
@@ -663,97 +649,6 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  /// Solicita optimización de batería para el servicio en segundo plano
-  Future<void> _requestBatteryOptimization() async {
-    try {
-      // Mostrar indicador de carga
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                ),
-                SizedBox(width: 12),
-                Text('Verificando optimización de batería...'),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-
-      // Verificar si ya está optimizado
-      final isIgnored = await NativeBackgroundService.isBatteryOptimizationIgnored();
-      
-      if (isIgnored) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text('✅ La optimización de batería ya está configurada'),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Solicitar exención
-      await NativeBackgroundService.requestBatteryOptimizationExemption();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.white),
-                    SizedBox(width: 12),
-                    Text('🔋 Configuración de Batería'),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Text('Para un funcionamiento óptimo, permite que Guardian ignore la optimización de batería.'),
-              ],
-            ),
-            backgroundColor: Colors.blue,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 12),
-                Text('❌ Error: $e'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
-  }
-
   Widget _buildAlertButtonSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -828,26 +723,6 @@ class _HomeViewState extends State<HomeView> {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                // Botón para configurar optimización de batería
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      _requestBatteryOptimization();
-                    },
-                    icon: const Icon(Icons.battery_saver, size: 18),
-                    label: const Text('Optimizar Servicio', style: TextStyle(fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF9800),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ),
