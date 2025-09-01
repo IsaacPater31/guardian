@@ -9,6 +9,7 @@ import 'package:guardian/views/main_app/mapa_view.dart';
 import 'package:guardian/services/background_service.dart';
 import 'package:guardian/services/background/background_service_factory.dart';
 import 'package:guardian/services/background_service_dialog_service.dart';
+import 'package:guardian/services/native_background_service.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -662,6 +663,97 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  /// Solicita optimización de batería para el servicio en segundo plano
+  Future<void> _requestBatteryOptimization() async {
+    try {
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+                SizedBox(width: 12),
+                Text('Verificando optimización de batería...'),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
+      // Verificar si ya está optimizado
+      final isIgnored = await NativeBackgroundService.isBatteryOptimizationIgnored();
+      
+      if (isIgnored) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('✅ La optimización de batería ya está configurada'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Solicitar exención
+      await NativeBackgroundService.requestBatteryOptimizationExemption();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('🔋 Configuración de Batería'),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Text('Para un funcionamiento óptimo, permite que Guardian ignore la optimización de batería.'),
+              ],
+            ),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('❌ Error: $e'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildAlertButtonSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -715,21 +807,45 @@ class _HomeViewState extends State<HomeView> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: const Color(0xFF4CAF50),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Hold and swipe to activate different emergency types',
-                    style: TextStyle(
-                      fontSize: 13,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
                       color: const Color(0xFF4CAF50),
-                      fontWeight: FontWeight.w500,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Hold and swipe to activate different emergency types',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: const Color(0xFF4CAF50),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Botón para configurar optimización de batería
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      _requestBatteryOptimization();
+                    },
+                    icon: const Icon(Icons.battery_saver, size: 18),
+                    label: const Text('Optimizar Servicio', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF9800),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),

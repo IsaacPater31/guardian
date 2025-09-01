@@ -44,7 +44,8 @@ class GuardianBackgroundService : Service() {
             "START_SERVICE" -> startForegroundService()
             "STOP_SERVICE" -> stopForegroundService()
         }
-        return START_STICKY // El servicio se reiniciará si es eliminado por el sistema
+        // START_REDELIVER_INTENT: Reinicia el servicio con el último Intent si es eliminado
+        return START_REDELIVER_INTENT
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
@@ -87,13 +88,15 @@ class GuardianBackgroundService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_HIGH // Cambiar a HIGH para mayor persistencia
             ).apply {
                 description = CHANNEL_DESCRIPTION
-                setShowBadge(false)
+                setShowBadge(true)
                 enableLights(false)
                 enableVibration(false)
                 setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setBypassDnd(false) // No omitir el modo No Molestar
             }
             
             // Canal para las alertas de emergencia
@@ -126,16 +129,36 @@ class GuardianBackgroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        // Action para detener el servicio desde la notificación
+        val stopIntent = Intent(this, GuardianBackgroundService::class.java).apply {
+            action = "STOP_SERVICE"
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            this, 1, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Guardian Activo")
-            .setContentText("Escuchando alertas en tu área")
+            .setContentTitle("🛡️ Guardian Protección Activa")
+            .setContentText("Monitoreando alertas de emergencia • Toca para abrir")
+            .setSubText("Servicio de seguridad en segundo plano")
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setShowWhen(false)
+            .setShowWhen(true)
+            .setWhen(System.currentTimeMillis())
             .setSilent(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_HIGH) // Cambiar a HIGH para que sea más persistente
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .addAction(R.mipmap.ic_launcher, "Detener", stopPendingIntent)
+            .setStyle(NotificationCompat.BigTextStyle()
+                .setBigContentTitle("🛡️ Guardian Protección Activa")
+                .bigText("Guardian está monitoreando alertas de emergencia en tu área. El servicio permanece activo para tu seguridad.")
+                .setSummaryText("Servicio de seguridad activo"))
             .build()
     }
     
@@ -292,5 +315,40 @@ class GuardianBackgroundService : Service() {
         stopAlertsListener()
         isServiceRunning = false
         println("🔄 Guardian Background Service destroyed")
+        
+        // Intentar reiniciar el servicio si fue eliminado inesperadamente
+        try {
+            val restartIntent = Intent(this, GuardianBackgroundService::class.java).apply {
+                action = "START_SERVICE"
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(restartIntent)
+            } else {
+                startService(restartIntent)
+            }
+            println("🔄 Attempting to restart Guardian service...")
+        } catch (e: Exception) {
+            println("❌ Failed to restart service: ${e.message}")
+        }
+    }
+    
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        println("📱 App task removed - keeping service alive")
+        
+        // Reiniciar el servicio cuando la app es eliminada de recientes
+        try {
+            val restartIntent = Intent(this, GuardianBackgroundService::class.java).apply {
+                action = "START_SERVICE"
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(restartIntent)
+            } else {
+                startService(restartIntent)
+            }
+            println("🔄 Service restarted after app task removal")
+        } catch (e: Exception) {
+            println("❌ Failed to restart service after task removal: ${e.message}")
+        }
     }
 }

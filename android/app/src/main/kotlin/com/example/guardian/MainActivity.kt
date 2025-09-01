@@ -1,6 +1,10 @@
 package com.example.guardian
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -30,9 +34,82 @@ class MainActivity : FlutterActivity() {
                 "isServiceRunning" -> {
                     result.success(GuardianBackgroundService.isRunning())
                 }
+                "requestBatteryOptimizationExemption" -> {
+                    requestBatteryOptimizationExemption()
+                    result.success(true)
+                }
+                "isBatteryOptimizationIgnored" -> {
+                    result.success(isBatteryOptimizationIgnored())
+                }
+                "requestWhitelistPermission" -> {
+                    requestWhitelistPermission()
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
+            }
+        }
+    }
+
+    /**
+     * Solicita exención de optimización de batería para la app
+     */
+    private fun requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent().apply {
+                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                data = Uri.parse("package:$packageName")
+            }
+            try {
+                startActivity(intent)
+                println("✅ Battery optimization exemption requested")
+            } catch (e: Exception) {
+                println("❌ Error requesting battery optimization exemption: ${e.message}")
+                // Fallback: abrir configuración general de optimización de batería
+                try {
+                    val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                    startActivity(fallbackIntent)
+                } catch (e2: Exception) {
+                    println("❌ Error opening battery optimization settings: ${e2.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifica si la app está exenta de optimización de batería
+     */
+    private fun isBatteryOptimizationIgnored(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(PowerManager::class.java)
+            powerManager?.isIgnoringBatteryOptimizations(packageName) ?: false
+        } else {
+            true // En versiones anteriores no hay optimización de batería
+        }
+    }
+
+    /**
+     * Solicita agregar la app a la lista blanca del sistema
+     */
+    private fun requestWhitelistPermission() {
+        try {
+            // Abrir configuración de aplicaciones para que el usuario pueda configurar manualmente
+            val intent = Intent().apply {
+                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                data = Uri.fromParts("package", packageName, null)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(intent)
+            println("✅ App settings opened for manual configuration")
+        } catch (e: Exception) {
+            println("❌ Error opening app settings: ${e.message}")
+            try {
+                // Fallback: abrir configuración general de aplicaciones
+                val fallbackIntent = Intent(Settings.ACTION_APPLICATION_SETTINGS)
+                startActivity(fallbackIntent)
+            } catch (e2: Exception) {
+                println("❌ Error opening application settings: ${e2.message}")
             }
         }
     }

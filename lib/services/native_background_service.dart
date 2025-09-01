@@ -49,4 +49,45 @@ class NativeBackgroundService {
       return false;
     }
   }
+
+  /// Solicita exención de optimización de batería
+  static Future<bool> requestBatteryOptimizationExemption() async {
+    if (!Platform.isAndroid) return false;
+    
+    try {
+      final bool result = await _channel.invokeMethod('requestBatteryOptimizationExemption');
+      print('✅ Battery optimization exemption result: $result');
+      return result;
+    } on PlatformException catch (e) {
+      print('❌ Error requesting battery optimization exemption: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Verifica si la app está exenta de optimización de batería
+  static Future<bool> isBatteryOptimizationIgnored() async {
+    if (!Platform.isAndroid) return false;
+    
+    try {
+      final bool result = await _channel.invokeMethod('isBatteryOptimizationIgnored');
+      return result;
+    } on PlatformException catch (e) {
+      print('❌ Error checking battery optimization status: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Solicita que la app sea añadida a la lista blanca del sistema
+  static Future<bool> requestWhitelistPermission() async {
+    if (!Platform.isAndroid) return false;
+    
+    try {
+      final bool result = await _channel.invokeMethod('requestWhitelistPermission');
+      print('✅ Whitelist permission result: $result');
+      return result;
+    } on PlatformException catch (e) {
+      print('❌ Error requesting whitelist permission: ${e.message}');
+      return false;
+    }
+  }
 }
