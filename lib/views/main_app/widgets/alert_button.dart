@@ -669,20 +669,31 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             builder: (context, child) {
               return Transform.scale(
                 scale: _showEmergencyOptions ? _scaleAnimation.value : 1.0,
-                child: Container(
-                  width: 180,
-                  height: 180,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        spreadRadius: 8,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calcular tamaño responsivo del botón basado en el contenedor
+                    final containerSize = constraints.maxWidth < constraints.maxHeight 
+                        ? constraints.maxWidth 
+                        : constraints.maxHeight;
+                    
+                    // El botón será 70% del tamaño del contenedor, con límites mínimos y máximos
+                    final calculatedSize = containerSize * 0.7;
+                    final buttonSize = calculatedSize.clamp(120.0, 250.0);
+                    
+                    return Container(
+                      width: buttonSize,
+                      height: buttonSize,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 0.3),
+                            blurRadius: buttonSize * 0.1, // Responsive blur
+                            spreadRadius: buttonSize * 0.04, // Responsive spread
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
@@ -692,11 +703,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
+                            Text(
                               "HELP",
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 36,
+                                fontSize: buttonSize * 0.2, // Responsive font size
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 2.0,
                               ),
@@ -718,10 +729,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       ),
                     ),
                   ),
-                ),
-              );
+                );
             },
           ),
+                );
+              },
+            ),
           
           // Opciones de emergencia que aparecen con animación
           if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
@@ -732,40 +745,53 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 if (emergencyData == null) return const SizedBox.shrink();
                  return Opacity(
                    opacity: _opacityAnimation.value,
-                   child: Container(
-                     width: 140,
-                     height: 140,
-                     decoration: BoxDecoration(
-                       color: Colors.red,
-                       shape: BoxShape.circle,
-                       boxShadow: [
-                         BoxShadow(
-                           color: Colors.red.withValues(alpha: 0.3),
-                           blurRadius: 15,
-                           spreadRadius: 5,
+                   child: LayoutBuilder(
+                     builder: (context, constraints) {
+                       // Calcular tamaño responsivo del botón de emergencia específica
+                       final containerSize = constraints.maxWidth < constraints.maxHeight 
+                           ? constraints.maxWidth 
+                           : constraints.maxHeight;
+                       
+                       // El botón de emergencia será 55% del tamaño del contenedor
+                       final calculatedEmergencySize = containerSize * 0.55;
+                       final emergencyButtonSize = calculatedEmergencySize.clamp(100.0, 180.0);
+                       
+                       return Container(
+                         width: emergencyButtonSize,
+                         height: emergencyButtonSize,
+                         decoration: BoxDecoration(
+                           color: Colors.red,
+                           shape: BoxShape.circle,
+                           boxShadow: [
+                             BoxShadow(
+                               color: Colors.red.withValues(alpha: 0.3),
+                               blurRadius: emergencyButtonSize * 0.1, // Responsive blur
+                               spreadRadius: emergencyButtonSize * 0.04, // Responsive spread
+                             ),
+                           ],
                          ),
-                       ],
-                     ),
                      child: Column(
                        mainAxisAlignment: MainAxisAlignment.center,
                        children: [
                          Icon(
                            emergencyData['icon'],
                            color: Colors.white,
-                           size: 32,
+                           size: emergencyButtonSize * 0.2, // Responsive icon size
                          ),
-                         const SizedBox(height: 8),
+                         SizedBox(height: emergencyButtonSize * 0.05), // Responsive spacing
                          Text(
                            emergencyData['type'],
                            textAlign: TextAlign.center,
-                           style: const TextStyle(
+                           style: TextStyle(
                              color: Colors.white,
-                             fontSize: 14,
+                             fontSize: emergencyButtonSize * 0.1, // Responsive font size
                              fontWeight: FontWeight.bold,
                            ),
                          ),
                        ],
                      ),
+                   );
+                     },
                    ),
                  );
                },

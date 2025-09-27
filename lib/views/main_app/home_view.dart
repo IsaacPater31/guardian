@@ -604,17 +604,56 @@ class _HomeViewState extends State<HomeView> {
           
           const SizedBox(height: 50), // Más espacio entre título y botón
           
-          // Botón de alerta con tamaño fijo para mantener proporción
+          // Botón de alerta responsivo
           Expanded(
             child: Center(
-              child: SizedBox(
-                width: 700,
-                height: 500,
-                child: AlertButton(
-                  onPressed: () {
-                    // TODO: Implement general alert
-                  },
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calcular dimensiones responsivas basadas en el tamaño de pantalla
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final screenHeight = MediaQuery.of(context).size.height;
+                  
+                  // Dimensiones base para diferentes tipos de pantalla
+                  double containerWidth;
+                  double containerHeight;
+                  
+                  if (screenWidth < 400) {
+                    // Pantallas pequeñas (teléfonos compactos)
+                    containerWidth = screenWidth * 0.9;
+                    containerHeight = screenHeight * 0.4;
+                  } else if (screenWidth < 600) {
+                    // Pantallas medianas (teléfonos normales)
+                    containerWidth = screenWidth * 0.85;
+                    containerHeight = screenHeight * 0.45;
+                  } else if (screenWidth < 900) {
+                    // Pantallas grandes (tablets pequeñas)
+                    containerWidth = screenWidth * 0.7;
+                    containerHeight = screenHeight * 0.5;
+                  } else {
+                    // Pantallas muy grandes (tablets grandes)
+                    containerWidth = screenWidth * 0.6;
+                    containerHeight = screenHeight * 0.55;
+                  }
+                  
+                  // Asegurar que no exceda las dimensiones disponibles
+                  final minWidth = 200.0;
+                  final minHeight = 200.0;
+                  final maxWidth = constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
+                  final maxHeight = constraints.maxHeight > minHeight ? constraints.maxHeight : minHeight;
+                  
+                  containerWidth = containerWidth.clamp(minWidth, maxWidth);
+                  containerHeight = containerHeight.clamp(minHeight, maxHeight);
+                  
+                  return SizedBox(
+                    width: containerWidth,
+                    height: containerHeight,
+                    child: AlertButton(
+                      onPressed: () {
+                        // TODO: Implement general alert
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ),
