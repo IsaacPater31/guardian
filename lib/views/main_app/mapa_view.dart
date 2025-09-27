@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Para haptic feedback
 import 'package:flutter_map/flutter_map.dart' as flutter_map;
 import 'package:latlong2/latlong.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:math';
 import '../../models/alert_model.dart';
+import '../../models/emergency_types.dart';
 import '../../controllers/map_controller.dart' as map_data;
 
 class MapaView extends StatefulWidget {
@@ -18,7 +20,7 @@ class MapaView extends StatefulWidget {
   State<MapaView> createState() => _MapaViewState();
 }
 
-class _MapaViewState extends State<MapaView> {
+class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   final flutter_map.MapController _mapController = flutter_map.MapController();
   final map_data.MapController _mapDataController = map_data.MapController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -28,64 +30,70 @@ class _MapaViewState extends State<MapaView> {
   bool _isLoading = true;
   LatLng? _currentLocation;
   StreamSubscription<List<AlertModel>>? _alertsSubscription;
+  
+  // Variables para el panel plegable
+  bool _isLegendExpanded = true;
+  late AnimationController _legendAnimationController;
+  late Animation<double> _legendAnimation;
 
-  // Define alert types exactly as they appear in AlertButton
-  final Map<String, Map<String, dynamic>> _alertTypes = {
-    'STREET ESCORT': {
-      'icon': Icons.people,
-      'color': Colors.blue,
-      'category': 'Assistance',
-    },
-    'ROBBERY': {
-      'icon': Icons.person_off,
-      'color': Colors.red,
-      'category': 'Critical Emergency',
-    },
-    'UNSAFETY': {
-      'icon': Icons.warning,
-      'color': Colors.orange,
-      'category': 'Risk',
-    },
-    'PHYSICAL RISK': {
-      'icon': Icons.accessibility,
-      'color': Colors.purple,
-      'category': 'Risk',
-    },
-    'PUBLIC SERVICES EMERGENCY': {
-      'icon': Icons.construction,
-      'color': Colors.yellow,
-      'category': 'Public Services',
-    },
-    'VIAL EMERGENCY': {
-      'icon': Icons.directions_car,
-      'color': Colors.cyan,
-      'category': 'Traffic',
-    },
-    'ASSISTANCE': {
-      'icon': Icons.help,
-      'color': Colors.green,
-      'category': 'Assistance',
-    },
-    'FIRE': {
-      'icon': Icons.local_fire_department,
-      'color': Colors.red,
-      'category': 'Critical Emergency',
-    },
-    'ACCIDENT': {
-      'icon': Icons.car_crash,
-      'color': Colors.orange,
-      'category': 'Accident',
-    },
-    'EMERGENCY': {
-      'icon': Icons.emergency,
-      'color': Colors.red,
-      'category': 'Critical Emergency',
-    },
-  };
+  // Usar el sistema centralizado de tipos de emergencia
+  Map<String, Map<String, dynamic>> get _alertTypes {
+    final Map<String, Map<String, dynamic>> alertTypes = {};
+    
+    // Obtener todos los tipos del sistema centralizado
+    for (final direction in EmergencyTypes.allDirections) {
+      final typeData = EmergencyTypes.getTypeByDirection(direction);
+      if (typeData != null) {
+        final typeName = typeData['type'] as String;
+        alertTypes[typeName] = {
+          'icon': typeData['icon'],
+          'color': typeData['color'],
+          'category': _getCategoryForType(typeName),
+        };
+      }
+    }
+    
+    return alertTypes;
+  }
+  
+  // Función auxiliar para categorizar los tipos
+  String _getCategoryForType(String typeName) {
+    switch (typeName) {
+      case 'ROBBERY':
+      case 'FIRE':
+        return 'Critical Emergency';
+      case 'UNSAFETY':
+      case 'PHYSICAL RISK':
+        return 'Risk';
+      case 'STREET ESCORT':
+      case 'ASSISTANCE':
+        return 'Assistance';
+      case 'PUBLIC SERVICES EMERGENCY':
+        return 'Public Services';
+      case 'VIAL EMERGENCY':
+        return 'Traffic';
+      default:
+        return 'Other';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    
+    // Inicializar controlador de animación tipo Apple
+    _legendAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _legendAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _legendAnimationController,
+      curve: Curves.easeInOutCubic, // Curva más suave tipo Apple
+    ));
+    
     _initializeMap();
   }
 
@@ -312,6 +320,21 @@ class _MapaViewState extends State<MapaView> {
     });
   }
 
+  void _toggleLegend() {
+    // Haptic feedback tipo Apple
+    HapticFeedback.lightImpact();
+    
+    setState(() {
+      _isLegendExpanded = !_isLegendExpanded;
+    });
+    
+    if (_isLegendExpanded) {
+      _legendAnimationController.forward();
+    } else {
+      _legendAnimationController.reverse();
+    }
+  }
+
   void _centerMapOnAlert(AlertModel alert) {
     if (alert.location == null) return;
     
@@ -351,128 +374,284 @@ class _MapaViewState extends State<MapaView> {
     }
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(8),
-      width: 200, // Slightly wider to accommodate offset info
-      constraints: const BoxConstraints(maxHeight: 350), // Slightly taller
+      margin: const EdgeInsets.all(20),
+      width: 220,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
+          // Sombra principal tipo Apple
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          // Sombra sutil adicional
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 4,
             offset: const Offset(0, 2),
+            spreadRadius: 0,
           ),
         ],
       ),
-      child: SingleChildScrollView( // Make it scrollable if needed
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Alert Types',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header premium tipo Apple
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _toggleLegend,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
-            ),
-            const SizedBox(height: 6),
-            ...categories.entries.map((category) => _buildCategorySection(category.key, category.value)),
-            
-            // Información sobre marcadores con offset
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.yellow.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.yellow.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      color: Colors.yellow,
-                      shape: BoxShape.circle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF1D1D1F), // Negro Apple
+                      const Color(0xFF2C2C2E), // Gris oscuro Apple
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Icono de información
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.info_outline,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                     ),
-                    child: const Center(
+                    const SizedBox(width: 12),
+                    const Expanded(
                       child: Text(
-                        '1',
+                        'Alert Types',
                         style: TextStyle(
-                          fontSize: 8,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                      'Multiple alerts at same location',
-                      style: TextStyle(fontSize: 9),
+                    // Botón de toggle con animación suave
+                    AnimatedRotation(
+                      turns: _isLegendExpanded ? 0.0 : 0.5,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeInOutCubic,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          
+          // Contenido plegable con animación premium
+          AnimatedBuilder(
+            animation: _legendAnimation,
+            builder: (context, child) {
+              return ClipRect(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  heightFactor: _isLegendExpanded ? 1.0 : 0.0,
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 320),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      ...categories.entries.map((category) => _buildCategorySection(category.key, category.value)),
+                      
+                      // Información sobre marcadores con offset - diseño premium
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.amber.withValues(alpha: 0.1),
+                              Colors.orange.withValues(alpha: 0.05),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.amber.withValues(alpha: 0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Colors.amber, Colors.orange],
+                                ),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.amber.withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  '1',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Multiple alerts at same location',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF1D1D1F),
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCategorySection(String category, List<String> alertTypes) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          category,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header de categoría con estilo Apple
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F7), // Gris claro Apple
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              category.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF8E8E93), // Gris Apple
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        ...alertTypes.map((alertType) => _buildLegendItem(
-          _getAlertColor(alertType),
-          alertType,
-          _getAlertIcon(alertType),
-        )),
-        const SizedBox(height: 4),
-      ],
+          const SizedBox(height: 8),
+          // Items de la categoría
+          ...alertTypes.map((alertType) => _buildLegendItem(
+            _getAlertColor(alertType),
+            alertType,
+            _getAlertIcon(alertType),
+          )),
+        ],
+      ),
     );
   }
 
   Widget _buildLegendItem(Color color, String label, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
+          // Marcador con sombra y gradiente
           Container(
-            width: 12,
-            height: 12,
+            width: 16,
+            height: 16,
             decoration: BoxDecoration(
-              color: color,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color,
+                  color.withValues(alpha: 0.8),
+                ],
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               icon,
               color: Colors.white,
-              size: 8,
+              size: 10,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 9),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1D1D1F),
+                letterSpacing: -0.1,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -766,6 +945,7 @@ class _MapaViewState extends State<MapaView> {
   void dispose() {
     _mapController.dispose();
     _alertsSubscription?.cancel();
+    _legendAnimationController.dispose();
     super.dispose();
   }
 }
