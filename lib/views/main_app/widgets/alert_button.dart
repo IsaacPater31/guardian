@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:async'; // Added for Timer
 import 'package:guardian/controllers/alert_controller.dart';
+import 'package:guardian/models/emergency_types.dart';
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -42,49 +43,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // Instancia del controlador de alertas
   final AlertController _alertController = AlertController();
 
-  final Map<String, Map<String, dynamic>> _emergencyTypes = {
-    'up': {
-      'type': 'STREET ESCORT',
-      'icon': Icons.people,
-      'color': Colors.blue,
-    },
-    'upLeft': {
-      'type': 'ROBBERY',
-      'icon': Icons.person_off,
-      'color': Colors.red,
-    },
-    'left': {
-      'type': 'UNSAFETY',
-      'icon': Icons.person,
-      'color': Colors.orange,
-    },
-    'downLeft': {
-      'type': 'PHYSICAL RISK',
-      'icon': Icons.accessible,
-      'color': Colors.purple,
-    },
-    'down': {
-      'type': 'PUBLIC SERVICES EMERGENCY',
-      'icon': Icons.construction,
-      'color': Colors.yellow,
-    },
-    'downRight': {
-      'type': 'VIAL EMERGENCY',
-      'icon': Icons.directions_car,
-      'color': Colors.cyan,
-    },
-    'right': {
-      'type': 'ASSISTANCE',
-      'icon': Icons.help,
-      'color': Colors.green,
-    },
-    'upRight': {
-      'type': 'FIRE',
-      'icon': Icons.local_fire_department,
-      'color': Colors.red,
-    },
-  };
-
   // --- Declarar variable de estado para el tipo de alerta seleccionado en el formulario detallado ---
   String? _selectedDetailedAlertType;
 
@@ -112,7 +70,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _handleGesture(String direction) {
-    if (_emergencyTypes.containsKey(direction) && !_isGestureActive) {
+    if (EmergencyTypes.types.containsKey(direction) && !_isGestureActive) {
       _isGestureActive = true;
       setState(() {
         _currentEmergencyType = direction;
@@ -123,7 +81,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       // Mostrar diálogo después de la animación
       Future.delayed(const Duration(milliseconds: 200), () {
         if (mounted) {
-          _showEmergencyDialog(_emergencyTypes[direction]!['type']);
+          _showEmergencyDialog(EmergencyTypes.types[direction]!['type']);
         }
       });
     }
@@ -235,9 +193,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _showEmergencyDialog(String emergencyType) {
-    final emergencyData = _emergencyTypes.values.firstWhere(
-      (data) => data['type'] == emergencyType,
-    );
+    final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
+    
+    if (emergencyData == null) return; // Salir si no se encuentra el tipo
     
     showDialog(
       context: context,
@@ -765,12 +723,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             },
           ),
           
-                     // Opciones de emergencia que aparecen con animación
-           if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
-             AnimatedBuilder(
-               animation: _opacityAnimation,
-               builder: (context, child) {
-                 final emergencyData = _emergencyTypes[_currentEmergencyType]!;
+          // Opciones de emergencia que aparecen con animación
+          if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
+            AnimatedBuilder(
+              animation: _opacityAnimation,
+              builder: (context, child) {
+                final emergencyData = EmergencyTypes.getTypeByDirection(_currentEmergencyType);
+                if (emergencyData == null) return const SizedBox.shrink();
                  return Opacity(
                    opacity: _opacityAnimation.value,
                    child: Container(
@@ -853,7 +812,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _showDetailedAlertDialog() {
     // Al abrir el formulario, si hay tipo de alerta por drag, se preselecciona, si no, queda vacío
-    _selectedDetailedAlertType = _currentEmergencyType.isNotEmpty ? _emergencyTypes[_currentEmergencyType]!['type'] : null;
+    if (_currentEmergencyType.isNotEmpty) {
+      final emergencyData = EmergencyTypes.getTypeByDirection(_currentEmergencyType);
+      _selectedDetailedAlertType = emergencyData?['type'];
+    } else {
+      _selectedDetailedAlertType = null;
+    }
     
     // Variables locales para el estado del diálogo
     bool shareLocation = _shareLocation;
@@ -1185,7 +1149,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   ),
                 ),
               ),
-              ..._emergencyTypes.entries.map((entry) => DropdownMenuItem<String>(
+              ...EmergencyTypes.types.entries.map((entry) => DropdownMenuItem<String>(
                 value: entry.value['type'],
                 child: Row(
                   children: [

@@ -7,6 +7,7 @@ import 'package:guardian/services/background_service.dart';
 import 'package:guardian/services/background/background_service_factory.dart';
 import 'package:guardian/services/background_service_dialog_service.dart';
 import 'package:guardian/services/permission_service.dart'; // Added import for PermissionService
+import 'package:guardian/models/emergency_types.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -403,8 +404,8 @@ class _HomeViewState extends State<HomeView> {
 
 
   Widget _buildAlertCard(AlertModel alert) {
-    final alertIcon = _getAlertIcon(alert.alertType);
-    final alertColor = _getAlertColor(alert.alertType);
+    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
+    final alertColor = EmergencyTypes.getColor(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
 
     return GestureDetector(
@@ -566,54 +567,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  IconData _getAlertIcon(String alertType) {
-    switch (alertType) {
-      case 'ROBBERY':
-        return Icons.person_off;
-      case 'FIRE':
-        return Icons.local_fire_department;
-      case 'ACCIDENT':
-        return Icons.car_crash;
-      case 'STREET ESCORT':
-        return Icons.people;
-      case 'UNSAFETY':
-        return Icons.warning;
-      case 'PHYSICAL RISK':
-        return Icons.accessibility;
-      case 'PUBLIC SERVICES EMERGENCY':
-        return Icons.construction;
-      case 'VIAL EMERGENCY':
-        return Icons.directions_car;
-      case 'ASSISTANCE':
-        return Icons.help;
-      case 'EMERGENCY':
-        return Icons.emergency;
-      default:
-        return Icons.warning;
-    }
-  }
-
-  Color _getAlertColor(String alertType) {
-    switch (alertType) {
-      case 'ROBBERY':
-      case 'FIRE':
-      case 'EMERGENCY':
-        return Colors.red;
-      case 'ACCIDENT':
-      case 'VIAL EMERGENCY':
-        return Colors.orange;
-      case 'UNSAFETY':
-      case 'PHYSICAL RISK':
-        return Colors.purple;
-      case 'STREET ESCORT':
-      case 'ASSISTANCE':
-        return Colors.blue;
-      case 'PUBLIC SERVICES EMERGENCY':
-        return Colors.yellow;
-      default:
-        return Colors.grey;
-    }
-  }
 
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
