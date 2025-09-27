@@ -221,6 +221,7 @@ class GuardianBackgroundService : Service() {
         val shareLocation = alertData["shareLocation"] as? Boolean ?: false
         val alertUserId = alertData["userId"] as? String
         val alertUserEmail = alertData["userEmail"] as? String
+        val alertId = alertData["id"] as? String
         
         // Obtener usuario actual
         val currentUser = auth.currentUser
@@ -238,13 +239,31 @@ class GuardianBackgroundService : Service() {
             return
         }
         
+        // Verificar si el usuario ya vio esta alerta
+        val viewedBy = alertData["viewedBy"] as? List<String> ?: emptyList()
+        if (viewedBy.contains(currentUser.uid)) {
+            println("👁️ User already viewed this alert, skipping notification: $alertType")
+            return
+        }
+        
+        // Verificar si la alerta es muy antigua (más de 1 hora)
+        val timestamp = alertData["timestamp"] as? com.google.firebase.Timestamp
+        if (timestamp != null) {
+            val alertTime = timestamp.toDate()
+            val oneHourAgo = Date(System.currentTimeMillis() - 60 * 60 * 1000)
+            if (alertTime.before(oneHourAgo)) {
+                println("⏰ Alert is too old (${alertTime}), skipping notification: $alertType")
+                return
+            }
+        }
+        
         // Crear notificación de alerta
         showAlertNotification(alertType, description, isAnonymous, shareLocation)
         
         // Vibración manual adicional
         triggerVibration()
         
-        println("🚨 Alert received in background service: $alertType")
+        println("🚨 New alert notification sent: $alertType")
     }
     
     private fun showAlertNotification(
