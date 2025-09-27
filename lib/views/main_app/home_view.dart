@@ -3,10 +3,7 @@ import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
-import 'package:guardian/services/background_service.dart';
-import 'package:guardian/services/background/background_service_factory.dart';
-import 'package:guardian/services/background_service_dialog_service.dart';
-import 'package:guardian/services/permission_service.dart'; // Added import for PermissionService
+import 'package:guardian/services/permission_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 
 class HomeView extends StatefulWidget {
@@ -18,7 +15,6 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   final HomeController _homeController = HomeController();
-  final BackgroundService _backgroundService = BackgroundService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
   bool _isServiceRunning = false;
@@ -90,8 +86,7 @@ class _HomeViewState extends State<HomeView> {
 
   Future<void> _checkServiceStatus() async {
     try {
-      await _backgroundService.initialize();
-      final isRunning = await _backgroundService.isServiceRunning();
+      final isRunning = await _homeController.isServiceRunning();
       print('🔍 Background service status: $isRunning');
       setState(() {
         _isServiceRunning = isRunning;

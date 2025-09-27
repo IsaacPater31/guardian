@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 //import 'package:firebase_auth/firebase_auth.dart';        // <-- agrega esto
 import 'package:guardian/views/auth/auth_gate.dart';
-import 'package:guardian/services/notification_service.dart';
 
 // Top-level function to handle background messages
 @pragma('vm:entry-point')

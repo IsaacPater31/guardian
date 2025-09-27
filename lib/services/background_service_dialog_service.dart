@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:io';
-import 'background_service.dart';
 
 /// Servicio para manejar diálogos de servicios en segundo plano
 /// Proporciona una capa de abstracción para mostrar diálogos específicos por plataforma

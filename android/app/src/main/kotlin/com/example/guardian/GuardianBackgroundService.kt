@@ -56,6 +56,11 @@ class GuardianBackgroundService : Service() {
     private fun startForegroundService() {
         if (isServiceRunning) return
         
+        println("🚀 Starting Guardian Background Service...")
+        
+        // Los permisos de notificación se verifican desde PermissionService.dart
+        // No duplicar lógica aquí para mantener consistencia
+        
         // Crear notificación persistente
         val notification = createPersistentNotification()
         
@@ -67,6 +72,15 @@ class GuardianBackgroundService : Service() {
         
         isServiceRunning = true
         println("✅ Guardian Background Service started successfully")
+        println("📱 Persistent notification should be visible in notification bar")
+        
+        // Verificar que la notificación se mostró
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val activeNotifications = notificationManager.activeNotifications
+        println("📊 Active notifications count: ${activeNotifications.size}")
+        for (notification in activeNotifications) {
+            println("📱 Active notification ID: ${notification.id}, Channel: ${notification.notification.channelId}")
+        }
     }
     
     private fun stopForegroundService() {
@@ -91,10 +105,10 @@ class GuardianBackgroundService : Service() {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH // Cambiar a HIGH para mayor persistencia
+                NotificationManager.IMPORTANCE_MIN // MIN para notificación persistente visible pero silenciosa
             ).apply {
                 description = CHANNEL_DESCRIPTION
-                setShowBadge(true)
+                setShowBadge(false) // No mostrar badge para servicio
                 enableLights(false)
                 enableVibration(false)
                 setSound(null, null)
@@ -119,6 +133,12 @@ class GuardianBackgroundService : Service() {
             
             notificationManager.createNotificationChannel(serviceChannel)
             notificationManager.createNotificationChannel(alertsChannel)
+            
+            println("✅ Notification channels created successfully")
+            println("📱 Service channel: $CHANNEL_ID")
+            println("🚨 Alerts channel: $ALERTS_CHANNEL_ID")
+        } else {
+            println("⚠️ Android version < 8.0, using legacy notifications")
         }
     }
     
@@ -150,10 +170,10 @@ class GuardianBackgroundService : Service() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setShowWhen(true)
+            .setShowWhen(false) // No mostrar timestamp para notificación persistente
             .setWhen(System.currentTimeMillis())
             .setSilent(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH) // Cambiar a HIGH para que sea más persistente
+            .setPriority(NotificationCompat.PRIORITY_MIN) // MIN para notificación persistente visible
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
@@ -251,13 +271,15 @@ class GuardianBackgroundService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX) // MAX para alertas críticas
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
             .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000))
             .setLights(0xFFD32F2F.toInt(), 1000, 1000)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setFullScreenIntent(pendingIntent, true) // Mostrar en pantalla completa
+            .setTimeoutAfter(30000) // Timeout después de 30 segundos
             .build()
         
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -265,19 +287,7 @@ class GuardianBackgroundService : Service() {
     }
     
     private fun getAlertTitle(alertType: String): String {
-        return when (alertType) {
-            "ROBBERY" -> "🚨 Robo Reportado"
-            "FIRE" -> "🔥 Incendio Reportado"
-            "ACCIDENT" -> "🚗 Accidente Reportado"
-            "STREET ESCORT" -> "👥 Acompañamiento Solicitado"
-            "UNSAFETY" -> "⚠️ Zona Insegura"
-            "PHYSICAL RISK" -> "🚨 Riesgo Físico"
-            "PUBLIC SERVICES EMERGENCY" -> "🏗️ Emergencia Servicios Públicos"
-            "VIAL EMERGENCY" -> "🚦 Emergencia Vial"
-            "ASSISTANCE" -> "🆘 Asistencia Necesaria"
-            "EMERGENCY" -> "🚨 Emergencia General"
-            else -> "🚨 Alerta de Emergencia"
-        }
+        return EmergencyTypes.getNotificationTitle(alertType)
     }
     
     private fun buildAlertBody(
@@ -286,21 +296,7 @@ class GuardianBackgroundService : Service() {
         isAnonymous: Boolean,
         shareLocation: Boolean
     ): String {
-        val body = StringBuilder(alertType)
-        
-        if (!description.isNullOrEmpty()) {
-            body.append("\n").append(description)
-        }
-        
-        if (shareLocation) {
-            body.append("\n📍 Ubicación incluida")
-        }
-        
-        if (isAnonymous) {
-            body.append("\n👤 Reporte anónimo")
-        }
-        
-        return body.toString()
+        return EmergencyTypes.buildNotificationBody(alertType, description, isAnonymous, shareLocation)
     }
     
     private fun triggerVibration() {
@@ -314,23 +310,32 @@ class GuardianBackgroundService : Service() {
             }
 
             if (vibrator != null && vibrator.hasVibrator()) {
-                // Prefer a continuous vibration for a configurable duration to ensure the user feels it.
-                val continuousDurationMs = 8000L // 8 seconds (adjustable)
+                println("📳 Iniciando vibración de emergencia...")
+                
+                // Patrón de vibración más agresivo para alertas de emergencia
+                val emergencyPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
+                val continuousDurationMs = 10000L // 10 segundos
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     try {
-                        val effect = VibrationEffect.createOneShot(continuousDurationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+                        // Usar patrón de vibración más agresivo
+                        val effect = VibrationEffect.createWaveform(emergencyPattern, 0) // repeat
                         vibrator.vibrate(effect)
-
-                        // Safety: cancel vibration after the duration in case some devices ignore one-shot long vibrate
+                        
+                        println("📳 Vibración con patrón agresivo activada")
+                        
+                        // Safety: cancel vibration after the duration
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            try { vibrator.cancel() } catch (ignored: Exception) {}
-                        }, continuousDurationMs + 500L)
+                            try { 
+                                vibrator.cancel() 
+                                println("📳 Vibración cancelada después de $continuousDurationMs ms")
+                            } catch (ignored: Exception) {}
+                        }, continuousDurationMs)
                     } catch (e: Exception) {
-                        // Fallback to a repeating waveform if one-shot fails
-                        val pattern = longArrayOf(0, 1000, 500, 1000, 500)
-                        val effect = VibrationEffect.createWaveform(pattern, 0) // repeat
-                        vibrator.vibrate(effect)
+                        println("❌ Error con patrón de vibración, usando fallback: ${e.message}")
+                        // Fallback más simple
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(continuousDurationMs)
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             try { vibrator.cancel() } catch (ignored: Exception) {}
                         }, continuousDurationMs)
@@ -338,13 +343,15 @@ class GuardianBackgroundService : Service() {
                 } else {
                     // Deprecated API fallback
                     @Suppress("DEPRECATION")
-                    vibrator.vibrate(continuousDurationMs)
+                    vibrator.vibrate(emergencyPattern, 0) // repeat
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         try { vibrator.cancel() } catch (ignored: Exception) {}
                     }, continuousDurationMs)
                 }
 
-                println("📳 Vibración manual activada por $continuousDurationMs ms")
+                println("📳 Vibración de emergencia activada por $continuousDurationMs ms")
+            } else {
+                println("❌ Vibrator no disponible o no soportado")
             }
         } catch (e: Exception) {
             println("❌ Error en vibración manual: ${e.message}")

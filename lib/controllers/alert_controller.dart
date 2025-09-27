@@ -5,7 +5,6 @@ import '../services/alert_repository.dart';
 import '../services/location_service.dart';
 import '../services/image_service.dart';
 import '../services/user_service.dart';
-import '../services/notification_service.dart';
 import '../services/permission_service.dart';
 
 class AlertController {
@@ -13,7 +12,6 @@ class AlertController {
   final LocationService _locationService = LocationService();
   final ImageService _imageService = ImageService();
   final UserService _userService = UserService();
-  final NotificationService _notificationService = NotificationService();
 
   /// Envía una alerta detallada a Firebase
   /// [alertType] - Tipo de alerta (ej: "Robo", "Accidente", etc.)
@@ -80,7 +78,7 @@ class AlertController {
 
       // Enviar notificación push a otros usuarios
       final alertWithId = alert.copyWith(id: alertId);
-      await _notificationService.sendAlertNotification(alertWithId);
+      // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;
     } catch (e) {
@@ -138,7 +136,7 @@ class AlertController {
 
       // Enviar notificación push a otros usuarios
       final alertWithId = alert.copyWith(id: alertId);
-      await _notificationService.sendAlertNotification(alertWithId);
+      // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;
     } catch (e) {
@@ -196,7 +194,7 @@ class AlertController {
 
       // Enviar notificación push a otros usuarios
       final alertWithId = alert.copyWith(id: alertId);
-      await _notificationService.sendAlertNotification(alertWithId);
+      // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;
     } catch (e) {

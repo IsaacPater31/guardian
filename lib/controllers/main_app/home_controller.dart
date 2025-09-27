@@ -1,286 +1,146 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:vibration/vibration.dart';
 import '../../models/alert_model.dart';
-import '../../services/notification_service.dart';
-import '../../services/background_service.dart';
 import '../../services/alert_repository.dart';
 import '../../services/user_service.dart';
+import '../../services/native_background_service.dart';
 
 class HomeController {
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
-  final NotificationService _notificationService = NotificationService();
-  final BackgroundService _backgroundService = BackgroundService();
   final AlertRepository _alertRepository = AlertRepository();
   final UserService _userService = UserService();
   
   StreamSubscription<List<AlertModel>>? _alertsSubscription;
-  StreamSubscription<AlertModel>? _notificationSubscription;
-  List<AlertModel> _recentAlerts = [];
-  bool _isInitialized = false;
   
-  // Callbacks para actualizar la UI
+  // Callbacks para la UI
   Function(List<AlertModel>)? onAlertsUpdated;
   Function(AlertModel)? onNewAlertReceived;
+  Function(bool)? onServiceStatusChanged;
   
-  List<AlertModel> get recentAlerts => _recentAlerts;
-  
-  /// Inicializa el controlador y configura las notificaciones
+  /// Inicializa el controlador
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    print('🏠 Initializing HomeController...');
     
-    // Iniciar escucha de alertas INMEDIATAMENTE (sin esperar permisos)
-    await _startListeningToAlerts();
-    
-    // Configurar notificaciones en paralelo (no bloquear)
-    _setupNotificationsInBackground();
-    _notificationService.initialize();
-    _backgroundService.initialize();
-    await _startListeningToNotifications();
-    await _backgroundService.startBackgroundMonitoring();
-    await _notificationService.saveTokenToFirestore();
-    _isInitialized = true;
-  }
-  
-  /// Configura las notificaciones locales en segundo plano (sin bloquear)
-  Future<void> _setupNotificationsInBackground() async {
-    try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-      
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
-      
-      await _notifications.initialize(
-        initSettings,
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-      );
-      
-      // Configurar canal de notificaciones para Android
-      const androidChannel = AndroidNotificationChannel(
-        'emergency_alerts',
-        'Emergency Alerts',
-        description: 'Notifications for emergency alerts in your area',
-        importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
-        enableLights: true,
-      );
-      
-      await _notifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(androidChannel);
-    } catch (e) {
-      print('⚠️ Error setting up notifications (non-blocking): $e');
-    }
-  }
-  
-  /// Inicia la escucha de alertas en tiempo real
-  Future<void> _startListeningToAlerts() async {
-    _alertsSubscription = _alertRepository.getRecentAlertsStream().listen(_handleAlertsUpdate);
-  }
-
-  /// Inicia la escucha de notificaciones push
-  Future<void> _startListeningToNotifications() async {
-    // En Android, NO usar FCM - solo notificaciones locales desde el servicio
+    // Iniciar servicio nativo de Android
     if (Platform.isAndroid) {
-      print('📱 Android detected - Skipping FCM, using local notifications only');
-      return;
+      try {
+        await NativeBackgroundService.startService();
+        print('✅ Native background service started');
+      } catch (e) {
+        print('❌ Error starting native background service: $e');
+      }
     }
     
-    // Solo en iOS usar FCM
-    _notificationSubscription = _notificationService.alertStream.listen((alert) {
-      onNewAlertReceived?.call(alert);
+    // Iniciar escucha de alertas
+    _startAlertsListener();
+  }
+  
+  /// Inicia el listener de alertas desde Firestore
+  void _startAlertsListener() {
+    print('👂 Starting alerts listener...');
+    
+    _alertsSubscription = _alertRepository.getRecentAlertsStream().listen((alerts) {
+      print('📊 Received ${alerts.length} alerts');
+      
+      // Filtrar alertas del usuario actual
+      final currentUser = _userService.currentUser;
+      if (currentUser != null) {
+        final otherUserAlerts = alerts.where((alert) => alert.userId != currentUser.uid).toList();
+        
+        // Notificar a la UI
+        onAlertsUpdated?.call(otherUserAlerts);
+        
+        // Detectar nuevas alertas
+        if (otherUserAlerts.isNotEmpty) {
+          final latestAlert = otherUserAlerts.first;
+          onNewAlertReceived?.call(latestAlert);
+          print('🚨 New alert received: ${latestAlert.alertType}');
+        }
+      }
+    }, onError: (error) {
+      print('❌ Error in alerts listener: $error');
     });
   }
   
-  /// Maneja las actualizaciones de alertas
-  void _handleAlertsUpdate(List<AlertModel> alerts) {
-    _recentAlerts = alerts;
-    
-    // Notificar a la UI
-    onAlertsUpdated?.call(_recentAlerts);
-    
-    // Verificar si hay alertas nuevas
-    _checkForNewAlerts(alerts);
+  /// Obtiene las alertas recientes
+  Future<List<AlertModel>> getRecentAlerts() async {
+    try {
+      final alerts = await _alertRepository.getRecentAlerts();
+      final currentUser = _userService.currentUser;
+      
+      if (currentUser != null) {
+        // Filtrar alertas del usuario actual
+        return alerts.where((alert) => alert.userId != currentUser.uid).toList();
+      }
+      
+      return alerts;
+    } catch (e) {
+      print('❌ Error getting recent alerts: $e');
+      return [];
+    }
   }
   
-  /// Verifica si hay alertas nuevas y las notifica
-  void _checkForNewAlerts(List<AlertModel> alerts) async {
-    // Solo procesar alertas de los últimos 30 segundos como "nuevas"
-    final thirtySecondsAgo = DateTime.now().subtract(const Duration(seconds: 30));
-    
-    // Obtener el usuario actual
-    final currentUser = _userService.currentUser;
-    if (currentUser == null) return;
-    
-    for (final alert in alerts) {
-      if (alert.timestamp.isAfter(thirtySecondsAgo)) {
-        // No mostrar notificación si la alerta fue creada por el usuario actual
-        if (alert.userId != currentUser.uid) {
-          // En Android, NO mostrar notificación local aquí (ya se maneja en el servicio)
-          // En iOS, mostrar notificación local
-          if (!Platform.isAndroid) {
-            _showAlertNotification(alert);
-          }
-        }
-        // Llamar al callback para actualizar la UI (siempre)
-        onNewAlertReceived?.call(alert);
+  /// Verifica si el servicio está ejecutándose
+  Future<bool> isServiceRunning() async {
+    if (Platform.isAndroid) {
+      return await NativeBackgroundService.isServiceRunning();
+    }
+    return false;
+  }
+  
+  /// Inicia el servicio de fondo
+  Future<void> startBackgroundService() async {
+    if (Platform.isAndroid) {
+      try {
+        await NativeBackgroundService.startService();
+        onServiceStatusChanged?.call(true);
+        print('✅ Background service started');
+      } catch (e) {
+        print('❌ Error starting background service: $e');
       }
     }
   }
   
-  /// Muestra una notificación local para una alerta (solo Android)
-  Future<void> _showAlertNotification(AlertModel alert) async {
-    // Solo mostrar notificaciones locales en Android
-    if (!Platform.isAndroid) return;
-    
-    const androidDetails = AndroidNotificationDetails(
-      'emergency_alerts',
-      'Emergency Alerts',
-      channelDescription: 'Notifications for emergency alerts in your area',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-      enableLights: true,
-      color: Color(0xFFD32F2F),
-      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-      styleInformation: BigTextStyleInformation(''),
-    );
-    
-    const details = NotificationDetails(android: androidDetails);
-    
-    // Crear título y contenido de la notificación
-    final title = _getAlertTitle(alert);
-    final body = _getAlertBody(alert);
-    
-    await _notifications.show(
-      alert.hashCode, // ID único basado en el hash de la alerta
-      title,
-      body,
-      details,
-      payload: alert.id, // Pasar el ID de la alerta como payload
-    );
-    
-    // Iniciar vibración continua
-    _startContinuousVibration();
-  }
-  
-  /// Genera el título de la notificación
-  String _getAlertTitle(AlertModel alert) {
-    switch (alert.alertType) {
-      case 'ROBBERY':
-        return '🚨 Robo Reportado';
-      case 'FIRE':
-        return '🔥 Incendio Reportado';
-      case 'ACCIDENT':
-        return '🚗 Accidente Reportado';
-      case 'STREET ESCORT':
-        return '👥 Acompañamiento Solicitado';
-      case 'UNSAFETY':
-        return '⚠️ Zona Insegura';
-      case 'PHYSICAL RISK':
-        return '🚨 Riesgo Físico';
-      case 'PUBLIC SERVICES EMERGENCY':
-        return '🏗️ Emergencia Servicios Públicos';
-      case 'VIAL EMERGENCY':
-        return '🚦 Emergencia Vial';
-      case 'ASSISTANCE':
-        return '🆘 Asistencia Necesaria';
-      case 'EMERGENCY':
-        return '🚨 Emergencia General';
-      default:
-        return '🚨 Alerta de Emergencia';
+  /// Detiene el servicio de fondo
+  Future<void> stopBackgroundService() async {
+    if (Platform.isAndroid) {
+      try {
+        await NativeBackgroundService.stopService();
+        onServiceStatusChanged?.call(false);
+        print('✅ Background service stopped');
+      } catch (e) {
+        print('❌ Error stopping background service: $e');
+      }
     }
   }
   
-  /// Genera el contenido de la notificación
-  String _getAlertBody(AlertModel alert) {
-    String body = '${alert.alertType}';
-    
-    if (alert.description != null && alert.description!.isNotEmpty) {
-      body += '\n${alert.description}';
-    }
-    
-    if (alert.shareLocation && alert.location != null) {
-      body += '\n📍 Ubicación incluida';
-    }
-    
-    if (alert.isAnonymous) {
-      body += '\n👤 Reporte anónimo';
-    }
-
-    // Agregar información sobre el contador de vistas
-    if (alert.viewedCount > 0) {
-      body += '\n👁️ Visto por ${alert.viewedCount} persona${alert.viewedCount > 1 ? 's' : ''}';
-    }
-    
-    return body;
-  }
-  
-  /// Inicia la vibración continua
-  Future<void> _startContinuousVibration() async {
-    if (await Vibration.hasVibrator() ?? false) {
-      // Patrón de vibración: vibrar por 1 segundo, pausa de 0.5 segundos, repetir
-      const pattern = [0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000];
-      Vibration.vibrate(pattern: pattern, repeat: 2); // Repetir 2 veces
-    }
-  }
-  
-  /// Detiene la vibración
-  Future<void> stopVibration() async {
-    Vibration.cancel();
-  }
-  
-  /// Maneja cuando se toca una notificación
-  void _onNotificationTapped(NotificationResponse response) {
-    // Aquí puedes navegar a la vista de detalles de la alerta
-    // usando el payload (ID de la alerta)
-    final alertId = response.payload;
-    if (alertId != null) {
-      markAlertAsViewed(alertId);
-      // TODO: Navegar a la vista de detalles de la alerta
-      print('Alert tapped: $alertId');
-    }
-  }
-  
-  /// Marca una alerta como vista (detiene la vibración y actualiza el contador)
+  /// Marca una alerta como vista
   Future<void> markAlertAsViewed(String alertId) async {
-    await _notificationService.markAlertAsViewed(alertId);
-    stopVibration();
+    try {
+      await _alertRepository.markAlertAsViewed(alertId);
+      print('✅ Alert marked as viewed: $alertId');
+    } catch (e) {
+      print('❌ Error marking alert as viewed: $e');
+    }
   }
   
-  /// Obtiene alertas recientes (últimas 24 horas)
-  Future<List<AlertModel>> getRecentAlerts() async {
-    return await _alertRepository.getRecentAlerts();
+  /// Limpia recursos del controlador
+  Future<void> dispose() async {
+    print('🔄 Disposing HomeController...');
+    
+    // Detener listener de alertas
+    await _alertsSubscription?.cancel();
+    _alertsSubscription = null;
+    
+    // Detener servicio de fondo
+    if (Platform.isAndroid) {
+      try {
+        await NativeBackgroundService.stopService();
+        print('✅ Background service stopped on dispose');
+      } catch (e) {
+        print('❌ Error stopping background service on dispose: $e');
+      }
+    }
+    
+    print('✅ HomeController disposed');
   }
-  
-  /// Obtiene estadísticas de alertas
-  Future<Map<String, int>> getAlertStatistics() async {
-    return await _alertRepository.getAlertStatistics();
-  }
-
-  /// Obtiene estadísticas de vistas
-  Future<Map<String, int>> getViewStatistics() async {
-    return await _alertRepository.getViewStatistics();
-  }
-  
-  /// Limpia los recursos del controlador
-  void dispose() {
-    _alertsSubscription?.cancel();
-    _notificationSubscription?.cancel();
-    stopVibration();
-    _backgroundService.stopBackgroundMonitoring();
-    _notificationService.dispose();
-  }
-} 
+}

@@ -44,8 +44,22 @@ class PermissionService {
       
       // 2. Notificaciones (después)
       print('🔐 Requesting notification permission...');
-      final notificationStatus = await Permission.notification.request();
-      print('📱 Notification permission status: $notificationStatus');
+      if (Platform.isAndroid) {
+        // En Android, usar el método nativo
+        try {
+          await NativeBackgroundService.requestNotificationPermissions();
+          print('📱 Android notification permission requested via native method');
+        } catch (e) {
+          print('❌ Error requesting Android notification permissions: $e');
+          // Fallback al método de permission_handler
+          final notificationStatus = await Permission.notification.request();
+          print('📱 Notification permission status (fallback): $notificationStatus');
+        }
+      } else {
+        // En iOS, usar permission_handler
+        final notificationStatus = await Permission.notification.request();
+        print('📱 Notification permission status: $notificationStatus');
+      }
       
       // Marcar que ya se ha ejecutado por primera vez
       await _markFirstLaunchComplete();
@@ -59,11 +73,23 @@ class PermissionService {
 
   /// Verifica si los permisos esenciales están concedidos (solo notificaciones inicialmente)
   static Future<bool> essentialPermissionsGranted() async {
-    final notif = await Permission.notification.isGranted;
-    
-    // Por ahora solo verificamos notificaciones
-    // La optimización de batería se verificará después
-    return notif;
+    if (Platform.isAndroid) {
+      // En Android, usar el método nativo para verificar notificaciones
+      try {
+        final notif = await NativeBackgroundService.checkNotificationPermissions();
+        print('📱 Android notification permission check: $notif');
+        return notif;
+      } catch (e) {
+        print('❌ Error checking Android notification permissions: $e');
+        // Fallback al método de permission_handler
+        final notif = await Permission.notification.isGranted;
+        return notif;
+      }
+    } else {
+      // En iOS, usar permission_handler
+      final notif = await Permission.notification.isGranted;
+      return notif;
+    }
   }
 
   /// Verifica si todos los permisos necesarios están concedidos
@@ -81,7 +107,24 @@ class PermissionService {
 
   /// Verifica permisos individuales
   static Future<bool> hasNotificationPermission() async {
-    return await Permission.notification.isGranted;
+    if (Platform.isAndroid) {
+      // En Android, usar el método nativo
+      try {
+        return await NativeBackgroundService.checkNotificationPermissions();
+      } catch (e) {
+        print('❌ Error checking Android notification permissions: $e');
+        // Fallback al método de permission_handler
+        return await Permission.notification.isGranted;
+      }
+    } else {
+      // En iOS, usar permission_handler
+      return await Permission.notification.isGranted;
+    }
+  }
+
+  /// Método centralizado para verificar permisos de notificación (elimina duplicidad)
+  static Future<bool> checkNotificationPermissions() async {
+    return await hasNotificationPermission();
   }
 
   static Future<bool> hasLocationPermission() async {
@@ -116,7 +159,20 @@ class PermissionService {
 
   /// Métodos individuales para solicitar permisos (mantenidos para compatibilidad)
   static Future<void> requestNotificationPermission() async {
-    await Permission.notification.request();
+    if (Platform.isAndroid) {
+      // En Android, usar el método nativo
+      try {
+        await NativeBackgroundService.requestNotificationPermissions();
+        print('📱 Android notification permission requested via native method');
+      } catch (e) {
+        print('❌ Error requesting Android notification permissions: $e');
+        // Fallback al método de permission_handler
+        await Permission.notification.request();
+      }
+    } else {
+      // En iOS, usar permission_handler
+      await Permission.notification.request();
+    }
   }
 
   static Future<void> requestLocationPermission() async {
@@ -173,7 +229,20 @@ class PermissionService {
       final hasNotification = await hasNotificationPermission();
       if (!hasNotification) {
         print('🔐 Requesting missing notification permission...');
-        await Permission.notification.request();
+        if (Platform.isAndroid) {
+          // En Android, usar el método nativo
+          try {
+            await NativeBackgroundService.requestNotificationPermissions();
+            print('📱 Android notification permission requested via native method');
+          } catch (e) {
+            print('❌ Error requesting Android notification permissions: $e');
+            // Fallback al método de permission_handler
+            await Permission.notification.request();
+          }
+        } else {
+          // En iOS, usar permission_handler
+          await Permission.notification.request();
+        }
       }
       
       if (Platform.isAndroid) {

@@ -1,5 +1,6 @@
 package com.example.guardian
 
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -53,6 +54,13 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("WORKER_ERROR", e.message, null)
                     }
+                }
+                "checkNotificationPermissions" -> {
+                    result.success(checkNotificationPermissions())
+                }
+                "requestNotificationPermissions" -> {
+                    requestNotificationPermissions()
+                    result.success(true)
                 }
                 else -> {
                     result.notImplemented()
@@ -120,6 +128,43 @@ class MainActivity : FlutterActivity() {
             } catch (e2: Exception) {
                 println("❌ Error opening application settings: ${e2.message}")
             }
+        }
+    }
+
+    /**
+     * Verifica si las notificaciones están habilitadas para la app
+     * MÉTODO NATIVO - Solo para uso desde PermissionService.dart
+     */
+    private fun checkNotificationPermissions(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.areNotificationsEnabled()
+        } else {
+            true // En versiones anteriores, las notificaciones están habilitadas por defecto
+        }
+    }
+
+    /**
+     * Solicita permisos de notificación (Android 13+)
+     * MÉTODO NATIVO - Solo para uso desde PermissionService.dart
+     */
+    private fun requestNotificationPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                val intent = Intent().apply {
+                    action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                println("✅ Notification settings opened")
+            } catch (e: Exception) {
+                println("❌ Error opening notification settings: ${e.message}")
+                // Fallback: abrir configuración general de la app
+                requestWhitelistPermission()
+            }
+        } else {
+            println("ℹ️ Notification permissions not required for Android < 13")
         }
     }
 }

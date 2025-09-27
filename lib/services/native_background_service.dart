@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 
-/// Servicio para controlar el servicio nativo de Android
+/// Servicio simplificado para controlar el servicio nativo de Android
+/// Elimina duplicación y centraliza la comunicación con el servicio nativo
 class NativeBackgroundService {
   static const MethodChannel _channel = MethodChannel('guardian_background_service');
   
@@ -87,6 +88,34 @@ class NativeBackgroundService {
       return result;
     } on PlatformException catch (e) {
       print('❌ Error requesting whitelist permission: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Verifica si las notificaciones están habilitadas para la app
+  static Future<bool> checkNotificationPermissions() async {
+    if (!Platform.isAndroid) return true;
+    
+    try {
+      final bool result = await _channel.invokeMethod('checkNotificationPermissions');
+      print('✅ Notification permissions check result: $result');
+      return result;
+    } on PlatformException catch (e) {
+      print('❌ Error checking notification permissions: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Solicita permisos de notificación (Android 13+)
+  static Future<bool> requestNotificationPermissions() async {
+    if (!Platform.isAndroid) return true;
+    
+    try {
+      final bool result = await _channel.invokeMethod('requestNotificationPermissions');
+      print('✅ Notification permissions request result: $result');
+      return result;
+    } on PlatformException catch (e) {
+      print('❌ Error requesting notification permissions: ${e.message}');
       return false;
     }
   }
