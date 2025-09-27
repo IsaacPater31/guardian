@@ -38,7 +38,9 @@ flutter:
 
   assets:
     - assets/images/guardian_logo.png
+    - assets/images/guardian_logo2.png
     - assets/images/google_icon.png
+    - assets/images/Buttonimage1.png
 
   fonts:
     - family: Inter
@@ -72,7 +74,7 @@ flutter_native_splash:
   ios: true
   web: false
 
-  android_gravity: center
+  android_gravity: centerq
   ios_content_mode: center
 
   android_12:

@@ -654,6 +654,32 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // Imagen con ZOOM AUMENTADO 10%
+          Transform.scale(
+            scale: 1.2, // Aumentar zoom en 10%
+            child: Container(
+              width: 700,
+              height: 500,
+              child: Image.asset(
+                'assets/images/Buttonimage1.png',
+                fit: BoxFit.contain, // SIN ZOOM - muestra la imagen completa
+                errorBuilder: (context, error, stackTrace) {
+                  print('❌ Error loading Buttonimage1.png: $error');
+                  return Container(
+                    color: Colors.red,
+                    child: const Center(
+                      child: Text(
+                        'ERROR\nImagen no encontrada',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          
           // Indicador de desplazamiento
           if (_isDragging && !_showEmergencyOptions)
             Transform.translate(

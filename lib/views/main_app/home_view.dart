@@ -654,21 +654,18 @@ class _HomeViewState extends State<HomeView> {
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: 30),
+          const SizedBox(height: 50), // Más espacio entre título y botón
           
           // Botón de alerta con tamaño fijo para mantener proporción
           Expanded(
             child: Center(
-              child: AspectRatio(
-                aspectRatio: 1.0,
-                child: SizedBox(
-                  width: 300,
-                  height: 300,
-                  child: AlertButton(
-                    onPressed: () {
-                      // TODO: Implement general alert
-                    },
-                  ),
+              child: SizedBox(
+                width: 700,
+                height: 500,
+                child: AlertButton(
+                  onPressed: () {
+                    // TODO: Implement general alert
+                  },
                 ),
               ),
             ),
