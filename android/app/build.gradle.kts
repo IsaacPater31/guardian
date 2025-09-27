@@ -50,6 +50,9 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-messaging")
 
+    // WorkManager para tareas en segundo plano más robustas
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+
     // AGREGAR ESTA LÍNEA PARA DESUGARING
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 

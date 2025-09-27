@@ -45,6 +45,15 @@ class MainActivity : FlutterActivity() {
                     requestWhitelistPermission()
                     result.success(true)
                 }
+                "scheduleWorker" -> {
+                    // Schedule WorkManager periodic work from native side
+                    try {
+                        GuardianStarterWorker.schedulePeriodicWork(this)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("WORKER_ERROR", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
