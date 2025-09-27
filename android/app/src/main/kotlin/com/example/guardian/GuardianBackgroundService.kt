@@ -307,24 +307,44 @@ class GuardianBackgroundService : Service() {
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vibratorManager = getSystemService(VibratorManager::class.java)
-                vibratorManager.defaultVibrator
+                vibratorManager?.defaultVibrator
             } else {
                 @Suppress("DEPRECATION")
                 getSystemService(Vibrator::class.java)
             }
-            
-            if (vibrator.hasVibrator()) {
-                val vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
-                
+
+            if (vibrator != null && vibrator.hasVibrator()) {
+                // Prefer a continuous vibration for a configurable duration to ensure the user feels it.
+                val continuousDurationMs = 8000L // 8 seconds (adjustable)
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val vibrationEffect = VibrationEffect.createWaveform(vibrationPattern, -1)
-                    vibrator.vibrate(vibrationEffect)
+                    try {
+                        val effect = VibrationEffect.createOneShot(continuousDurationMs, VibrationEffect.DEFAULT_AMPLITUDE)
+                        vibrator.vibrate(effect)
+
+                        // Safety: cancel vibration after the duration in case some devices ignore one-shot long vibrate
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            try { vibrator.cancel() } catch (ignored: Exception) {}
+                        }, continuousDurationMs + 500L)
+                    } catch (e: Exception) {
+                        // Fallback to a repeating waveform if one-shot fails
+                        val pattern = longArrayOf(0, 1000, 500, 1000, 500)
+                        val effect = VibrationEffect.createWaveform(pattern, 0) // repeat
+                        vibrator.vibrate(effect)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            try { vibrator.cancel() } catch (ignored: Exception) {}
+                        }, continuousDurationMs)
+                    }
                 } else {
+                    // Deprecated API fallback
                     @Suppress("DEPRECATION")
-                    vibrator.vibrate(vibrationPattern, -1)
+                    vibrator.vibrate(continuousDurationMs)
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        try { vibrator.cancel() } catch (ignored: Exception) {}
+                    }, continuousDurationMs)
                 }
-                
-                println("📳 Vibración manual activada")
+
+                println("📳 Vibración manual activada por $continuousDurationMs ms")
             }
         } catch (e: Exception) {
             println("❌ Error en vibración manual: ${e.message}")
