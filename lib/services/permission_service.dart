@@ -20,7 +20,7 @@ class PermissionService {
   }
 
   /// Solicita solo los permisos esenciales en la primera ejecución
-  /// Primero optimización de batería, luego notificaciones
+  /// Con delays apropiados para mejor UX
   static Future<void> requestAllPermissionsOnFirstLaunch() async {
     final isFirstLaunch = await _isFirstLaunch();
     if (!isFirstLaunch) {
@@ -28,22 +28,11 @@ class PermissionService {
       return;
     }
     
-    print('🔐 First launch detected - Requesting battery optimization first...');
+    print('🔐 First launch detected - Starting permission flow with delays...');
     
     try {
-      // 1. Optimización de batería (primero)
-      if (Platform.isAndroid) {
-        print('🔐 Requesting battery optimization exemption...');
-        try {
-          await NativeBackgroundService.requestBatteryOptimizationExemption();
-          print('🔋 Battery optimization exemption requested');
-        } catch (e) {
-          print('⚠️ Battery optimization request failed: $e');
-        }
-      }
-      
-      // 2. Notificaciones (después)
-      print('🔐 Requesting notification permission...');
+      // 1. Notificaciones (primero, más importante)
+      print('🔐 Requesting notification permission first...');
       if (Platform.isAndroid) {
         // En Android, usar el método nativo
         try {
@@ -61,9 +50,24 @@ class PermissionService {
         print('📱 Notification permission status: $notificationStatus');
       }
       
+      // Delay para dar tiempo al usuario de activar notificaciones
+      print('⏳ Waiting 3 seconds for user to enable notifications...');
+      await Future.delayed(Duration(seconds: 3));
+      
+      // 2. Optimización de batería (después, con delay)
+      if (Platform.isAndroid) {
+        print('🔐 Requesting battery optimization exemption after delay...');
+        try {
+          await NativeBackgroundService.requestBatteryOptimizationExemption();
+          print('🔋 Battery optimization exemption requested');
+        } catch (e) {
+          print('⚠️ Battery optimization request failed: $e');
+        }
+      }
+      
       // Marcar que ya se ha ejecutado por primera vez
       await _markFirstLaunchComplete();
-      print('✅ First launch permissions completed');
+      print('✅ First launch permissions completed with proper timing');
       
     } catch (e) {
       print('❌ Error during permission requests: $e');
@@ -223,12 +227,12 @@ class PermissionService {
 
   /// Método para solicitar permisos faltantes específicos
   static Future<void> requestMissingPermissions() async {
-    print('🔐 Checking and requesting missing permissions...');
+    print('🔐 Checking and requesting missing permissions with proper timing...');
     
     try {
       final hasNotification = await hasNotificationPermission();
       if (!hasNotification) {
-        print('🔐 Requesting missing notification permission...');
+        print('🔐 Requesting missing notification permission first...');
         if (Platform.isAndroid) {
           // En Android, usar el método nativo
           try {
@@ -243,12 +247,16 @@ class PermissionService {
           // En iOS, usar permission_handler
           await Permission.notification.request();
         }
+        
+        // Delay para dar tiempo al usuario de activar notificaciones
+        print('⏳ Waiting 3 seconds for user to enable notifications...');
+        await Future.delayed(Duration(seconds: 3));
       }
       
       if (Platform.isAndroid) {
         final hasBatteryOptimization = await hasBatteryOptimizationExemption();
         if (!hasBatteryOptimization) {
-          print('🔐 Requesting missing battery optimization exemption...');
+          print('🔐 Requesting missing battery optimization exemption after delay...');
           try {
             await NativeBackgroundService.requestBatteryOptimizationExemption();
           } catch (e) {
@@ -257,7 +265,7 @@ class PermissionService {
         }
       }
       
-      print('✅ Missing permissions requested');
+      print('✅ Missing permissions requested with proper timing');
     } catch (e) {
       print('❌ Error requesting missing permissions: $e');
     }
