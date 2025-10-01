@@ -82,6 +82,9 @@ class _HomeViewState extends State<HomeView> {
 
     // Inicializar el controlador
     await _homeController.initialize();
+    
+    // Refrescar alertas recientes para asegurar que se muestren
+    await _homeController.refreshRecentAlerts();
   }
 
   Future<void> _checkServiceStatus() async {
@@ -107,7 +110,8 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   void dispose() {
-    _homeController.dispose();
+    // NO llamar dispose aquí - el controlador debe permanecer activo
+    // Solo se limpia cuando la app se cierra completamente
     super.dispose();
   }
 
@@ -594,7 +598,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Swipe in any direction for specific emergency type',
+            'Drag in any direction to see emergency types in real-time',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -679,7 +683,7 @@ class _HomeViewState extends State<HomeView> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Hold and swipe to activate different emergency types',
+                        'Drag to see emergency types, release to activate',
                         style: TextStyle(
                           fontSize: 13,
                           color: const Color(0xFF4CAF50),

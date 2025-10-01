@@ -27,24 +27,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   Offset _dragOffset = Offset.zero;
   bool _isDragging = false;
   
-  // Variables para long press
-  bool _isLongPressing = false;
-  Timer? _longPressTimer;
+  // Variables para feedback visual en tiempo real
+  String? _currentDragDirection;
+  bool _showDragFeedback = false;
   
-  // Variables para alerta detallada
-  File? _selectedImage;
-  final TextEditingController _descriptionController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  
-  // Variables para checkboxes
-  bool _shareLocation = true;
-  bool _anonymousAlert = false;
-
   // Instancia del controlador de alertas
   final AlertController _alertController = AlertController();
-
-  // --- Declarar variable de estado para el tipo de alerta seleccionado en el formulario detallado ---
-  String? _selectedDetailedAlertType;
 
   @override
   void initState() {
@@ -64,8 +52,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   @override
   void dispose() {
     _animationController.dispose();
-    _descriptionController.dispose();
-    _longPressTimer?.cancel();
     super.dispose();
   }
 
@@ -546,6 +532,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       _isGestureActive = false;
       _isDragging = false;
       _dragOffset = Offset.zero;
+      _showDragFeedback = false;
+      _currentDragDirection = null;
     });
     _animationController.reverse();
   }
@@ -553,7 +541,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   String _getDirection(Offset offset) {
     final distance = offset.distance;
     
-    if (distance < 50) return '';
+    // Zona central - no mostrar ninguna alerta específica
+    if (distance < 80) return '';
     
     // Calcular el ángulo en radianes
     final angle = offset.direction;
@@ -576,13 +565,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     return GestureDetector(
       onPanStart: (details) {
-        // Cancelar long press si empieza a arrastrar
-        _longPressTimer?.cancel();
         setState(() {
           _isDragging = true;
           _dragOffset = Offset.zero;
           _isGestureActive = false;
-          _isLongPressing = false;
+          _showDragFeedback = false;
+          _currentDragDirection = null;
         });
       },
       onPanUpdate: (details) {
@@ -590,80 +578,105 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           _dragOffset += details.delta;
         });
         
-        if (!_showEmergencyOptions && !_isGestureActive) {
-          final direction = _getDirection(_dragOffset);
-          if (direction.isNotEmpty) {
-            _handleGesture(direction);
-          }
+        // Actualizar feedback visual en tiempo real
+        final direction = _getDirection(_dragOffset);
+        if (direction != _currentDragDirection) {
+          setState(() {
+            _currentDragDirection = direction;
+            _showDragFeedback = direction.isNotEmpty;
+          });
         }
       },
       onPanEnd: (details) {
+        // Solo activar si hay una dirección válida
+        if (_currentDragDirection != null && _currentDragDirection!.isNotEmpty) {
+          _handleGesture(_currentDragDirection!);
+        }
+        
         setState(() {
           _isDragging = false;
           _dragOffset = Offset.zero;
+          _showDragFeedback = false;
+          _currentDragDirection = null;
         });
-      },
-      onLongPressStart: (details) {
-        _startLongPress();
-      },
-      onLongPressEnd: (details) {
-        _endLongPress();
       },
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Imagen con ZOOM AUMENTADO 10%
-          Transform.scale(
-            scale: 1.2, // Aumentar zoom en 10%
-            child: Container(
-              width: 700,
-              height: 500,
-              child: Image.asset(
-                'assets/images/Buttonimage1.png',
-                fit: BoxFit.contain, // SIN ZOOM - muestra la imagen completa
-                errorBuilder: (context, error, stackTrace) {
-                  print('❌ Error loading Buttonimage1.png: $error');
+          
+          // Indicador de desplazamiento con feedback visual en tiempo real (responsivo)
+          if (_isDragging && !_showEmergencyOptions)
+            Transform.translate(
+              offset: _dragOffset,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calcular tamaño del indicador basado en el botón
+                  final screenSize = MediaQuery.of(context).size;
+                  final screenWidth = screenSize.width;
+                  
+                  double indicatorSize;
+                  if (screenWidth < 400) {
+                    indicatorSize = screenWidth * 0.35;
+                  } else if (screenWidth < 600) {
+                    indicatorSize = screenWidth * 0.3;
+                  } else if (screenWidth < 900) {
+                    indicatorSize = screenWidth * 0.22;
+                  } else {
+                    indicatorSize = screenWidth * 0.18;
+                  }
+                  
+                  indicatorSize = indicatorSize.clamp(140.0, 250.0);
+                  
                   return Container(
-                    color: Colors.red,
-                    child: const Center(
-                      child: Text(
-                        'ERROR\nImagen no encontrada',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    width: indicatorSize,
+                    height: indicatorSize,
+                    decoration: BoxDecoration(
+                      color: _showDragFeedback 
+                        ? Colors.red.withValues(alpha: 0.3)
+                        : Colors.grey.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _showDragFeedback ? Colors.red : Colors.grey,
+                        width: 2,
                       ),
+                    ),
+                    child: Center(
+                      child: _showDragFeedback && _currentDragDirection != null
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['icon'] ?? Icons.warning,
+                                color: Colors.red,
+                                size: indicatorSize * 0.15,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['type'] ?? 'UNKNOWN',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: indicatorSize * 0.08,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'DRAG',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: indicatorSize * 0.12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                     ),
                   );
                 },
               ),
             ),
-          ),
           
-          // Indicador de desplazamiento
-          if (_isDragging && !_showEmergencyOptions)
-            Transform.translate(
-              offset: _dragOffset,
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.3),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.red, width: 2),
-                ),
-                child: Center(
-                  child: Text(
-                    _getDirectionText(_dragOffset),
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          
-          // Botón principal HELP (más grande)
+          // Botón principal HELP completamente responsivo
           AnimatedBuilder(
             animation: _scaleAnimation,
             builder: (context, child) {
@@ -671,14 +684,30 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 scale: _showEmergencyOptions ? _scaleAnimation.value : 1.0,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    // Calcular tamaño responsivo del botón basado en el contenedor
-                    final containerSize = constraints.maxWidth < constraints.maxHeight 
-                        ? constraints.maxWidth 
-                        : constraints.maxHeight;
+                    // Obtener dimensiones de la pantalla
+                    final screenSize = MediaQuery.of(context).size;
+                    final screenWidth = screenSize.width;
+                    final screenHeight = screenSize.height;
                     
-                    // El botón será 70% del tamaño del contenedor, con límites mínimos y máximos
-                    final calculatedSize = containerSize * 0.7;
-                    final buttonSize = calculatedSize.clamp(120.0, 250.0);
+                    // Calcular tamaño del botón basado en la pantalla completa
+                    double buttonSize;
+                    
+                    if (screenWidth < 400) {
+                      // Pantallas pequeñas (teléfonos compactos)
+                      buttonSize = screenWidth * 0.4;
+                    } else if (screenWidth < 600) {
+                      // Pantallas medianas (teléfonos normales)
+                      buttonSize = screenWidth * 0.35;
+                    } else if (screenWidth < 900) {
+                      // Pantallas grandes (tablets pequeñas)
+                      buttonSize = screenWidth * 0.25;
+                    } else {
+                      // Pantallas muy grandes (tablets grandes)
+                      buttonSize = screenWidth * 0.2;
+                    }
+                    
+                    // Asegurar que el botón no sea demasiado pequeño ni demasiado grande
+                    buttonSize = buttonSize.clamp(150.0, 300.0);
                     
                     return Container(
                       width: buttonSize,
@@ -688,55 +717,39 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.red.withValues(alpha: 0.3),
-                            blurRadius: buttonSize * 0.1, // Responsive blur
-                            spreadRadius: buttonSize * 0.04, // Responsive spread
+                            color: Colors.red.withValues(alpha: 0.4),
+                            blurRadius: buttonSize * 0.15,
+                            spreadRadius: buttonSize * 0.05,
+                            offset: Offset(0, buttonSize * 0.05),
                           ),
                         ],
                       ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _isLongPressing ? null : _sendQuickAlert,
-                      borderRadius: BorderRadius.circular(90),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _sendQuickAlert,
+                          borderRadius: BorderRadius.circular(buttonSize / 2),
+                          child: Center(
+                            child: Text(
                               "HELP",
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: buttonSize * 0.2, // Responsive font size
+                                fontSize: buttonSize * 0.18,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 2.0,
                               ),
                             ),
-                            if (_isLongPressing)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  "Hold for detailed alert",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
+                    );
+                  },
+                ),
+              );
             },
           ),
-                );
-              },
-            ),
           
-          // Opciones de emergencia que aparecen con animación
+          // Opciones de emergencia que aparecen con animación (responsivo)
           if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
             AnimatedBuilder(
               animation: _opacityAnimation,
@@ -748,13 +761,21 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                    child: LayoutBuilder(
                      builder: (context, constraints) {
                        // Calcular tamaño responsivo del botón de emergencia específica
-                       final containerSize = constraints.maxWidth < constraints.maxHeight 
-                           ? constraints.maxWidth 
-                           : constraints.maxHeight;
+                       final screenSize = MediaQuery.of(context).size;
+                       final screenWidth = screenSize.width;
                        
-                       // El botón de emergencia será 55% del tamaño del contenedor
-                       final calculatedEmergencySize = containerSize * 0.55;
-                       final emergencyButtonSize = calculatedEmergencySize.clamp(100.0, 180.0);
+                       double emergencyButtonSize;
+                       if (screenWidth < 400) {
+                         emergencyButtonSize = screenWidth * 0.3;
+                       } else if (screenWidth < 600) {
+                         emergencyButtonSize = screenWidth * 0.25;
+                       } else if (screenWidth < 900) {
+                         emergencyButtonSize = screenWidth * 0.18;
+                       } else {
+                         emergencyButtonSize = screenWidth * 0.15;
+                       }
+                       
+                       emergencyButtonSize = emergencyButtonSize.clamp(120.0, 200.0);
                        
                        return Container(
                          width: emergencyButtonSize,
@@ -764,33 +785,34 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                            shape: BoxShape.circle,
                            boxShadow: [
                              BoxShadow(
-                               color: Colors.red.withValues(alpha: 0.3),
-                               blurRadius: emergencyButtonSize * 0.1, // Responsive blur
-                               spreadRadius: emergencyButtonSize * 0.04, // Responsive spread
+                               color: Colors.red.withValues(alpha: 0.4),
+                               blurRadius: emergencyButtonSize * 0.15,
+                               spreadRadius: emergencyButtonSize * 0.05,
+                               offset: Offset(0, emergencyButtonSize * 0.05),
                              ),
                            ],
                          ),
-                     child: Column(
-                       mainAxisAlignment: MainAxisAlignment.center,
-                       children: [
-                         Icon(
-                           emergencyData['icon'],
-                           color: Colors.white,
-                           size: emergencyButtonSize * 0.2, // Responsive icon size
+                         child: Column(
+                           mainAxisAlignment: MainAxisAlignment.center,
+                           children: [
+                             Icon(
+                               emergencyData['icon'],
+                               color: Colors.white,
+                               size: emergencyButtonSize * 0.2,
+                             ),
+                             SizedBox(height: emergencyButtonSize * 0.05),
+                             Text(
+                               emergencyData['type'],
+                               textAlign: TextAlign.center,
+                               style: TextStyle(
+                                 color: Colors.white,
+                                 fontSize: emergencyButtonSize * 0.08,
+                                 fontWeight: FontWeight.bold,
+                               ),
+                             ),
+                           ],
                          ),
-                         SizedBox(height: emergencyButtonSize * 0.05), // Responsive spacing
-                         Text(
-                           emergencyData['type'],
-                           textAlign: TextAlign.center,
-                           style: TextStyle(
-                             color: Colors.white,
-                             fontSize: emergencyButtonSize * 0.1, // Responsive font size
-                             fontWeight: FontWeight.bold,
-                           ),
-                         ),
-                       ],
-                     ),
-                   );
+                       );
                      },
                    ),
                  );
@@ -816,1130 +838,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  void _startLongPress() {
-    _longPressTimer = Timer(const Duration(milliseconds: 500), () {
-      if (!_isDragging && !_showEmergencyOptions) {
-        setState(() {
-          _isLongPressing = true;
-        });
-        _showDetailedAlertDialog();
-      }
-    });
-  }
-
-  void _endLongPress() {
-    _longPressTimer?.cancel();
-    setState(() {
-      _isLongPressing = false;
-      // También reiniciar el estado de gesto activo
-      _isGestureActive = false;
-    });
-  }
-
-  void _showDetailedAlertDialog() {
-    // Al abrir el formulario, si hay tipo de alerta por drag, se preselecciona, si no, queda vacío
-    if (_currentEmergencyType.isNotEmpty) {
-      final emergencyData = EmergencyTypes.getTypeByDirection(_currentEmergencyType);
-      _selectedDetailedAlertType = emergencyData?['type'];
-    } else {
-      _selectedDetailedAlertType = null;
-    }
-    
-    // Variables locales para el estado del diálogo
-    bool shareLocation = _shareLocation;
-    bool anonymousAlert = _anonymousAlert;
-    String? selectedType = _selectedDetailedAlertType;
-    final TextEditingController descriptionController = TextEditingController(text: _descriptionController.text);
-            File? selectedImage = _selectedImage;
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final screenHeight = MediaQuery.of(context).size.height;
-              final maxHeight = screenHeight * 0.92;
-              
-              return Container(
-                constraints: BoxConstraints(
-                  maxHeight: maxHeight,
-                  maxWidth: constraints.maxWidth * 0.92,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      spreadRadius: 0,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header profesional con colores de la app
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F2937),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          // Icono con diseño profesional
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.emergency,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          
-                          // Título con tipografía profesional
-                          const Text(
-                            'Report Emergency',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.3,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          
-                          const SizedBox(height: 8),
-                          
-                          // Subtítulo profesional
-                          Text(
-                            'Help keep our community safe by providing detailed information',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.9),
-                              height: 1.4,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Contenido scrolleable con espaciado profesional
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. Tipo de emergencia con diseño profesional
-                            _buildEmergencyTypeSection(selectedType, (value) {
-                              setDialogState(() {
-                                selectedType = value;
-                              });
-                            }),
-                            
-                            const SizedBox(height: 24),
-                            
-                            // 2. Descripción con diseño profesional
-                            _buildDescriptionSection(descriptionController),
-                            
-                            const SizedBox(height: 24),
-                            
-                            // 3. Configuración de privacidad con diseño profesional
-                            _buildPrivacySettingsSection(
-                              shareLocation,
-                              anonymousAlert,
-                              (value) {
-                                setDialogState(() {
-                                  shareLocation = value ?? false;
-                                });
-                              },
-                              (value) {
-                                setDialogState(() {
-                                  anonymousAlert = value ?? false;
-                                });
-                              },
-                            ),
-                            
-                            const SizedBox(height: 24),
-                            
-                            // 4. Foto con diseño profesional
-                            _buildPhotoSection(selectedImage, (image) {
-                              setDialogState(() {
-                                selectedImage = image;
-                              });
-                            }),
-                            
-                            // Espacio adicional al final
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                    
-                    // Botones con diseño profesional
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 48,
-                              child: TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  // Actualizar el estado principal con los valores del diálogo
-                                  setState(() {
-                                    _selectedDetailedAlertType = selectedType;
-                                    _descriptionController.text = descriptionController.text;
-                                    _shareLocation = shareLocation;
-                                    _anonymousAlert = anonymousAlert;
-                                    _selectedImage = selectedImage;
-                                    // Reiniciar el estado del botón para permitir alertas rápidas
-                                    _isLongPressing = false;
-                                    _isGestureActive = false;
-                                  });
-                                },
-                                style: TextButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF3F4F6),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                                  ),
-                                  elevation: 0,
-                                ),
-                                child: const Text(
-                                  'Cancel',
-                                  style: TextStyle(
-                                    color: Color(0xFF6B7280),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Flexible(
-                            child: SizedBox(
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  // Actualizar el estado principal y enviar la alerta
-                                  setState(() {
-                                    _selectedDetailedAlertType = selectedType;
-                                    _descriptionController.text = descriptionController.text;
-                                    _shareLocation = shareLocation;
-                                    _anonymousAlert = anonymousAlert;
-                                    _selectedImage = selectedImage;
-                                    // Reiniciar el estado del botón para permitir alertas rápidas
-                                    _isLongPressing = false;
-                                    _isGestureActive = false;
-                                  });
-                                  _sendDetailedAlert();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1F2937),
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Send Alert',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmergencyTypeSection(String? selectedType, Function(String?) onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header de sección profesional
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.category_rounded,
-                color: Color(0xFF1F2937),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Emergency Type',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-                letterSpacing: -0.2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // Dropdown con diseño profesional
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selectedType != null ? const Color(0xFF1F2937).withValues(alpha: 0.3) : const Color(0xFFE5E7EB),
-              width: 1,
-            ),
-          ),
-          child: DropdownButtonFormField<String>(
-            value: selectedType,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: 'Select emergency type',
-              labelStyle: const TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              suffixIcon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF9CA3AF),
-                size: 20,
-              ),
-            ),
-            items: [
-              DropdownMenuItem<String>(
-                value: null,
-                child: const Text(
-                  'Choose emergency type',
-                  style: TextStyle(
-                    color: Color(0xFF9CA3AF),
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              ...EmergencyTypes.types.entries.map((entry) => DropdownMenuItem<String>(
-                value: entry.value['type'],
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Icon(
-                        entry.value['icon'],
-                        color: const Color(0xFF1F2937),
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        entry.value['type'],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF1F2937),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-            ],
-            onChanged: onChanged,
-            dropdownColor: Colors.white,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF1F2937),
-            ),
-            icon: const SizedBox.shrink(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDescriptionSection(TextEditingController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header de sección profesional
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.description_rounded,
-                color: Color(0xFF1F2937),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Description',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Optional',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // TextField con diseño profesional
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFFE5E7EB),
-              width: 1,
-            ),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: 4,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF1F2937),
-            ),
-            decoration: InputDecoration(
-              hintText: 'Describe what happened, location details, and any relevant information...',
-              hintStyle: const TextStyle(
-                color: Color(0xFF9CA3AF),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.all(16),
-              counter: Container(
-                padding: const EdgeInsets.only(top: 8, right: 16, bottom: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${controller.text.length}/500',
-                      style: TextStyle(
-                        color: controller.text.length > 450 ? const Color(0xFFF59E0B) : const Color(0xFF9CA3AF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            onChanged: (value) {
-              if (value.length > 500) {
-                controller.text = value.substring(0, 500);
-                controller.selection = TextSelection.fromPosition(
-                  TextPosition(offset: 500),
-                );
-              }
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPrivacySettingsSection(bool shareLocation, bool anonymousAlert, ValueChanged<bool?> onShareLocationChanged, ValueChanged<bool?> onAnonymousChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header de sección profesional
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.privacy_tip_rounded,
-                color: Color(0xFF1F2937),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Privacy Settings',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-                letterSpacing: -0.2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // Location sharing con diseño profesional
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: shareLocation ? const Color(0xFFF0F9FF) : const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: shareLocation ? const Color(0xFF1F2937).withValues(alpha: 0.2) : const Color(0xFFE5E7EB),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: shareLocation ? const Color(0xFF1F2937).withValues(alpha: 0.1) : const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: shareLocation ? const Color(0xFF1F2937) : const Color(0xFF9CA3AF),
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Share Location',
-                      style: TextStyle(
-                        color: shareLocation ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      shareLocation 
-                        ? 'Your current location will be included in the alert'
-                        : 'Location sharing is disabled for this alert',
-                      style: TextStyle(
-                        color: shareLocation ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Transform.scale(
-                scale: 1.1,
-                child: Checkbox(
-                  value: shareLocation,
-                  onChanged: onShareLocationChanged,
-                  activeColor: const Color(0xFF1F2937),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 8),
-        
-        // Anonymous alert con diseño profesional
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: anonymousAlert ? const Color(0xFFF0F9FF) : const Color(0xFFF9FAFB),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: anonymousAlert ? const Color(0xFF1F2937).withValues(alpha: 0.2) : const Color(0xFFE5E7EB),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: anonymousAlert ? const Color(0xFF1F2937).withValues(alpha: 0.1) : const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(
-                  Icons.visibility_off_rounded,
-                  color: anonymousAlert ? const Color(0xFF1F2937) : const Color(0xFF9CA3AF),
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Anonymous Report',
-                      style: TextStyle(
-                        color: anonymousAlert ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      anonymousAlert 
-                        ? 'Your identity will be hidden from other users'
-                        : 'Your profile will be visible to the community',
-                      style: TextStyle(
-                        color: anonymousAlert ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Transform.scale(
-                scale: 1.1,
-                child: Checkbox(
-                  value: anonymousAlert,
-                  onChanged: onAnonymousChanged,
-                  activeColor: const Color(0xFF1F2937),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-         Widget _buildPhotoSection(File? selectedImage, ValueChanged<File?> onImageChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header de sección profesional
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                color: Color(0xFF1F2937),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Photo Evidence',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Optional',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        
-        // Imagen seleccionada con diseño profesional
-        if (selectedImage != null)
-          Container(
-            width: double.infinity,
-            height: 180,
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  Image.file(
-                    selectedImage,
-                    width: double.infinity,
-                    height: 180,
-                    fit: BoxFit.cover,
-                  ),
-                  // Overlay sutil para mejor legibilidad del botón
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topRight,
-                          end: Alignment.bottomLeft,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.2),
-                            Colors.transparent,
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Botón de eliminar profesional
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: GestureDetector(
-                      onTap: () {
-                        onImageChanged(null);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.7),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        
-        // Opciones de selección de imagen profesionales (solo si no hay imagen)
-        if (selectedImage == null)
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () async {
-                    try {
-                      final XFile? image = await _picker.pickImage(
-                        source: ImageSource.camera,
-                        maxWidth: 1024,
-                        maxHeight: 1024,
-                        imageQuality: 80,
-                      );
-                      
-                      if (image != null) {
-                        final file = File(image.path);
-                        // Verificar tamaño de la imagen
-                        final bytes = await file.length();
-                        final sizeInKB = bytes / 1024;
-                        
-                        if (sizeInKB > 500) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('La imagen es demasiado grande. Máximo 500KB permitido.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
-                        
-                        onImageChanged(file);
-                      }
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error al tomar foto: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            color: Color(0xFF1F2937),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Take Photo',
-                          style: TextStyle(
-                            color: Color(0xFF1F2937),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Use camera',
-                          style: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () async {
-                    try {
-                      final XFile? image = await _picker.pickImage(
-                        source: ImageSource.gallery,
-                        maxWidth: 1024,
-                        maxHeight: 1024,
-                        imageQuality: 80,
-                      );
-                      if (image != null) {
-                        final file = File(image.path);
-                        // Verificar tamaño de la imagen
-                        final bytes = await file.length();
-                        final sizeInKB = bytes / 1024;
-                        
-                        if (sizeInKB > 500) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('La imagen es demasiado grande. Máximo 500KB permitido.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
-                        
-                        onImageChanged(file);
-                      }
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error seleccionando imagen: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.photo_library_rounded,
-                            color: Color(0xFF1F2937),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Gallery',
-                          style: TextStyle(
-                            color: Color(0xFF1F2937),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Choose existing',
-                          style: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-  }
 
 
 
-  void _clearForm() {
-    setState(() {
-      _selectedImage = null;
-      _descriptionController.clear();
-      _shareLocation = true;
-      _anonymousAlert = false;
-      // Reiniciar el estado del botón para permitir alertas rápidas
-      _isLongPressing = false;
-      _isGestureActive = false;
-    });
-  }
 
-  void _sendDetailedAlert() async {
-    if (_selectedDetailedAlertType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please select an emergency type'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-      return;
-    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Text('Sending detailed alert...'),
-          ],
-        ),
-        backgroundColor: const Color(0xFF1F2937),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: EdgeInsets.all(16),
-      ),
-    );
 
-    final success = await _alertController.sendDetailedAlert(
-      alertType: _selectedDetailedAlertType!,
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-      images: _selectedImage != null ? [_selectedImage!] : null,
-      shareLocation: _shareLocation,
-      isAnonymous: _anonymousAlert,
-    );
 
-    ScaffoldMessenger.of(context).clearSnackBars();
 
-    if (success) {
-      final description = _descriptionController.text.trim();
-      final hasImage = _selectedImage != null;
-      
-      // Construir mensaje de confirmación
-      String confirmationMessage = 'Emergency reported';
-      if (hasImage) {
-        confirmationMessage += ' with photo';
-      }
-      if (description.isNotEmpty) confirmationMessage += hasImage ? ' and description' : ' with description';
-      if (_shareLocation) confirmationMessage += ' and location';
-      if (_anonymousAlert) confirmationMessage += ' (anonymous)';
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF4CAF50),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Detailed Alert Sent',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      confirmationMessage,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF4CAF50),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: EdgeInsets.all(16),
-        ),
-      );
-      
-      _clearForm();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Error sending alert. Please try again.'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    }
-  }
 }

@@ -6,10 +6,18 @@ import '../../services/user_service.dart';
 import '../../services/native_background_service.dart';
 
 class HomeController {
+  // Singleton pattern para evitar múltiples instancias
+  static final HomeController _instance = HomeController._internal();
+  factory HomeController() => _instance;
+  HomeController._internal();
+  
   final AlertRepository _alertRepository = AlertRepository();
   final UserService _userService = UserService();
   
   StreamSubscription<List<AlertModel>>? _alertsSubscription;
+  bool _isInitialized = false;
+  List<AlertModel> _lastKnownAlerts = [];
+  Set<String> _processedAlertIds = <String>{};
   
   // Callbacks para la UI
   Function(List<AlertModel>)? onAlertsUpdated;
@@ -18,6 +26,13 @@ class HomeController {
   
   /// Inicializa el controlador
   Future<void> initialize() async {
+    if (_isInitialized) {
+      print('🏠 HomeController already initialized, loading recent alerts...');
+      // Cargar alertas recientes aunque ya esté inicializado
+      await _loadRecentAlerts();
+      return;
+    }
+    
     print('🏠 Initializing HomeController...');
     
     // Iniciar servicio nativo de Android
@@ -32,14 +47,45 @@ class HomeController {
     
     // Iniciar escucha de alertas
     _startAlertsListener();
+    
+    // Cargar alertas recientes iniciales
+    await _loadRecentAlerts();
+    
+    _isInitialized = true;
+    print('✅ HomeController initialized successfully');
   }
   
+  /// Carga las alertas recientes sin generar notificaciones
+  Future<void> _loadRecentAlerts() async {
+    try {
+      final alerts = await getRecentAlerts();
+      print('📊 Loaded ${alerts.length} recent alerts');
+      
+      // Notificar a la UI con las alertas cargadas
+      onAlertsUpdated?.call(alerts);
+      
+      // Actualizar la lista de alertas conocidas
+      _lastKnownAlerts = alerts;
+      
+      // Marcar todas las alertas existentes como procesadas para evitar notificaciones
+      for (final alert in alerts) {
+        if (alert.id != null) {
+          _processedAlertIds.add(alert.id!);
+        }
+      }
+      
+      print('✅ Recent alerts loaded and marked as processed');
+    } catch (e) {
+      print('❌ Error loading recent alerts: $e');
+    }
+  }
+
   /// Inicia el listener de alertas desde Firestore
   void _startAlertsListener() {
     print('👂 Starting alerts listener...');
     
     _alertsSubscription = _alertRepository.getRecentAlertsStream().listen((alerts) {
-      print('📊 Received ${alerts.length} alerts');
+      print('📊 Received ${alerts.length} alerts from stream');
       
       // Filtrar alertas del usuario actual
       final currentUser = _userService.currentUser;
@@ -49,12 +95,22 @@ class HomeController {
         // Notificar a la UI
         onAlertsUpdated?.call(otherUserAlerts);
         
-        // Detectar nuevas alertas
+        // Detectar nuevas alertas - solo notificar si es realmente nueva
         if (otherUserAlerts.isNotEmpty) {
           final latestAlert = otherUserAlerts.first;
-          onNewAlertReceived?.call(latestAlert);
-          print('🚨 New alert received: ${latestAlert.alertType}');
+          
+          // Verificar si esta alerta ya fue procesada
+          if (latestAlert.id != null && !_processedAlertIds.contains(latestAlert.id)) {
+            _processedAlertIds.add(latestAlert.id!);
+            onNewAlertReceived?.call(latestAlert);
+            print('🚨 New alert received: ${latestAlert.alertType}');
+          } else {
+            print('🔄 Alert already processed, skipping notification: ${latestAlert.alertType}');
+          }
         }
+        
+        // Actualizar la lista de alertas conocidas
+        _lastKnownAlerts = otherUserAlerts;
       }
     }, onError: (error) {
       print('❌ Error in alerts listener: $error');
@@ -77,6 +133,12 @@ class HomeController {
       print('❌ Error getting recent alerts: $e');
       return [];
     }
+  }
+  
+  /// Refresca las alertas recientes (para uso desde la UI)
+  Future<void> refreshRecentAlerts() async {
+    print('🔄 Refreshing recent alerts...');
+    await _loadRecentAlerts();
   }
   
   /// Verifica si el servicio está ejecutándose
@@ -131,16 +193,38 @@ class HomeController {
     await _alertsSubscription?.cancel();
     _alertsSubscription = null;
     
-    // Detener servicio de fondo
+    // NO detener el servicio de fondo aquí - debe permanecer activo
+    // El servicio solo se detiene cuando la app se cierra completamente
+    
+    _isInitialized = false;
+    _lastKnownAlerts.clear();
+    _processedAlertIds.clear();
+    
+    print('✅ HomeController disposed (service remains active)');
+  }
+  
+  /// Método para limpiar completamente el controlador (solo cuando la app se cierra)
+  Future<void> disposeCompletely() async {
+    print('🔄 Completely disposing HomeController...');
+    
+    // Detener listener de alertas
+    await _alertsSubscription?.cancel();
+    _alertsSubscription = null;
+    
+    // Detener servicio de fondo solo cuando la app se cierra completamente
     if (Platform.isAndroid) {
       try {
         await NativeBackgroundService.stopService();
-        print('✅ Background service stopped on dispose');
+        print('✅ Background service stopped on complete dispose');
       } catch (e) {
-        print('❌ Error stopping background service on dispose: $e');
+        print('❌ Error stopping background service on complete dispose: $e');
       }
     }
     
-    print('✅ HomeController disposed');
+    _isInitialized = false;
+    _lastKnownAlerts.clear();
+    _processedAlertIds.clear();
+    
+    print('✅ HomeController completely disposed');
   }
 }
