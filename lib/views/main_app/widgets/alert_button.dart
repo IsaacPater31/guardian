@@ -541,8 +541,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   String _getDirection(Offset offset) {
     final distance = offset.distance;
     
-    // Zona central - no mostrar ninguna alerta específica
-    if (distance < 80) return '';
+    // Zona central - no mostrar ninguna alerta específica (reducida para que aparezca más cerca del centro)
+    if (distance < 40) return '';
     
     // Calcular el ángulo en radianes
     final angle = offset.direction;
@@ -610,22 +610,22 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               offset: _dragOffset,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Calcular tamaño del indicador basado en el botón
+                  // Calcular tamaño del indicador basado en el botón (reducido para que aparezca más cerca del centro)
                   final screenSize = MediaQuery.of(context).size;
                   final screenWidth = screenSize.width;
                   
                   double indicatorSize;
                   if (screenWidth < 400) {
-                    indicatorSize = screenWidth * 0.35;
+                    indicatorSize = screenWidth * 0.25;
                   } else if (screenWidth < 600) {
-                    indicatorSize = screenWidth * 0.3;
-                  } else if (screenWidth < 900) {
                     indicatorSize = screenWidth * 0.22;
-                  } else {
+                  } else if (screenWidth < 900) {
                     indicatorSize = screenWidth * 0.18;
+                  } else {
+                    indicatorSize = screenWidth * 0.15;
                   }
                   
-                  indicatorSize = indicatorSize.clamp(140.0, 250.0);
+                  indicatorSize = indicatorSize.clamp(100.0, 180.0);
                   
                   return Container(
                     width: indicatorSize,

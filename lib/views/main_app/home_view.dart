@@ -584,7 +584,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildAlertButtonSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10), // Reducir padding inferior
       child: Column(
         children: [
           // Título de la sección
@@ -606,7 +606,7 @@ class _HomeViewState extends State<HomeView> {
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: 50), // Más espacio entre título y botón
+          const SizedBox(height: 30), // Espacio reducido entre título y botón
           
           // Botón de alerta responsivo
           Expanded(
@@ -662,40 +662,6 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           
-          // Información adicional
-          Container(
-            margin: const EdgeInsets.only(top: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E8),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF4CAF50).withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: const Color(0xFF4CAF50),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Drag to see emergency types, release to activate',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: const Color(0xFF4CAF50),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
