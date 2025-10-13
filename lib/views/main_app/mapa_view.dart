@@ -646,7 +646,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              label,
+              EmergencyTypes.getTranslatedType(label, context),
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
