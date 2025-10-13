@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/controllers/login_controller.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -51,7 +52,7 @@ class _RegisterViewState extends State<RegisterView> {
     if (email.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Correo y contraseña son obligatorios')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorOccurred)),
       );
       return;
     }
@@ -59,7 +60,7 @@ class _RegisterViewState extends State<RegisterView> {
     if (!_isEmailValid(email)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa un correo válido')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorOccurred)),
       );
       return;
     }
@@ -89,7 +90,7 @@ class _RegisterViewState extends State<RegisterView> {
 
     if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cuenta registrada con éxito')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.appTitle)),
       );
       Navigator.pop(context);
     } else {
@@ -116,9 +117,9 @@ class _RegisterViewState extends State<RegisterView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(
+              Center(
                 child: Text(
-                  'Crear cuenta nueva',
+                  AppLocalizations.of(context)!.register,
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -127,9 +128,9 @@ class _RegisterViewState extends State<RegisterView> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Center(
+              Center(
                 child: Text(
-                  'Únete a Guardian para continuar',
+                  AppLocalizations.of(context)!.appTitle,
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.black54,
@@ -198,8 +199,8 @@ class _RegisterViewState extends State<RegisterView> {
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Registrarse',
+                      : Text(
+                          AppLocalizations.of(context)!.register,
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
@@ -215,8 +216,8 @@ class _RegisterViewState extends State<RegisterView> {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: const Text(
-                    '¿Ya tienes cuenta? Inicia sesión',
+                  child: Text(
+                    '${AppLocalizations.of(context)!.alreadyHaveAccount} ${AppLocalizations.of(context)!.login}',
                     style: TextStyle(
                       color: Color(0xFF1F2937),
                       fontWeight: FontWeight.w600,

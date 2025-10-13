@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class EstadisticasView extends StatelessWidget {
   const EstadisticasView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Text(
-        'Estadísticas',
-        style: TextStyle(fontSize: 24, color: Colors.black54),
+        AppLocalizations.of(context)!.statistics,
+        style: const TextStyle(fontSize: 24, color: Colors.black54),
       ),
     );
   }

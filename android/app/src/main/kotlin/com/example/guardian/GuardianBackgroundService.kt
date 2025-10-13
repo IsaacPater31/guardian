@@ -1,6 +1,7 @@
 package com.example.guardian
 
 import android.app.*
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
@@ -40,6 +41,9 @@ class GuardianBackgroundService : Service() {
         firestore = FirebaseFirestore.getInstance()
         auth = FirebaseAuth.getInstance()
         createNotificationChannels()
+        
+        // Inicializar EmergencyTypes con el contexto
+        EmergencyTypes.initialize(this)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -161,10 +165,44 @@ class GuardianBackgroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        // Obtener textos según el idioma actual
+        val language = getCurrentLanguage()
+        val title = if (language == "es") {
+            "🛡️ Guardian Protección Activa"
+        } else {
+            "🛡️ Guardian Active Protection"
+        }
+        
+        val content = if (language == "es") {
+            "Monitoreando alertas de emergencia • Toca para abrir"
+        } else {
+            "Monitoring emergency alerts • Tap to open"
+        }
+        
+        val subText = if (language == "es") {
+            "Servicio de seguridad en segundo plano"
+        } else {
+            "Background security service"
+        }
+        
+        val stopButtonText = if (language == "es") "Detener" else "Stop"
+        
+        val bigText = if (language == "es") {
+            "Guardian está monitoreando alertas de emergencia en tu área. El servicio permanece activo para tu seguridad."
+        } else {
+            "Guardian is monitoring emergency alerts in your area. The service remains active for your safety."
+        }
+        
+        val summaryText = if (language == "es") {
+            "Servicio de seguridad activo"
+        } else {
+            "Security service active"
+        }
+        
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("🛡️ Guardian Protección Activa")
-            .setContentText("Monitoreando alertas de emergencia • Toca para abrir")
-            .setSubText("Servicio de seguridad en segundo plano")
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSubText(subText)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
             .setContentIntent(pendingIntent)
@@ -177,12 +215,17 @@ class GuardianBackgroundService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .addAction(R.mipmap.ic_launcher, "Detener", stopPendingIntent)
+            .addAction(R.mipmap.ic_launcher, stopButtonText, stopPendingIntent)
             .setStyle(NotificationCompat.BigTextStyle()
-                .setBigContentTitle("🛡️ Guardian Protección Activa")
-                .bigText("Guardian está monitoreando alertas de emergencia en tu área. El servicio permanece activo para tu seguridad.")
-                .setSummaryText("Servicio de seguridad activo"))
+                .setBigContentTitle(title)
+                .bigText(bigText)
+                .setSummaryText(summaryText))
             .build()
+    }
+    
+    private fun getCurrentLanguage(): String {
+        val prefs = getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+        return prefs.getString("language", "es") ?: "es"
     }
     
     private fun startAlertsListener() {

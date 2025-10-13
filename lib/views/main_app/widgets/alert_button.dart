@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:async'; // Added for Timer
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -87,7 +88,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
             ),
             const SizedBox(width: 16),
-            const Text('Sending quick alert...'),
+            Text(AppLocalizations.of(context)!.sendingAlert),
           ],
         ),
         backgroundColor: Colors.red,
@@ -132,16 +133,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Quick Alert Sent',
+                      Text(
+                        AppLocalizations.of(context)!.alertSent,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      const Text(
-                        'Emergency alert has been sent to the community',
+                      Text(
+                        AppLocalizations.of(context)!.alertSentToCommunity,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -165,7 +166,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Error sending alert. Please try again.'),
+          content: Text(AppLocalizations.of(context)!.errorSendingAlert),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
@@ -180,6 +181,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _showEmergencyDialog(String emergencyType) {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
+    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
     
     if (emergencyData == null) return; // Salir si no se encuentra el tipo
     
@@ -243,7 +245,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     
                     // Título
                     Text(
-                      emergencyType,
+                      translatedType,
                       style: TextStyle(
                         fontSize: constraints.maxWidth < 400 ? 20 : 24,
                         fontWeight: FontWeight.bold,
@@ -256,7 +258,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     
                     // Descripción
                     Text(
-                      'Are you sure you want to report this emergency? This will immediately notify the community and nearby guardians.',
+                      AppLocalizations.of(context)!.confirmEmergencyReport,
                       style: TextStyle(
                         fontSize: constraints.maxWidth < 400 ? 14 : 16,
                         color: Colors.grey[600],
@@ -288,8 +290,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              'This action cannot be undone. The community will be notified immediately.',
+                              child: Text(
+                                AppLocalizations.of(context)!.actionCannotBeUndone,
                               style: TextStyle(
                                 fontSize: constraints.maxWidth < 400 ? 12 : 14,
                                 color: const Color(0xFFFF9800),
@@ -326,7 +328,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 ),
                               ),
                               child: Text(
-                                'Cancel',
+                                AppLocalizations.of(context)!.cancel,
                                 style: TextStyle(
                                   color: Colors.grey[700],
                                   fontSize: constraints.maxWidth < 400 ? 12 : 14,
@@ -388,7 +390,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   SizedBox(width: constraints.maxWidth < 400 ? 4 : 6),
                                   Flexible(
                                     child: Text(
-                                      'Send Alert',
+                                      AppLocalizations.of(context)!.sendAlert,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: constraints.maxWidth < 400 ? 12 : 14,
@@ -432,7 +434,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
             ),
             const SizedBox(width: 16),
-            const Text('Sending swiped alert...'),
+            Text(AppLocalizations.of(context)!.sendingAlert),
           ],
         ),
         backgroundColor: const Color(0xFF4CAF50),
@@ -479,16 +481,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Report Sent',
+                      Text(
+                        AppLocalizations.of(context)!.reportSent,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      const Text(
-                        'Emergency has been reported to the community',
+                      Text(
+                        AppLocalizations.of(context)!.emergencyReportedToCommunity,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -512,7 +514,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Error sending alert. Please try again.'),
+          content: Text(AppLocalizations.of(context)!.errorSendingAlert),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
@@ -652,7 +654,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['type'] ?? 'UNKNOWN',
+                                EmergencyTypes.getTypeByDirectionTranslated(_currentDragDirection!, context)?['type'] ?? AppLocalizations.of(context)!.unknown,
                                 style: TextStyle(
                                   color: Colors.red,
                                   fontSize: indicatorSize * 0.08,
@@ -663,7 +665,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             ],
                           )
                         : Text(
-                            'DRAG',
+                            AppLocalizations.of(context)!.drag,
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: indicatorSize * 0.12,
@@ -731,7 +733,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           borderRadius: BorderRadius.circular(buttonSize / 2),
                           child: Center(
                             child: Text(
-                              "HELP",
+                              AppLocalizations.of(context)!.help,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: buttonSize * 0.18,

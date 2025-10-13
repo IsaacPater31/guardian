@@ -1,5 +1,6 @@
 package com.example.guardian
 
+import android.content.Context
 import android.graphics.Color
 
 /**
@@ -7,6 +8,12 @@ import android.graphics.Color
  * Elimina la duplicación de datos entre GuardianBackgroundService y otros componentes
  */
 object EmergencyTypes {
+    
+    private var context: Context? = null
+    
+    fun initialize(context: Context) {
+        this.context = context
+    }
     
     /**
      * Mapa con todos los tipos de emergencia y sus configuraciones
@@ -83,22 +90,54 @@ object EmergencyTypes {
     }
     
     /**
+     * Función para obtener el idioma actual
+     */
+    private fun getCurrentLanguage(): String {
+        return context?.let { ctx ->
+            val prefs = ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+            prefs.getString("language", "es") ?: "es"
+        } ?: "es"
+    }
+    
+    /**
+     * Títulos en español
+     */
+    private val spanishTitles = mapOf(
+        "ROBBERY" to "🚨 Robo Reportado",
+        "FIRE" to "🔥 Incendio Reportado",
+        "ACCIDENT" to "🚗 Accidente Reportado",
+        "STREET ESCORT" to "👥 Acompañamiento Solicitado",
+        "UNSAFETY" to "⚠️ Zona Insegura",
+        "PHYSICAL RISK" to "🚨 Riesgo Físico",
+        "PUBLIC SERVICES EMERGENCY" to "🏗️ Emergencia Servicios Públicos",
+        "VIAL EMERGENCY" to "🚦 Emergencia Vial",
+        "ASSISTANCE" to "🆘 Asistencia Necesaria",
+        "EMERGENCY" to "🚨 Emergencia General"
+    )
+    
+    /**
+     * Títulos en inglés
+     */
+    private val englishTitles = mapOf(
+        "ROBBERY" to "🚨 Robbery Reported",
+        "FIRE" to "🔥 Fire Reported",
+        "ACCIDENT" to "🚗 Accident Reported",
+        "STREET ESCORT" to "👥 Street Escort Requested",
+        "UNSAFETY" to "⚠️ Unsafe Area",
+        "PHYSICAL RISK" to "🚨 Physical Risk",
+        "PUBLIC SERVICES EMERGENCY" to "🏗️ Public Services Emergency",
+        "VIAL EMERGENCY" to "🚦 Traffic Emergency",
+        "ASSISTANCE" to "🆘 Assistance Needed",
+        "EMERGENCY" to "🚨 General Emergency"
+    )
+    
+    /**
      * Obtiene el título de notificación por tipo de alerta
      */
     fun getNotificationTitle(alertType: String): String {
-        return when (alertType) {
-            "ROBBERY" -> "🚨 Robo Reportado"
-            "FIRE" -> "🔥 Incendio Reportado"
-            "ACCIDENT" -> "🚗 Accidente Reportado"
-            "STREET ESCORT" -> "👥 Acompañamiento Solicitado"
-            "UNSAFETY" -> "⚠️ Zona Insegura"
-            "PHYSICAL RISK" -> "🚨 Riesgo Físico"
-            "PUBLIC SERVICES EMERGENCY" -> "🏗️ Emergencia Servicios Públicos"
-            "VIAL EMERGENCY" -> "🚦 Emergencia Vial"
-            "ASSISTANCE" -> "🆘 Asistencia Necesaria"
-            "EMERGENCY" -> "🚨 Emergencia General"
-            else -> "🚨 Alerta de Emergencia"
-        }
+        val language = getCurrentLanguage()
+        val titles = if (language == "es") spanishTitles else englishTitles
+        return titles[alertType] ?: if (language == "es") "🚨 Alerta de Emergencia" else "🚨 Emergency Alert"
     }
     
     /**
@@ -110,18 +149,23 @@ object EmergencyTypes {
         isAnonymous: Boolean,
         shareLocation: Boolean
     ): String {
-        val body = StringBuilder(alertType)
+        val language = getCurrentLanguage()
+        val body = StringBuilder()
         
+        // Agregar descripción
         if (!description.isNullOrEmpty()) {
-            body.append("\n").append(description)
+            body.append(description)
         }
         
+        // Agregar información adicional según idioma
         if (shareLocation) {
-            body.append("\n📍 Ubicación incluida")
+            val locationText = if (language == "es") "📍 Ubicación incluida" else "📍 Location included"
+            body.append("\n").append(locationText)
         }
         
         if (isAnonymous) {
-            body.append("\n👤 Reporte anónimo")
+            val anonymousText = if (language == "es") "👤 Reporte anónimo" else "👤 Anonymous report"
+            body.append("\n").append(anonymousText)
         }
         
         return body.toString()

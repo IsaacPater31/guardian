@@ -62,6 +62,11 @@ class MainActivity : FlutterActivity() {
                     requestNotificationPermissions()
                     result.success(true)
                 }
+                "setLanguage" -> {
+                    val language = call.argument<String>("language")
+                    setLanguage(language)
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -165,6 +170,17 @@ class MainActivity : FlutterActivity() {
             }
         } else {
             println("ℹ️ Notification permissions not required for Android < 13")
+        }
+    }
+
+    /**
+     * Establece el idioma actual para las notificaciones nativas
+     */
+    private fun setLanguage(language: String?) {
+        if (language != null) {
+            val prefs = getSharedPreferences("flutter_localization", MODE_PRIVATE)
+            prefs.edit().putString("language", language).apply()
+            println("✅ Language set to: $language")
         }
     }
 }

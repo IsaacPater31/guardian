@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Clase centralizada para manejar todos los tipos de emergencia
 /// Elimina la duplicación de datos entre AlertButton y HomeView
@@ -116,4 +117,46 @@ class EmergencyTypes {
 
   /// Obtiene todos los tipos de emergencia disponibles
   static List<String> get allTypes => types.values.map((data) => data['type'] as String).toList();
+
+  /// Obtiene el tipo de emergencia traducido
+  static String getTranslatedType(String type, BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) return type;
+    
+    switch (type) {
+      case 'STREET ESCORT':
+        return localizations.emergencyStreetEscort;
+      case 'ROBBERY':
+        return localizations.emergencyRobbery;
+      case 'UNSAFETY':
+        return localizations.emergencyUnsafety;
+      case 'PHYSICAL RISK':
+        return localizations.emergencyPhysicalRisk;
+      case 'PUBLIC SERVICES EMERGENCY':
+        return localizations.emergencyPublicServices;
+      case 'VIAL EMERGENCY':
+        return localizations.emergencyVial;
+      case 'ASSISTANCE':
+        return localizations.emergencyAssistance;
+      case 'FIRE':
+        return localizations.emergencyFire;
+      case 'ACCIDENT':
+        return localizations.emergencyAccident;
+      case 'EMERGENCY':
+        return localizations.emergencyGeneral;
+      default:
+        return type;
+    }
+  }
+
+  /// Obtiene la configuración completa de un tipo de emergencia por dirección con traducción
+  static Map<String, dynamic>? getTypeByDirectionTranslated(String direction, BuildContext context) {
+    final typeData = types[direction];
+    if (typeData == null) return null;
+    
+    return {
+      ...typeData,
+      'type': getTranslatedType(typeData['type'], context),
+    };
+  }
 }

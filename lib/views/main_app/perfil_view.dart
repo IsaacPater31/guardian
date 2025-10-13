@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class PerfilView extends StatelessWidget {
   const PerfilView({super.key});
@@ -9,7 +10,7 @@ class PerfilView extends StatelessWidget {
     // Solo mostrar mensaje si el contexto está montado
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sesión cerrada')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.logout)),
       );
     }
   }
@@ -22,8 +23,8 @@ class PerfilView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Perfil',
+        title: Text(
+          AppLocalizations.of(context)!.profile,
           style: TextStyle(
             color: Color(0xFF1F2937),
             fontWeight: FontWeight.bold,
@@ -42,8 +43,8 @@ class PerfilView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             // Text(user?.email ?? '', style: const TextStyle(fontSize: 16)),
-            const Text(
-              "Aquí irá tu información de perfil.",
+            Text(
+              AppLocalizations.of(context)!.profileInfo,
               style: TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const Spacer(),
@@ -61,8 +62,8 @@ class PerfilView extends StatelessWidget {
                     ),
                   ),
                   icon: const Icon(Icons.logout, color: Colors.white),
-                  label: const Text(
-                    'Cerrar sesión',
+                  label: Text(
+                    AppLocalizations.of(context)!.logout,
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

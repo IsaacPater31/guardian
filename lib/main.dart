@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-//import 'package:firebase_auth/firebase_auth.dart';        // <-- agrega esto
+import 'package:provider/provider.dart';
 import 'package:guardian/views/auth/auth_gate.dart';
+import 'package:guardian/services/localization_service.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 // Top-level function to handle background messages
 @pragma('vm:entry-point')
@@ -33,20 +35,30 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Guardian',
-      theme: ThemeData(
-        useMaterial3: false,
-        fontFamily: 'Inter',
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        scaffoldBackgroundColor: const Color(0xFFF3F4F6),
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(fontWeight: FontWeight.bold),
-          bodyMedium: TextStyle(fontWeight: FontWeight.w400),
-        ),
+    return ChangeNotifierProvider(
+      create: (context) => LocalizationService()..initialize(),
+      child: Consumer<LocalizationService>(
+        builder: (context, localizationService, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'Guardian',
+            locale: localizationService.currentLocale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            theme: ThemeData(
+              useMaterial3: false,
+              fontFamily: 'Inter',
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+              scaffoldBackgroundColor: const Color(0xFFF3F4F6),
+              textTheme: const TextTheme(
+                headlineLarge: TextStyle(fontWeight: FontWeight.bold),
+                bodyMedium: TextStyle(fontWeight: FontWeight.w400),
+              ),
+            ),
+            home: const AuthGate(),
+          );
+        },
       ),
-      home: const AuthGate(), // <--- ¡Así está bien!
     );
   }
 }

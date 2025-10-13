@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/controllers/login_controller.dart';
 import 'package:guardian/views/register_view.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -35,7 +36,7 @@ class _LoginViewState extends State<LoginView> {
     if (email.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, completa todos los campos')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorOccurred)),
       );
       return;
     }
@@ -43,7 +44,7 @@ class _LoginViewState extends State<LoginView> {
     if (!_isEmailValid(email)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa un correo válido')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorOccurred)),
       );
       return;
     }
@@ -92,8 +93,8 @@ class _LoginViewState extends State<LoginView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                'Bienvenido a',
+              Text(
+                AppLocalizations.of(context)!.appTitle,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -160,8 +161,8 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   child: _isLoadingEmail
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Iniciar sesión',
+                      : Text(
+                          AppLocalizations.of(context)!.login,
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.white,
@@ -186,8 +187,8 @@ class _LoginViewState extends State<LoginView> {
                           height: 24,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text(
-                          'Iniciar con Google',
+                      : Text(
+                          AppLocalizations.of(context)!.signInWithGoogle,
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                   style: OutlinedButton.styleFrom(
@@ -209,8 +210,8 @@ class _LoginViewState extends State<LoginView> {
                     MaterialPageRoute(builder: (_) => const RegisterView()),
                   );
                 },
-                child: const Text(
-                  '¿No tienes cuenta? Regístrate',
+                child: Text(
+                  '${AppLocalizations.of(context)!.dontHaveAccount} ${AppLocalizations.of(context)!.register}',
                   style: TextStyle(
                     color: Color(0xFF1F2937),
                     fontWeight: FontWeight.w600,

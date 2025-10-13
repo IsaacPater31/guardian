@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class MenuNav extends StatelessWidget {
   final int currentIndex;
@@ -18,12 +19,12 @@ class MenuNav extends StatelessWidget {
       unselectedIconTheme: const IconThemeData(size: 24),
       type: BottomNavigationBarType.fixed,
       showUnselectedLabels: true,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Inicio"),
-        BottomNavigationBarItem(icon: Icon(Icons.people), label: "Comunidades"),
-        BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Estadísticas"),
-        BottomNavigationBarItem(icon: Icon(Icons.map), label: "Mapa"),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Perfil"),
+      items: [
+        BottomNavigationBarItem(icon: const Icon(Icons.home), label: AppLocalizations.of(context)!.home),
+        BottomNavigationBarItem(icon: const Icon(Icons.people), label: AppLocalizations.of(context)!.communities),
+        BottomNavigationBarItem(icon: const Icon(Icons.bar_chart), label: AppLocalizations.of(context)!.statistics),
+        BottomNavigationBarItem(icon: const Icon(Icons.map), label: AppLocalizations.of(context)!.map),
+        BottomNavigationBarItem(icon: const Icon(Icons.person), label: AppLocalizations.of(context)!.profile),
       ],
     );
   }

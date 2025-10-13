@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
-import 'package:guardian/services/permission_service.dart';
+import 'package:guardian/services/localization_service.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -17,8 +19,6 @@ class _HomeViewState extends State<HomeView> {
   final HomeController _homeController = HomeController();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
-  bool _isServiceRunning = false;
-  bool _isServiceLoading = true;
 
   @override
   void initState() {
@@ -59,7 +59,7 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Nueva alerta: ${alert.alertType}',
+                    '${AppLocalizations.of(context)!.alertNotification}: ${alert.alertType}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -91,15 +91,8 @@ class _HomeViewState extends State<HomeView> {
     try {
       final isRunning = await _homeController.isServiceRunning();
       print('🔍 Background service status: $isRunning');
-      setState(() {
-        _isServiceRunning = isRunning;
-        _isServiceLoading = false;
-      });
     } catch (e) {
       print('❌ Error checking service status: $e');
-      setState(() {
-        _isServiceLoading = false;
-      });
     }
   }
 
@@ -161,8 +154,8 @@ class _HomeViewState extends State<HomeView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'GUARDIAN',
+                Text(
+                  AppLocalizations.of(context)!.appTitle,
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -189,13 +182,18 @@ class _HomeViewState extends State<HomeView> {
             onPressed: () {
               // Sin funcionalidad - se implementará más adelante
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notificaciones - Funcionalidad próximamente'),
-                  duration: Duration(seconds: 2),
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.notifications + ' - Funcionalidad próximamente'),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             },
           ),
+          
+          const SizedBox(width: 12),
+          
+          // Botón de idioma
+          _buildLanguageButton(),
           
           const SizedBox(width: 12),
           
@@ -205,9 +203,9 @@ class _HomeViewState extends State<HomeView> {
             onPressed: () {
               // Sin funcionalidad - se implementará más adelante
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Configuración - Funcionalidad próximamente'),
-                  duration: Duration(seconds: 2),
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.settings + ' - Funcionalidad próximamente'),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             },
@@ -270,8 +268,8 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Recent Alerts',
+              Text(
+                AppLocalizations.of(context)!.recentAlerts,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -321,17 +319,17 @@ class _HomeViewState extends State<HomeView> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
-            'Loading recent alerts...',
-            style: TextStyle(
+            AppLocalizations.of(context)!.loading,
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF6B7280),
             ),
@@ -359,7 +357,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'No alerts currently',
+            AppLocalizations.of(context)!.noRecentAlerts,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -588,8 +586,8 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         children: [
           // Título de la sección
-          const Text(
-            'Emergency Button',
+          Text(
+            AppLocalizations.of(context)!.emergencyButton,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -598,7 +596,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Drag in any direction to see emergency types in real-time',
+            AppLocalizations.of(context)!.dragForEmergencyTypes,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
@@ -664,6 +662,74 @@ class _HomeViewState extends State<HomeView> {
           
         ],
       ),
+    );
+  }
+
+  // Método para construir el botón de idioma
+  Widget _buildLanguageButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE9ECEF),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showLanguageDialog(context),
+          child: Container(
+            width: 48,
+            height: 48,
+            padding: const EdgeInsets.all(12),
+            child: Consumer<LocalizationService>(
+              builder: (context, localizationService, child) {
+                return Text(
+                  localizationService.currentFlag,
+                  style: const TextStyle(fontSize: 20),
+                  textAlign: TextAlign.center,
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Método para mostrar el diálogo de selección de idioma
+  void _showLanguageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.selectLanguage),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Text('🇪🇸', style: TextStyle(fontSize: 24)),
+                title: Text(AppLocalizations.of(context)!.spanish),
+                onTap: () {
+                  context.read<LocalizationService>().setLanguage(const Locale('es'));
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
+                title: Text(AppLocalizations.of(context)!.english),
+                onTap: () {
+                  context.read<LocalizationService>().setLanguage(const Locale('en'));
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

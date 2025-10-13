@@ -3,6 +3,8 @@ import 'package:guardian/models/alert_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:guardian/controllers/alert_controller.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:guardian/models/emergency_types.dart';
 import 'dart:convert';
 
 class AlertDetailDialog extends StatefulWidget {
@@ -16,6 +18,11 @@ class AlertDetailDialog extends StatefulWidget {
 
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
   final AlertController _alertController = AlertController();
+
+  /// Obtiene el tipo de alerta traducido
+  String _getTranslatedAlertType() {
+    return EmergencyTypes.getTranslatedType(widget.alert.alertType, context);
+  }
 
   @override
   void initState() {
@@ -152,7 +159,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           
           // Título de la alerta
           Text(
-            widget.alert.alertType,
+            _getTranslatedAlertType(),
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -205,8 +212,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Alert Type',
+                Text(
+                  AppLocalizations.of(context)!.alertType,
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -215,7 +222,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.alert.alertType,
+                  _getTranslatedAlertType(),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -258,8 +265,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Description',
+                Text(
+                  AppLocalizations.of(context)!.description,
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -310,8 +317,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Location',
+                Text(
+                  AppLocalizations.of(context)!.location,
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF6B7280),
@@ -409,8 +416,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  '📍 Alert Location',
+                child: Text(
+                  AppLocalizations.of(context)!.alertLocation,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -436,8 +443,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Additional Information',
+          Text(
+            AppLocalizations.of(context)!.additionalInfo,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -456,7 +463,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               ),
               const SizedBox(width: 8),
               Text(
-                widget.alert.isAnonymous ? 'Anonymous report' : 'Identified report',
+                widget.alert.isAnonymous ? AppLocalizations.of(context)!.anonymousReport : AppLocalizations.of(context)!.identifiedReport,
                 style: TextStyle(
                   fontSize: 13,
                   color: widget.alert.isAnonymous ? Colors.orange : Colors.green,
@@ -478,7 +485,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               ),
               const SizedBox(width: 8),
               Text(
-                widget.alert.shareLocation ? 'Location shared' : 'Location not shared',
+                widget.alert.shareLocation ? AppLocalizations.of(context)!.locationShared : AppLocalizations.of(context)!.locationNotShared,
                 style: TextStyle(
                   fontSize: 13,
                   color: widget.alert.shareLocation ? Colors.green : Colors.grey,
@@ -500,7 +507,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Viewed by ${widget.alert.viewedCount} person${widget.alert.viewedCount > 1 ? 's' : ''}',
+                  '${AppLocalizations.of(context)!.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? AppLocalizations.of(context)!.people : AppLocalizations.of(context)!.person}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Colors.blue,
@@ -526,8 +533,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Reported by:',
+                      Text(
+                        AppLocalizations.of(context)!.reportedBy,
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF6B7280),
@@ -581,8 +588,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Images',
+              Text(
+                AppLocalizations.of(context)!.images,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -630,13 +637,13 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.error_outline, color: Colors.grey),
-            SizedBox(width: 8),
+            const Icon(Icons.error_outline, color: Colors.grey),
+            const SizedBox(width: 8),
             Text(
-              'Error loading image',
-              style: TextStyle(color: Colors.grey),
+              AppLocalizations.of(context)!.errorLoadingImage,
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -676,8 +683,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   width: 1.5,
                 ),
               ),
-              child: const Text(
-                'Close',
+              child: Text(
+                AppLocalizations.of(context)!.close,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -705,8 +712,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 elevation: 2,
                 shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
               ),
-              child: const Text(
-                'Respond',
+              child: Text(
+                AppLocalizations.of(context)!.respond,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

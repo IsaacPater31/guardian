@@ -10,6 +10,7 @@ import 'dart:math';
 import '../../models/alert_model.dart';
 import '../../models/emergency_types.dart';
 import '../../controllers/map_controller.dart' as map_data;
+import '../../generated/l10n/app_localizations.dart';
 
 class MapaView extends StatefulWidget {
   final AlertModel? selectedAlert;
@@ -440,9 +441,9 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Alert Types',
+                        AppLocalizations.of(context)!.alerts,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -549,9 +550,9 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Multiple alerts at same location',
+                                AppLocalizations.of(context)!.alerts,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
@@ -860,7 +861,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alerts Map'),
+        title: Text(AppLocalizations.of(context)!.map),
         backgroundColor: const Color(0xFF1F2937),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -918,8 +919,8 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'No alerts found',
+                child: Text(
+                  AppLocalizations.of(context)!.noRecentAlerts,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
