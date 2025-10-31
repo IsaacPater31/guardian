@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+ 
 import 'dart:async'; // Added for Timer
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
@@ -618,16 +617,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   
                   double indicatorSize;
                   if (screenWidth < 400) {
-                    indicatorSize = screenWidth * 0.28; // Un poco más pequeño que el botón principal
+                    indicatorSize = screenWidth * 0.34; // Área de desplazamiento más grande
                   } else if (screenWidth < 600) {
-                    indicatorSize = screenWidth * 0.25;
+                    indicatorSize = screenWidth * 0.3;
                   } else if (screenWidth < 900) {
-                    indicatorSize = screenWidth * 0.2;
+                    indicatorSize = screenWidth * 0.24;
                   } else {
-                    indicatorSize = screenWidth * 0.16;
+                    indicatorSize = screenWidth * 0.2;
                   }
                   
-                  indicatorSize = indicatorSize.clamp(120.0, 200.0);
+                  indicatorSize = indicatorSize.clamp(140.0, 240.0);
                   
                   return Container(
                     width: indicatorSize,
@@ -642,29 +641,39 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         width: 2,
                       ),
                     ),
-                    child: Center(
-                      child: _showDragFeedback && _currentDragDirection != null
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['icon'] ?? Icons.warning,
-                                color: Colors.red,
-                                size: indicatorSize * 0.15,
+                    child: _showDragFeedback && _currentDragDirection != null
+                      ? Stack(
+                          children: [
+                            Positioned(
+                              top: indicatorSize * 0.08,
+                              left: 0,
+                              right: 0,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['icon'] ?? Icons.warning,
+                                    color: Colors.red,
+                                    size: indicatorSize * 0.2,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    EmergencyTypes.getTypeByDirectionTranslated(_currentDragDirection!, context)?['type'] ?? AppLocalizations.of(context)!.unknown,
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: indicatorSize * 0.1,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                EmergencyTypes.getTypeByDirectionTranslated(_currentDragDirection!, context)?['type'] ?? AppLocalizations.of(context)!.unknown,
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: indicatorSize * 0.08,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          )
-                        : Text(
+                            ),
+                          ],
+                        )
+                      : Center(
+                          child: Text(
                             AppLocalizations.of(context)!.drag,
                             style: TextStyle(
                               color: Colors.grey[600],
@@ -672,7 +681,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                    ),
+                        ),
                   );
                 },
               ),
@@ -689,27 +698,27 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     // Obtener dimensiones de la pantalla
                     final screenSize = MediaQuery.of(context).size;
                     final screenWidth = screenSize.width;
-                    final screenHeight = screenSize.height;
+                    // final screenHeight = screenSize.height; // not used
                     
                     // Calcular tamaño del botón basado en la pantalla completa
                     double buttonSize;
                     
                     if (screenWidth < 400) {
                       // Pantallas pequeñas (teléfonos compactos)
-                      buttonSize = screenWidth * 0.4;
+                      buttonSize = screenWidth * 0.34;
                     } else if (screenWidth < 600) {
                       // Pantallas medianas (teléfonos normales)
-                      buttonSize = screenWidth * 0.35;
+                      buttonSize = screenWidth * 0.3;
                     } else if (screenWidth < 900) {
                       // Pantallas grandes (tablets pequeñas)
-                      buttonSize = screenWidth * 0.25;
+                      buttonSize = screenWidth * 0.22;
                     } else {
                       // Pantallas muy grandes (tablets grandes)
-                      buttonSize = screenWidth * 0.2;
+                      buttonSize = screenWidth * 0.18;
                     }
                     
                     // Asegurar que el botón no sea demasiado pequeño ni demasiado grande
-                    buttonSize = buttonSize.clamp(150.0, 300.0);
+                    buttonSize = buttonSize.clamp(120.0, 240.0);
                     
                     return Container(
                       width: buttonSize,

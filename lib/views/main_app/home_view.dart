@@ -582,7 +582,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildAlertButtonSection() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10), // Reducir padding inferior
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10), // Subir un poco más todo el bloque
       child: Column(
         children: [
           // Título de la sección
@@ -604,11 +604,12 @@ class _HomeViewState extends State<HomeView> {
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: 30), // Espacio reducido entre título y botón
+          const SizedBox(height: 6), // Aún menos espacio para subir el botón
           
           // Botón de alerta responsivo
           Expanded(
-            child: Center(
+            child: Align(
+              alignment: Alignment.topCenter,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   // Calcular dimensiones responsivas basadas en el tamaño de pantalla
