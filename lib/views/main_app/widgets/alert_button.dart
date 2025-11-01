@@ -562,6 +562,71 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     return '';
   }
 
+  /// Obtiene el color suave para el fondo del círculo de desplazamiento
+  /// Usa colores sutiles que no saturan la vista pero permiten distinguir cada tipo
+  Color _getSoftBackgroundColor(String? direction) {
+    if (direction == null || direction.isEmpty) {
+      return Colors.grey.withValues(alpha: 0.2);
+    }
+    
+    final typeData = EmergencyTypes.getTypeByDirection(direction);
+    if (typeData == null) {
+      return Colors.grey.withValues(alpha: 0.2);
+    }
+    
+    final baseColor = typeData['color'] as Color;
+    final typeName = typeData['type'] as String;
+    
+    // Ajustar alpha según la intensidad del color base
+    // Colores más intensos (rojo, amarillo, púrpura) usan alpha más bajo
+    double alpha;
+    if (typeName == 'FIRE') {
+      alpha = 0.15; // Rojo: más sutil
+    } else if (typeName == 'ROBBERY') {
+      alpha = 0.18; // Púrpura: moderadamente sutil
+    } else if (typeName == 'PUBLIC SERVICES EMERGENCY') {
+      alpha = 0.16; // Amarillo: más sutil
+    } else if (typeName == 'UNSAFETY') {
+      alpha = 0.18; // Naranja: moderadamente sutil
+    } else {
+      alpha = 0.2; // Otros colores: alpha estándar
+    }
+    
+    return baseColor.withValues(alpha: alpha);
+  }
+
+  /// Obtiene el color más intenso para el borde y elementos internos
+  Color _getIntenseBorderColor(String? direction) {
+    if (direction == null || direction.isEmpty) {
+      return Colors.grey;
+    }
+    
+    final typeData = EmergencyTypes.getTypeByDirection(direction);
+    if (typeData == null) {
+      return Colors.grey;
+    }
+    
+    final baseColor = typeData['color'] as Color;
+    // Usar el color base con alpha alto para bordes y elementos (0.85-0.95)
+    return baseColor.withValues(alpha: 0.9);
+  }
+
+  /// Obtiene el color para iconos y texto dentro del círculo
+  Color _getContentColor(String? direction) {
+    if (direction == null || direction.isEmpty) {
+      return Colors.grey[600]!;
+    }
+    
+    final typeData = EmergencyTypes.getTypeByDirection(direction);
+    if (typeData == null) {
+      return Colors.grey[600]!;
+    }
+    
+    final baseColor = typeData['color'] as Color;
+    // Usar el color base con buena opacidad pero no totalmente opaco para suavidad visual
+    return baseColor.withValues(alpha: 0.95);
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -628,16 +693,21 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   
                   indicatorSize = indicatorSize.clamp(140.0, 240.0);
                   
+                  // Obtener colores según la dirección actual (sutiles y no saturados)
+                  final backgroundColor = _getSoftBackgroundColor(_currentDragDirection);
+                  final borderColor = _getIntenseBorderColor(_currentDragDirection);
+                  final contentColor = _getContentColor(_currentDragDirection);
+                  
                   return Container(
                     width: indicatorSize,
                     height: indicatorSize,
                     decoration: BoxDecoration(
                       color: _showDragFeedback 
-                        ? Colors.red.withValues(alpha: 0.3)
+                        ? backgroundColor
                         : Colors.grey.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: _showDragFeedback ? Colors.red : Colors.grey,
+                        color: _showDragFeedback ? borderColor : Colors.grey,
                         width: 2,
                       ),
                     ),
@@ -654,14 +724,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 children: [
                                   Icon(
                                     EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['icon'] ?? Icons.warning,
-                                    color: Colors.red,
+                                    color: contentColor,
                                     size: indicatorSize * 0.2,
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
                                     EmergencyTypes.getTypeByDirectionTranslated(_currentDragDirection!, context)?['type'] ?? AppLocalizations.of(context)!.unknown,
                                     style: TextStyle(
-                                      color: Colors.red,
+                                      color: contentColor,
                                       fontSize: indicatorSize * 0.1,
                                       fontWeight: FontWeight.bold,
                                     ),

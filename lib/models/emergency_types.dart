@@ -14,7 +14,7 @@ class EmergencyTypes {
     'upLeft': {
       'type': 'ROBBERY',
       'icon': Icons.person_off,
-      'color': Colors.red,
+      'color': const Color(0xFF9C27B0), // Púrpura/violeta para ROBBERY (completamente diferente del rojo)
     },
     'left': {
       'type': 'UNSAFETY',
@@ -80,13 +80,15 @@ class EmergencyTypes {
   static Color getColor(String alertType) {
     switch (alertType) {
       case 'ROBBERY':
+        return const Color(0xFF9C27B0); // Púrpura/violeta para ROBBERY
       case 'FIRE':
       case 'EMERGENCY':
-        return Colors.red;
+        return Colors.red; // Rojo estándar para FIRE
       case 'ACCIDENT':
       case 'VIAL EMERGENCY':
         return Colors.orange;
       case 'UNSAFETY':
+        return Colors.orange;
       case 'PHYSICAL RISK':
         return Colors.purple;
       case 'STREET ESCORT':
