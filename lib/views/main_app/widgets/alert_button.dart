@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:async'; // Added for Timer
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/services/community_service.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class AlertButton extends StatefulWidget {
@@ -33,6 +34,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   
   // Instancia del controlador de alertas
   final AlertController _alertController = AlertController();
+  final CommunityService _communityService = CommunityService();
 
   @override
   void initState() {
@@ -178,139 +180,264 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  void _showEmergencyDialog(String emergencyType) {
+  void _showEmergencyDialog(String emergencyType) async {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
     final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
     
     if (emergencyData == null) return; // Salir si no se encuentra el tipo
     
+    // Primero mostrar diálogo de selección de comunidades (múltiple)
+    final selectedCommunities = await _showCommunitySelectionDialog(emergencyType);
+    
+    // Si el usuario seleccionó al menos una comunidad, mostrar confirmación
+    if (selectedCommunities != null && selectedCommunities.isNotEmpty && mounted) {
+      _showFinalConfirmationDialog(emergencyType, selectedCommunities);
+    } else {
+      _hideEmergencyOptions();
+    }
+  }
+
+  /// Muestra diálogo para seleccionar comunidades (múltiple selección)
+  Future<List<Map<String, dynamic>>?> _showCommunitySelectionDialog(String emergencyType) async {
+    if (!mounted) return null;
+    
+    // Mostrar indicador de carga mientras se obtienen las comunidades
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenHeight = MediaQuery.of(context).size.height;
-            final maxHeight = screenHeight * 0.8; // Máximo 80% de la pantalla
-            
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: maxHeight,
-                maxWidth: constraints.maxWidth * 0.9, // Máximo 90% del ancho
-              ),
-              padding: EdgeInsets.all(
-                constraints.maxWidth < 400 ? 16 : 24, // Padding adaptativo
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    try {
+      // Cargar comunidades del usuario
+      final communities = await _communityService.getMyCommunities();
+      
+      // Cerrar indicador de carga
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+      
+      if (communities.isEmpty) {
+        // Si no hay comunidades, mostrar error
+        if (!mounted) return null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('No tienes comunidades disponibles'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return null;
+      }
+
+      if (!mounted) return null;
+      
+      // Lista de comunidades seleccionadas
+      final Set<String> selectedCommunityIds = {};
+      
+      // Mostrar diálogo de selección (múltiple, con scroll)
+      final selectedCommunities = await showDialog<List<Map<String, dynamic>>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
               ),
-              child: SingleChildScrollView(
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: 400,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                                         // Header con ícono y color
-                     Container(
-                       width: constraints.maxWidth < 400 ? 60 : 80,
-                       height: constraints.maxWidth < 400 ? 60 : 80,
-                       decoration: BoxDecoration(
-                         color: Colors.red.withValues(alpha: 0.1),
-                         shape: BoxShape.circle,
-                         border: Border.all(
-                           color: Colors.red,
-                           width: 3,
-                         ),
-                       ),
-                       child: Icon(
-                         emergencyData['icon'],
-                         color: Colors.red,
-                         size: constraints.maxWidth < 400 ? 28 : 36,
-                       ),
-                     ),
-                    
-                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
-                    
-                    // Título
-                    Text(
-                      translatedType,
-                      style: TextStyle(
-                        fontSize: constraints.maxWidth < 400 ? 20 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1A1A1A),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    SizedBox(height: constraints.maxWidth < 400 ? 8 : 12),
-                    
-                    // Descripción
-                    Text(
-                      AppLocalizations.of(context)!.confirmEmergencyReport,
-                      style: TextStyle(
-                        fontSize: constraints.maxWidth < 400 ? 14 : 16,
-                        color: Colors.grey[600],
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    
-                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 24),
-                    
-                    // Información adicional
-                    Container(
-                      padding: EdgeInsets.all(
-                        constraints.maxWidth < 400 ? 12 : 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3E0),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFFF9800).withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: const Color(0xFFFF9800),
-                            size: constraints.maxWidth < 400 ? 16 : 20,
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                              child: Text(
-                                AppLocalizations.of(context)!.actionCannotBeUndone,
-                              style: TextStyle(
-                                fontSize: constraints.maxWidth < 400 ? 12 : 14,
-                                color: const Color(0xFFFF9800),
-                                fontWeight: FontWeight.w500,
-                              ),
+                          child: const Icon(
+                            Icons.people,
+                            color: Colors.blue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Seleccionar Comunidades',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1A1A1A),
                             ),
                           ),
-                        ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Selecciona una o más comunidades',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
                     ),
-                    
-                    SizedBox(height: constraints.maxWidth < 400 ? 16 : 24),
-                    
+                    if (selectedCommunityIds.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${selectedCommunityIds.length} seleccionada${selectedCommunityIds.length > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // Lista de comunidades con scroll
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: communities.length,
+                        itemBuilder: (context, index) {
+                          final community = communities[index];
+                          final isEntity = community['is_entity'] as bool;
+                          final communityId = community['id'] as String;
+                          final isSelected = selectedCommunityIds.contains(communityId);
+                          
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            color: isSelected 
+                                ? Colors.blue.withValues(alpha: 0.1)
+                                : Colors.white,
+                            child: ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isEntity 
+                                      ? Colors.blue.withValues(alpha: 0.1)
+                                      : Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  isEntity ? Icons.shield : Icons.people,
+                                  color: isEntity ? Colors.blue : Colors.green,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                community['name'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.blue : Colors.black,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (community['description'] != null)
+                                    Text(
+                                      community['description'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  if (isEntity) ...[
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'Entidad Oficial',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              trailing: Checkbox(
+                                value: isSelected,
+                                onChanged: (value) {
+                                  setState(() {
+                                    if (value == true) {
+                                      selectedCommunityIds.add(communityId);
+                                    } else {
+                                      selectedCommunityIds.remove(communityId);
+                                    }
+                                  });
+                                },
+                                activeColor: Colors.blue,
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedCommunityIds.remove(communityId);
+                                  } else {
+                                    selectedCommunityIds.add(communityId);
+                                  }
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     // Botones
                     Row(
                       children: [
                         // Botón Cancelar
                         Expanded(
                           child: Container(
-                            height: constraints.maxWidth < 400 ? 48 : 50,
+                            height: 48,
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
@@ -319,7 +446,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             child: TextButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
-                                _hideEmergencyOptions();
                               },
                               style: TextButton.styleFrom(
                                 shape: RoundedRectangleBorder(
@@ -330,49 +456,53 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 AppLocalizations.of(context)!.cancel,
                                 style: TextStyle(
                                   color: Colors.grey[700],
-                                  fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
                         ),
-                        
-                        SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
-                        
-                                                 // Botón Reportar
-                         Expanded(
-                           child: Container(
-                             height: constraints.maxWidth < 400 ? 48 : 50,
-                             decoration: BoxDecoration(
-                               gradient: LinearGradient(
-                                 colors: [
-                                   Colors.red,
-                                   Colors.red.withValues(alpha: 0.8),
-                                 ],
-                                 begin: Alignment.topLeft,
-                                 end: Alignment.bottomRight,
-                               ),
-                               borderRadius: BorderRadius.circular(12),
-                               boxShadow: [
-                                 BoxShadow(
-                                   color: Colors.red.withValues(alpha: 0.3),
-                                   blurRadius: 8,
-                                   offset: const Offset(0, 4),
-                                 ),
-                               ],
-                             ),
+                        const SizedBox(width: 12),
+                        // Botón Continuar
+                        Expanded(
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  selectedCommunityIds.isNotEmpty 
+                                      ? Colors.blue 
+                                      : Colors.grey,
+                                  selectedCommunityIds.isNotEmpty 
+                                      ? Colors.blue.withValues(alpha: 0.8)
+                                      : Colors.grey.withValues(alpha: 0.8),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (selectedCommunityIds.isNotEmpty 
+                                      ? Colors.blue 
+                                      : Colors.grey).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _hideEmergencyOptions();
-                                _showSuccessSnackBar(emergencyType);
-                              },
+                              onPressed: selectedCommunityIds.isNotEmpty ? () {
+                                final selected = communities
+                                    .where((c) => selectedCommunityIds.contains(c['id']))
+                                    .toList();
+                                Navigator.of(context).pop(selected);
+                              } : null,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -381,22 +511,21 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.emergency,
+                                  const Icon(
+                                    Icons.arrow_forward,
                                     color: Colors.white,
-                                    size: constraints.maxWidth < 400 ? 14 : 18,
+                                    size: 18,
                                   ),
-                                  SizedBox(width: constraints.maxWidth < 400 ? 4 : 6),
+                                  const SizedBox(width: 6),
                                   Flexible(
                                     child: Text(
-                                      AppLocalizations.of(context)!.sendAlert,
+                                      'Continuar',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: constraints.maxWidth < 400 ? 12 : 14,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
                                       overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
                                     ),
                                   ),
                                 ],
@@ -412,11 +541,471 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             );
           },
         ),
+      );
+      
+      return selectedCommunities;
+    } catch (e) {
+      // Cerrar indicador de carga si hay error
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cargando comunidades: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Muestra diálogo de confirmación final con las comunidades seleccionadas
+  void _showFinalConfirmationDialog(String emergencyType, List<Map<String, dynamic>> selectedCommunities) {
+    final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
+    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
+    
+    if (emergencyData == null) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenHeight = MediaQuery.of(context).size.height;
+            final maxHeight = screenHeight * 0.8;
+            
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: maxHeight,
+                maxWidth: constraints.maxWidth * 0.9,
+              ),
+              padding: EdgeInsets.all(
+                constraints.maxWidth < 400 ? 16 : 24,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Header con botón de retroceso
+                  Row(
+                    children: [
+                      // Botón de retroceso
+                      IconButton(
+                        icon: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.arrow_back,
+                            color: Colors.grey[700],
+                            size: 20,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          // Volver a mostrar diálogo de selección
+                          _showEmergencyDialog(emergencyType);
+                        },
+                        tooltip: 'Volver',
+                      ),
+                      const Spacer(),
+                      // Título del header
+                      Text(
+                        'Confirmar Alerta',
+                        style: TextStyle(
+                          fontSize: constraints.maxWidth < 400 ? 16 : 18,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1A1A1A),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Espacio para balancear el layout
+                      SizedBox(
+                        width: 48,
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Contenedor principal con scroll
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header con ícono del tipo de alerta
+                          Container(
+                            width: constraints.maxWidth < 400 ? 64 : 80,
+                            height: constraints.maxWidth < 400 ? 64 : 80,
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.red,
+                                width: 2.5,
+                              ),
+                            ),
+                            child: Icon(
+                              emergencyData['icon'],
+                              color: Colors.red,
+                              size: constraints.maxWidth < 400 ? 30 : 38,
+                            ),
+                          ),
+                          
+                          SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
+                          
+                          // Título del tipo de alerta
+                          Text(
+                            translatedType,
+                            style: TextStyle(
+                              fontSize: constraints.maxWidth < 400 ? 20 : 24,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1A1A1A),
+                              letterSpacing: -0.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          
+                          SizedBox(height: constraints.maxWidth < 400 ? 12 : 16),
+                    
+                          // Comunidades seleccionadas
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0F7FF),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFF2196F3).withValues(alpha: 0.2),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2196F3).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.people,
+                                        color: Color(0xFF2196F3),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Destinatarios (${selectedCommunities.length})',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1976D2),
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                // Lista de comunidades seleccionadas con scroll
+                                Container(
+                                  constraints: BoxConstraints(
+                                    maxHeight: screenHeight * 0.25,
+                                  ),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const BouncingScrollPhysics(),
+                                    itemCount: selectedCommunities.length,
+                                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                                    itemBuilder: (context, index) {
+                                      final community = selectedCommunities[index];
+                                      final isEntity = community['is_entity'] as bool;
+                                      
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: Colors.grey[200]!,
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: BoxDecoration(
+                                                color: isEntity 
+                                                    ? const Color(0xFF2196F3).withValues(alpha: 0.1)
+                                                    : const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Icon(
+                                                isEntity ? Icons.shield : Icons.people,
+                                                color: isEntity ? const Color(0xFF2196F3) : const Color(0xFF4CAF50),
+                                                size: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    community['name'] ?? '',
+                                                    style: TextStyle(
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: const Color(0xFF1A1A1A),
+                                                      letterSpacing: 0.1,
+                                                    ),
+                                                  ),
+                                                  if (isEntity) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'Entidad Oficial',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors.grey[600],
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.check_circle,
+                                              color: const Color(0xFF4CAF50),
+                                              size: 20,
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                    
+                          SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
+                          
+                          // Descripción
+                          Text(
+                            AppLocalizations.of(context)!.confirmEmergencyReport,
+                            style: TextStyle(
+                              fontSize: constraints.maxWidth < 400 ? 14 : 15,
+                              color: Colors.grey[700],
+                              height: 1.5,
+                              letterSpacing: 0.1,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          
+                          SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
+                          
+                          // Información adicional
+                          Container(
+                            padding: EdgeInsets.all(
+                              constraints.maxWidth < 400 ? 14 : 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF8E1),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFFF9800).withValues(alpha: 0.25),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF9800).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Color(0xFFFF9800),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    AppLocalizations.of(context)!.actionCannotBeUndone,
+                                    style: TextStyle(
+                                      fontSize: constraints.maxWidth < 400 ? 13 : 14,
+                                      color: const Color(0xFFE65100),
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                    
+                  SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
+                    
+                    // Botones fijos en la parte inferior
+                    Row(
+                      children: [
+                        // Botón Cancelar
+                        Expanded(
+                          child: Container(
+                            height: constraints.maxWidth < 400 ? 50 : 52,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: Colors.grey[300]!,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _hideEmergencyOptions();
+                              },
+                              style: TextButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context)!.cancel,
+                                style: TextStyle(
+                                  color: const Color(0xFF424242),
+                                  fontSize: constraints.maxWidth < 400 ? 14 : 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        
+                        SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
+                        
+                        // Botón Enviar
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            height: constraints.maxWidth < 400 ? 50 : 52,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFD32F2F),
+                                  Color(0xFFC62828),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.red.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                  spreadRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _hideEmergencyOptions();
+                                _showSuccessSnackBar(emergencyType, selectedCommunities);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                padding: EdgeInsets.zero,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Icon(
+                                      Icons.emergency,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      AppLocalizations.of(context)!.sendAlert,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: constraints.maxWidth < 400 ? 14 : 15,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+          },
+        ),
       ),
     );
   }
 
-  void _showSuccessSnackBar(String emergencyType) async {
+  void _showSuccessSnackBar(String emergencyType, List<Map<String, dynamic>> selectedCommunities) async {
     // Use the emergencyType parameter directly - it already contains the correct alert type
     final alertType = emergencyType;
     
@@ -433,11 +1022,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
             ),
             const SizedBox(width: 16),
-            Text(AppLocalizations.of(context)!.sendingAlert),
+            Expanded(
+              child: Text(
+                'Enviando a ${selectedCommunities.length} comunidad${selectedCommunities.length > 1 ? 'es' : ''}...',
+              ),
+            ),
           ],
         ),
         backgroundColor: const Color(0xFF4CAF50),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -446,14 +1039,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ),
     );
 
-    final success = await _alertController.sendSwipedAlert(
-      alertType: alertType,
-      isAnonymous: false, // Swiped alerts are never anonymous
-    );
+    // Enviar alerta a cada comunidad seleccionada
+    int successCount = 0;
+    for (final community in selectedCommunities) {
+      final success = await _alertController.sendSwipedAlert(
+        alertType: alertType,
+        isAnonymous: false, // Swiped alerts are never anonymous
+        communityId: community['id'] as String,
+      );
+      if (success) successCount++;
+    }
 
     ScaffoldMessenger.of(context).clearSnackBars();
 
-    if (success) {
+    if (successCount > 0) {
       final screenWidth = MediaQuery.of(context).size.width;
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -481,7 +1080,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppLocalizations.of(context)!.reportSent,
+                        AppLocalizations.of(context)!.alertSent,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -489,7 +1088,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                       ),
                       Text(
-                        AppLocalizations.of(context)!.emergencyReportedToCommunity,
+                        'Enviada a $successCount comunidad${successCount > 1 ? 'es' : ''}',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/views/auth/auth_gate.dart';
 import 'package:guardian/services/localization_service.dart';
+import 'package:guardian/services/community_service.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 // Top-level function to handle background messages
@@ -24,6 +25,21 @@ void main() async {
 
   // Configurar el handler para mensajes en segundo plano
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Inicializar entidades por defecto (solo se crean si no existen)
+  // Esto es idempotente - seguro ejecutarlo múltiples veces
+  // Optimizado para plan gratuito: solo hace writes si es necesario
+  try {
+    final created = await CommunityService().initializeEntityCommunities();
+    if (created) {
+      print('✅ Entidades inicializadas (nuevas creadas)');
+    } else {
+      print('ℹ️ Entidades ya existían');
+    }
+  } catch (e) {
+    print('❌ Error inicializando entidades: $e');
+    // No bloquear inicio de app si falla
+  }
 
   //await FirebaseAuth.instance.signOut();  
 

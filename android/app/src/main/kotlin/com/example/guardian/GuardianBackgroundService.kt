@@ -265,6 +265,7 @@ class GuardianBackgroundService : Service() {
         val alertUserId = alertData["userId"] as? String
         val alertUserEmail = alertData["userEmail"] as? String
         val alertId = alertData["id"] as? String
+        val communityId = alertData["community_id"] as? String // NUEVO: comunidad de la alerta
         
         // Obtener usuario actual
         val currentUser = auth.currentUser
@@ -300,13 +301,94 @@ class GuardianBackgroundService : Service() {
             }
         }
         
-        // Crear notificación de alerta
-        showAlertNotification(alertType, description, isAnonymous, shareLocation)
-        
-        // Vibración manual adicional
-        triggerVibration()
-        
-        println("🚨 New alert notification sent: $alertType")
+        // NUEVO: Verificar si el usuario debe recibir esta alerta según la comunidad
+        if (communityId != null) {
+            // Verificar membresía y permisos de forma asíncrona
+            checkAndSendAlertIfAuthorized(
+                currentUser.uid, 
+                communityId, 
+                alertType, 
+                description, 
+                isAnonymous, 
+                shareLocation
+            )
+            return // Salir aquí, la notificación se enviará en el callback si está autorizado
+        } else {
+            // Alerta sin comunidad (antigua) - mantener comportamiento anterior
+            // Por compatibilidad, se envía a todos
+            println("ℹ️ Alert without community_id (legacy), sending to all users")
+            
+            // Crear notificación de alerta (comportamiento antiguo)
+            showAlertNotification(alertType, description, isAnonymous, shareLocation)
+            triggerVibration()
+            println("🚨 New alert notification sent: $alertType")
+        }
+    }
+    
+    /**
+     * Verifica si el usuario debe recibir alertas de una comunidad y envía notificación si está autorizado
+     * Para entidades: solo miembros oficiales (role: 'official')
+     * Para comunidades normales: todos los miembros
+     */
+    private fun checkAndSendAlertIfAuthorized(
+        userId: String,
+        communityId: String,
+        alertType: String,
+        description: String?,
+        isAnonymous: Boolean,
+        shareLocation: Boolean
+    ) {
+        // Obtener información de la comunidad
+        firestore.collection("communities")
+            .document(communityId)
+            .get()
+            .addOnSuccessListener { communityDoc ->
+                if (!communityDoc.exists()) {
+                    println("⚠️ Community does not exist: $communityId")
+                    return@addOnSuccessListener
+                }
+                
+                val communityData = communityDoc.data
+                val isEntity = communityData?.get("is_entity") as? Boolean ?: false
+                
+                // Obtener membresía del usuario
+                firestore.collection("community_members")
+                    .whereEqualTo("user_id", userId)
+                    .whereEqualTo("community_id", communityId)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener { memberSnapshot ->
+                        if (memberSnapshot.isEmpty) {
+                            println("🚫 User is not a member of community: $communityId")
+                            return@addOnSuccessListener
+                        }
+                        
+                        val memberData = memberSnapshot.documents[0].data
+                        val role = memberData?.get("role") as? String ?: "member"
+                        
+                        // Si es entidad, solo miembros oficiales reciben alertas
+                        if (isEntity) {
+                            if (role != "official") {
+                                println("🚫 User is not an official member of entity: $communityId (role: $role)")
+                                return@addOnSuccessListener
+                            }
+                            println("✅ User is official member of entity: $communityId")
+                        } else {
+                            println("✅ User is member of normal community: $communityId")
+                        }
+                        
+                        // Usuario autorizado - enviar notificación
+                        showAlertNotification(alertType, description, isAnonymous, shareLocation)
+                        triggerVibration()
+                        println("🚨 Alert notification sent to authorized user: $alertType")
+                    }
+                    .addOnFailureListener { e ->
+                        println("❌ Error checking user membership: $e")
+                    }
+            }
+            .addOnFailureListener { e ->
+                println("❌ Error getting community: $e")
+            }
     }
     
     private fun showAlertNotification(

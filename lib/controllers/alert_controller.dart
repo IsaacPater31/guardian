@@ -148,9 +148,11 @@ class AlertController {
   /// Envía una alerta deslizada a Firebase
   /// [alertType] - Tipo de alerta (ej: "STREET ESCORT", "ROBBERY", etc.)
   /// [isAnonymous] - Si la alerta debe ser anónima
+  /// [communityId] - ID de la comunidad a la que se envía la alerta
   Future<bool> sendSwipedAlert({
     required String alertType,
     required bool isAnonymous,
+    required String communityId,
   }) async {
     try {
       // Verificar que el usuario puede enviar alertas
@@ -187,6 +189,10 @@ class AlertController {
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
+        // NUEVO: comunidad seleccionada
+        communityId: communityId,
+        forwardsCount: 0,
+        reportsCount: 0,
       );
 
       // Guardar en Firestore

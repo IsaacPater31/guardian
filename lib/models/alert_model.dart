@@ -15,6 +15,11 @@ class AlertModel {
   final List<String>? imageBase64;
   final int viewedCount; // Contador de personas que han visto la alerta
   final List<String> viewedBy; // Lista de IDs de usuarios que han visto la alerta
+  
+  // NUEVOS CAMPOS para sistema de comunidades
+  final String? communityId; // FK a community (null para alertas antiguas - compatibilidad)
+  final int forwardsCount; // Contador de reenvíos
+  final int reportsCount; // Contador de reportes
 
   AlertModel({
     this.id,
@@ -31,6 +36,10 @@ class AlertModel {
     this.imageBase64,
     this.viewedCount = 0,
     this.viewedBy = const [],
+    // NUEVOS CAMPOS
+    this.communityId,
+    this.forwardsCount = 0,
+    this.reportsCount = 0,
   });
 
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
@@ -50,6 +59,10 @@ class AlertModel {
       imageBase64: data['imageBase64'] != null ? List<String>.from(data['imageBase64']) : null,
       viewedCount: data['viewedCount'] ?? 0,
       viewedBy: data['viewedBy'] != null ? List<String>.from(data['viewedBy']) : [],
+      // NUEVOS CAMPOS (compatibilidad: si no existen, son null/0)
+      communityId: data['community_id'],
+      forwardsCount: data['forwards_count'] ?? 0,
+      reportsCount: data['reports_count'] ?? 0,
     );
   }
 
@@ -68,6 +81,10 @@ class AlertModel {
       'imageBase64': imageBase64,
       'viewedCount': viewedCount,
       'viewedBy': viewedBy,
+      // NUEVOS CAMPOS
+      'community_id': communityId,
+      'forwards_count': forwardsCount,
+      'reports_count': reportsCount,
     };
   }
 
@@ -87,6 +104,10 @@ class AlertModel {
     List<String>? imageBase64,
     int? viewedCount,
     List<String>? viewedBy,
+    // NUEVOS CAMPOS
+    String? communityId,
+    int? forwardsCount,
+    int? reportsCount,
   }) {
     return AlertModel(
       id: id ?? this.id,
@@ -103,6 +124,10 @@ class AlertModel {
       imageBase64: imageBase64 ?? this.imageBase64,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,
+      // NUEVOS CAMPOS
+      communityId: communityId ?? this.communityId,
+      forwardsCount: forwardsCount ?? this.forwardsCount,
+      reportsCount: reportsCount ?? this.reportsCount,
     );
   }
 }
