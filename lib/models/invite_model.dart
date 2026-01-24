@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class InviteModel {
   final String token; // PK
   final String communityId;
-  final DateTime expiresAt; // 7 días desde creación
+  final DateTime expiresAt; // 12 horas desde creación
 
   InviteModel({
     required this.token,

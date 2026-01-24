@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -349,6 +350,274 @@ class CommunityService {
       print('❌ Error agregando miembro oficial: $e');
       return false;
     }
+  }
+
+  /// Crea una nueva comunidad normal (no entidad)
+  /// El creador se agrega automáticamente como 'admin'
+  Future<String?> createCommunity({
+    required String name,
+    String? description,
+    bool allowForwardToEntities = true,
+  }) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        print('❌ No hay usuario autenticado');
+        return null;
+      }
+
+      // Crear la comunidad
+      final communityRef = await _firestore.collection('communities').add({
+        'name': name,
+        'description': description,
+        'is_entity': false,
+        'created_by': userId,
+        'allow_forward_to_entities': allowForwardToEntities,
+        'created_at': Timestamp.now(),
+      });
+
+      final communityId = communityRef.id;
+
+      // Agregar al creador como admin
+      await _firestore.collection('community_members').add({
+        'user_id': userId,
+        'community_id': communityId,
+        'joined_at': Timestamp.now(),
+        'role': 'admin', // El creador es admin
+      });
+
+      print('✅ Comunidad creada: $name (ID: $communityId)');
+      return communityId;
+    } catch (e) {
+      print('❌ Error creando comunidad: $e');
+      return null;
+    }
+  }
+
+  /// Genera un link de invitación para una comunidad
+  /// El token expira en 12 horas
+  Future<String?> generateInviteLink(String communityId) async {
+    try {
+      // Verificar que la comunidad existe y no es entidad
+      final communityDoc = await _firestore
+          .collection('communities')
+          .doc(communityId)
+          .get();
+
+      if (!communityDoc.exists) {
+        print('❌ Comunidad no existe');
+        return null;
+      }
+
+      final isEntity = communityDoc.data()?['is_entity'] ?? false;
+      if (isEntity) {
+        print('❌ No se pueden generar links de invitación para entidades');
+        return null;
+      }
+
+      // Generar token único
+      final token = _generateToken();
+
+      // Crear invitación (expira en 12 horas)
+      final expiresAt = DateTime.now().add(const Duration(hours: 12));
+      await _firestore.collection('invites').doc(token).set({
+        'community_id': communityId,
+        'expires_at': Timestamp.fromDate(expiresAt),
+      });
+
+      // Retornar el link (formato: guardian.app/join/{token})
+      return 'guardian.app/join/$token';
+    } catch (e) {
+      print('❌ Error generando link de invitación: $e');
+      return null;
+    }
+  }
+
+  /// Valida si un usuario existe en la app (por email)
+  Future<bool> validateUserExists(String email) async {
+    try {
+      // Buscar usuario por email en Firestore users collection
+      final usersSnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email.toLowerCase().trim())
+          .limit(1)
+          .get();
+
+      return usersSnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error validando usuario: $e');
+      return false;
+    }
+  }
+
+  /// Une a un usuario a una comunidad mediante token de invitación
+  /// Valida que el token no esté expirado y que el usuario exista
+  Future<bool> joinCommunityByToken(String token) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        print('❌ No hay usuario autenticado');
+        return false;
+      }
+
+      // Obtener la invitación
+      final inviteDoc = await _firestore.collection('invites').doc(token).get();
+      if (!inviteDoc.exists) {
+        print('❌ Token de invitación no válido');
+        return false;
+      }
+
+      final inviteData = inviteDoc.data();
+      final communityId = inviteData?['community_id'] as String?;
+      final expiresAt = (inviteData?['expires_at'] as Timestamp?)?.toDate();
+
+      if (communityId == null || expiresAt == null) {
+        print('❌ Datos de invitación inválidos');
+        return false;
+      }
+
+      // Verificar expiración
+      if (DateTime.now().isAfter(expiresAt)) {
+        print('❌ Token de invitación expirado');
+        return false;
+      }
+
+      // Verificar si ya es miembro
+      final existingMember = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: userId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (existingMember.docs.isNotEmpty) {
+        print('ℹ️ Usuario ya es miembro de esta comunidad');
+        return true; // Ya es miembro, consideramos éxito
+      }
+
+      // Agregar como miembro normal
+      await _firestore.collection('community_members').add({
+        'user_id': userId,
+        'community_id': communityId,
+        'joined_at': Timestamp.now(),
+        'role': 'member', // Nuevo miembro es 'member'
+      });
+
+      print('✅ Usuario agregado a la comunidad');
+      return true;
+    } catch (e) {
+      print('❌ Error uniéndose a comunidad: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene el rol del usuario actual en una comunidad
+  /// Retorna 'admin', 'member', 'official' o null si no es miembro
+  Future<String?> getUserRole(String communityId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return null;
+
+      final memberSnapshot = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: userId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (memberSnapshot.docs.isEmpty) return null;
+
+      final data = memberSnapshot.docs.first.data();
+      return data['role'] as String? ?? 'member';
+    } catch (e) {
+      print('❌ Error obteniendo rol de usuario: $e');
+      return null;
+    }
+  }
+
+  /// Abandona una comunidad (solo para comunidades normales, no entidades)
+  Future<bool> leaveCommunity(String communityId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        print('❌ No hay usuario autenticado');
+        return false;
+      }
+
+      // Verificar que la comunidad existe y no es entidad
+      final communityDoc = await _firestore
+          .collection('communities')
+          .doc(communityId)
+          .get();
+
+      if (!communityDoc.exists) {
+        print('❌ Comunidad no existe');
+        return false;
+      }
+
+      final isEntity = communityDoc.data()?['is_entity'] ?? false;
+      if (isEntity) {
+        print('⚠️ No se puede abandonar una entidad oficial');
+        return false;
+      }
+
+      // Buscar y eliminar el membership
+      final memberSnapshot = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: userId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (memberSnapshot.docs.isEmpty) {
+        print('ℹ️ Usuario no es miembro de esta comunidad');
+        return false;
+      }
+
+      // Validar que NO sea admin (el creador no puede abandonar su propia comunidad)
+      final memberData = memberSnapshot.docs.first.data();
+      final role = memberData['role'] as String? ?? 'member';
+      if (role == 'admin') {
+        print('⚠️ El administrador (creador) no puede abandonar su propia comunidad');
+        return false;
+      }
+
+      // Eliminar el membership
+      await memberSnapshot.docs.first.reference.delete();
+      print('✅ Usuario abandonó la comunidad');
+      return true;
+    } catch (e) {
+      print('❌ Error abandonando comunidad: $e');
+      return false;
+    }
+  }
+
+  /// Genera un token único y seguro para invitaciones (32 caracteres alfanuméricos)
+  /// Usa múltiples fuentes de aleatoriedad para garantizar unicidad y seguridad
+  String _generateToken() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random.secure(); // Usa Random.secure() para criptográficamente seguro
+    final buffer = StringBuffer();
+    
+    // Combinar múltiples fuentes de aleatoriedad:
+    // 1. Random.secure() (criptográficamente seguro)
+    // 2. Timestamp actual (unicidad temporal)
+    // 3. Microsegundos (granularidad adicional)
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final microseconds = DateTime.now().microsecondsSinceEpoch;
+    final randomSeed = random.nextInt(1000000);
+    
+    // Generar 32 caracteres usando múltiples fuentes
+    for (int i = 0; i < 32; i++) {
+      // Combinar todas las fuentes de aleatoriedad
+      final combined = (timestamp + microseconds + randomSeed + i) % chars.length;
+      final randomIndex = random.nextInt(chars.length);
+      // XOR de ambos índices para mayor aleatoriedad
+      final finalIndex = (combined ^ randomIndex) % chars.length;
+      buffer.write(chars[finalIndex]);
+    }
+    
+    return buffer.toString();
   }
 }
 

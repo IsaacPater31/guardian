@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
+import 'package:guardian/views/main_app/community_feed_view.dart';
 
 class ComunidadesView extends StatefulWidget {
   const ComunidadesView({super.key});
@@ -21,17 +22,31 @@ class _ComunidadesViewState extends State<ComunidadesView> {
   }
 
   Future<void> _loadCommunities() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final communities = await _communityService.getMyCommunities();
+      if (!mounted) return;
       setState(() {
         _communities = communities;
         _isLoading = false;
       });
     } catch (e) {
       print('Error cargando comunidades: $e');
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showCreateCommunityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _CreateCommunityDialog(
+        onCommunityCreated: () {
+          _loadCommunities();
+        },
+      ),
+    );
   }
 
   @override
@@ -42,12 +57,25 @@ class _ComunidadesViewState extends State<ComunidadesView> {
         backgroundColor: const Color(0xFF1F2937),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _showCreateCommunityDialog,
+            tooltip: 'Crear comunidad',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _communities.isEmpty
               ? _buildEmptyState()
               : _buildCommunitiesList(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateCommunityDialog,
+        backgroundColor: const Color(0xFF1F2937),
+        icon: const Icon(Icons.add),
+        label: const Text('Crear Comunidad'),
+      ),
     );
   }
 
@@ -167,15 +195,195 @@ class _ComunidadesViewState extends State<ComunidadesView> {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // TODO: Navegar a detalle de comunidad (Iteración 3)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Comunidad: ${community['name']}'),
-              duration: const Duration(seconds: 1),
-            ),
-          );
+          final communityId = community['id'] as String;
+          final communityName = community['name'] as String;
+          final isEntity = community['is_entity'] as bool;
+          
+          // Solo navegar al feed si NO es entidad
+          if (!isEntity) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CommunityFeedView(
+                  communityId: communityId,
+                  communityName: communityName,
+                  isEntity: false,
+                ),
+              ),
+            );
+          } else {
+            // Para entidades, mostrar mensaje (por ahora)
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${community['name']} es una entidad oficial'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         },
       ),
+    );
+  }
+}
+
+// Diálogo para crear nueva comunidad
+class _CreateCommunityDialog extends StatefulWidget {
+  final VoidCallback onCommunityCreated;
+
+  const _CreateCommunityDialog({required this.onCommunityCreated});
+
+  @override
+  State<_CreateCommunityDialog> createState() => _CreateCommunityDialogState();
+}
+
+class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final CommunityService _communityService = CommunityService();
+  bool _allowForwardToEntities = true;
+  bool _isCreating = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createCommunity() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isCreating = true);
+
+    try {
+      final communityId = await _communityService.createCommunity(
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        allowForwardToEntities: _allowForwardToEntities,
+      );
+
+      if (communityId != null && mounted) {
+        Navigator.pop(context);
+        widget.onCommunityCreated();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Comunidad creada exitosamente'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Error creando la comunidad'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Crear Nueva Comunidad'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre de la comunidad *',
+                  hintText: 'Ej: Vecinos del Barrio',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'El nombre es requerido';
+                  }
+                  if (value.trim().length < 3) {
+                    return 'El nombre debe tener al menos 3 caracteres';
+                  }
+                  return null;
+                },
+                enabled: !_isCreating,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                  hintText: 'Describe el propósito de la comunidad',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                enabled: !_isCreating,
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Permitir reenvío a entidades'),
+                subtitle: const Text(
+                  'Los miembros podrán reenviar alertas a entidades oficiales',
+                ),
+                value: _allowForwardToEntities,
+                onChanged: _isCreating
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _allowForwardToEntities = value;
+                        });
+                      },
+                activeColor: const Color(0xFF1F2937),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isCreating ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isCreating ? null : _createCommunity,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1F2937),
+            foregroundColor: Colors.white,
+          ),
+          child: _isCreating
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text('Crear'),
+        ),
+      ],
     );
   }
 }

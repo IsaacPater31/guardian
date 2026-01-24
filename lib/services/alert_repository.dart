@@ -202,4 +202,48 @@ class AlertRepository {
       return {};
     }
   }
+
+  /// Obtiene alertas de una comunidad específica
+  Future<List<AlertModel>> getCommunityAlerts(String communityId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('alerts')
+          .where('community_id', isEqualTo: communityId)
+          .orderBy('timestamp', descending: true)
+          .limit(50) // Limitar a 50 alertas más recientes
+          .get();
+      
+      final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
+      
+      // Filtrar alertas según permisos del usuario
+      return allAlerts.where((alert) => _userService.canUserViewAlert(
+        alert.userId, 
+        alert.userEmail, 
+        alert.isAnonymous
+      )).toList();
+    } catch (e) {
+      print('Error getting community alerts: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene un stream de alertas de una comunidad específica
+  Stream<List<AlertModel>> getCommunityAlertsStream(String communityId) {
+    return _firestore
+        .collection('alerts')
+        .where('community_id', isEqualTo: communityId)
+        .orderBy('timestamp', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snapshot) {
+          final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
+          
+          // Filtrar alertas según permisos del usuario
+          return allAlerts.where((alert) => _userService.canUserViewAlert(
+            alert.userId, 
+            alert.userEmail, 
+            alert.isAnonymous
+          )).toList();
+        });
+  }
 }

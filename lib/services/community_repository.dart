@@ -22,10 +22,20 @@ class CommunityRepository {
     }
   }
 
+  /// Actualiza una comunidad
+  Future<bool> updateCommunity(String communityId, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('communities').doc(communityId).update(data);
+      return true;
+    } catch (e) {
+      print('❌ Error actualizando comunidad: $e');
+      return false;
+    }
+  }
+
   // Más métodos se agregarán en iteraciones siguientes:
   // - createCommunity()
   // - getMyCommunities()
-  // - updateCommunity()
   // - deleteCommunity()
   // - etc.
 }

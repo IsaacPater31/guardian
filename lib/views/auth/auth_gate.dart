@@ -27,7 +27,10 @@ class _AuthGateState extends State<AuthGate> {
         if (snapshot.hasData) {
           // Agregar usuario a entidades si no está ya (idempotente)
           // Se ejecuta en background, no bloquea la UI
-          CommunityService().ensureUserInEntities();
+          // Usar catchError para manejar errores sin bloquear
+          CommunityService().ensureUserInEntities().catchError((error) {
+            print('⚠️ Error agregando usuario a entidades en AuthGate: $error');
+          });
           return const MainView();
         }
         // Si no hay usuario logueado

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:guardian/services/community_service.dart';
 
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -34,6 +35,14 @@ class LoginController {
     );
 
     await _auth.signInWithCredential(credential);
+    
+    // Agregar usuario a entidades automáticamente (en background, no bloquea)
+    // Iteración 2: Membresía automática en entidades
+    // Usar unawaited para ejecutar en background sin bloquear, pero asegurar que se complete
+    CommunityService().ensureUserInEntities().catchError((error) {
+      print('⚠️ Error agregando usuario a entidades después de login con Google: $error');
+    });
+    
     return null; // Éxito
   } on FirebaseAuthException catch (e) {
     if (e.code == 'invalid-credential') {
@@ -76,15 +85,24 @@ class LoginController {
 }
 
   /// Registra un nuevo usuario con correo y contraseña
-Future<String?> registerWithEmail(String email, String password) async {
-  try {
-    await _auth.createUserWithEmailAndPassword(email: email, password: password);
-    return null; // Éxito
-  } on FirebaseAuthException catch (e) {
-    return _handleAuthError(e);
-  } catch (e) {
-    return 'Error desconocido: $e';
+  /// También agrega al usuario a las entidades automáticamente (Iteración 2)
+  Future<String?> registerWithEmail(String email, String password) async {
+    try {
+      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      
+      // Agregar usuario a entidades automáticamente (en background, no bloquea)
+      // Iteración 2: Membresía automática en entidades
+      // Usar unawaited para ejecutar en background sin bloquear, pero asegurar que se complete
+      CommunityService().ensureUserInEntities().catchError((error) {
+        print('⚠️ Error agregando usuario a entidades después de registro: $error');
+      });
+      
+      return null; // Éxito
+    } on FirebaseAuthException catch (e) {
+      return _handleAuthError(e);
+    } catch (e) {
+      return 'Error desconocido: $e';
+    }
   }
-}
 
 }

@@ -24,7 +24,7 @@ class EmergencyTypes {
     'downLeft': {
       'type': 'PHYSICAL RISK',
       'icon': Icons.accessible,
-      'color': Colors.purple,
+      'color': const Color(0xFF673AB7), // Púrpura oscuro (diferente del púrpura claro de ROBBERY)
     },
     'down': {
       'type': 'PUBLIC SERVICES EMERGENCY',
@@ -90,7 +90,7 @@ class EmergencyTypes {
       case 'UNSAFETY':
         return Colors.orange;
       case 'PHYSICAL RISK':
-        return Colors.purple;
+        return const Color(0xFF673AB7); // Púrpura oscuro (diferente del púrpura claro de ROBBERY)
       case 'STREET ESCORT':
       case 'ASSISTANCE':
         return Colors.blue;

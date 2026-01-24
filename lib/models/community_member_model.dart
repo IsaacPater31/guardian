@@ -5,7 +5,7 @@ class CommunityMemberModel {
   final String userId;
   final String communityId;
   final DateTime joinedAt;
-  final String role; // 'member' (usuario normal) o 'official' (ente oficial)
+  final String role; // 'admin' (creador), 'member' (usuario normal) o 'official' (ente oficial)
 
   CommunityMemberModel({
     this.id,
@@ -35,6 +35,9 @@ class CommunityMemberModel {
     };
   }
 
+  /// Verifica si es administrador (creador de la comunidad)
+  bool get isAdmin => role == 'admin';
+  
   /// Verifica si es miembro oficial (ente)
   bool get isOfficial => role == 'official';
   
