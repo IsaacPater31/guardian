@@ -119,17 +119,19 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
     try {
       final result = await _communityService.joinCommunityByToken(_currentToken!);
       
-      if (result) {
+      if (result.success) {
         if (mounted) {
-          // Mostrar éxito y navegar
+          // Mostrar mensaje apropiado según el resultado
+          final message = result.message ?? 
+              (_communityPreview != null
+                  ? '¡Te has unido a ${_communityPreview!.name}!'
+                  : '¡Te has unido a la comunidad!');
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                _communityPreview != null
-                    ? '¡Te has unido a ${_communityPreview!.name}!'
-                    : '¡Te has unido a la comunidad!',
-              ),
-              backgroundColor: Colors.green,
+              content: Text(message),
+              backgroundColor: result.alreadyMember ? Colors.orange : Colors.green,
+              duration: Duration(seconds: result.alreadyMember ? 3 : 2),
             ),
           );
 
@@ -150,7 +152,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
         }
       } else {
         setState(() {
-          _errorMessage = 'No se pudo unir a la comunidad. El link puede haber expirado.';
+          _errorMessage = result.message ?? 'No se pudo unir a la comunidad. El link puede haber expirado.';
           _isLoading = false;
         });
       }

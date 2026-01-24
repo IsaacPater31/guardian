@@ -3,6 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'alert_repository.dart';
 
+/// Resultado de unirse a una comunidad mediante token
+class JoinResult {
+  final bool success;
+  final bool alreadyMember;
+  final String? role; // 'admin', 'member', 'official'
+  final String? message;
+
+  JoinResult({
+    required this.success,
+    this.alreadyMember = false,
+    this.role,
+    this.message,
+  });
+}
+
 /// Servicio para gestionar comunidades y entidades
 /// Optimizado para plan gratuito de Firebase (minimiza reads/writes)
 class CommunityService {
@@ -496,19 +511,26 @@ class CommunityService {
 
   /// Une a un usuario a una comunidad mediante token de invitación
   /// Valida que el token no esté expirado y que el usuario exista
-  Future<bool> joinCommunityByToken(String token) async {
+  /// Retorna JoinResult con información detallada del resultado
+  Future<JoinResult> joinCommunityByToken(String token) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
         print('❌ No hay usuario autenticado');
-        return false;
+        return JoinResult(
+          success: false,
+          message: 'No hay usuario autenticado',
+        );
       }
 
       // Obtener la invitación
       final inviteDoc = await _firestore.collection('invites').doc(token).get();
       if (!inviteDoc.exists) {
         print('❌ Token de invitación no válido');
-        return false;
+        return JoinResult(
+          success: false,
+          message: 'Token de invitación no válido',
+        );
       }
 
       final inviteData = inviteDoc.data();
@@ -517,13 +539,19 @@ class CommunityService {
 
       if (communityId == null || expiresAt == null) {
         print('❌ Datos de invitación inválidos');
-        return false;
+        return JoinResult(
+          success: false,
+          message: 'Datos de invitación inválidos',
+        );
       }
 
       // Verificar expiración
       if (DateTime.now().isAfter(expiresAt)) {
         print('❌ Token de invitación expirado');
-        return false;
+        return JoinResult(
+          success: false,
+          message: 'El link de invitación ha expirado',
+        );
       }
 
       // Verificar si ya es miembro
@@ -535,8 +563,17 @@ class CommunityService {
           .get();
 
       if (existingMember.docs.isNotEmpty) {
-        print('ℹ️ Usuario ya es miembro de esta comunidad');
-        return true; // Ya es miembro, consideramos éxito
+        final memberData = existingMember.docs.first.data();
+        final role = memberData['role'] as String? ?? 'member';
+        print('ℹ️ Usuario ya es miembro de esta comunidad (rol: $role)');
+        return JoinResult(
+          success: true,
+          alreadyMember: true,
+          role: role,
+          message: role == 'admin' 
+              ? 'Ya eres administrador de esta comunidad'
+              : 'Ya eres miembro de esta comunidad',
+        );
       }
 
       // Agregar como miembro normal
@@ -551,10 +588,18 @@ class CommunityService {
       AlertRepository().invalidateCommunityCache();
 
       print('✅ Usuario agregado a la comunidad');
-      return true;
+      return JoinResult(
+        success: true,
+        alreadyMember: false,
+        role: 'member',
+        message: 'Te has unido exitosamente a la comunidad',
+      );
     } catch (e) {
       print('❌ Error uniéndose a comunidad: $e');
-      return false;
+      return JoinResult(
+        success: false,
+        message: 'Error al unirse a la comunidad',
+      );
     }
   }
 
