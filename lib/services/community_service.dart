@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'alert_repository.dart';
 
 /// Servicio para gestionar comunidades y entidades
 /// Optimizado para plan gratuito de Firebase (minimiza reads/writes)
@@ -137,6 +138,10 @@ class CommunityService {
     if (added > 0) {
       // Ejecutar batch (1 write operation para todas las entidades)
       await batch.commit();
+      
+      // Invalidar cache de alertas (Iteración 2.5)
+      AlertRepository().invalidateCommunityCache();
+      
       print('✅ Usuario agregado a $added entidades');
     } else {
       print('ℹ️ Usuario ya estaba en todas las entidades');
@@ -386,6 +391,9 @@ class CommunityService {
         'role': 'admin', // El creador es admin
       });
 
+      // Invalidar cache de alertas (Iteración 2.5)
+      AlertRepository().invalidateCommunityCache();
+
       print('✅ Comunidad creada: $name (ID: $communityId)');
       return communityId;
     } catch (e) {
@@ -503,6 +511,9 @@ class CommunityService {
         'role': 'member', // Nuevo miembro es 'member'
       });
 
+      // Invalidar cache de alertas (Iteración 2.5)
+      AlertRepository().invalidateCommunityCache();
+
       print('✅ Usuario agregado a la comunidad');
       return true;
     } catch (e) {
@@ -584,6 +595,10 @@ class CommunityService {
 
       // Eliminar el membership
       await memberSnapshot.docs.first.reference.delete();
+      
+      // Invalidar cache de alertas (Iteración 2.5)
+      AlertRepository().invalidateCommunityCache();
+      
       print('✅ Usuario abandonó la comunidad');
       return true;
     } catch (e) {

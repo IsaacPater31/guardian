@@ -5,6 +5,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/services/community_service.dart';
+import 'package:guardian/services/community_repository.dart';
+import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'dart:convert';
 
 class AlertDetailDialog extends StatefulWidget {
@@ -18,6 +21,10 @@ class AlertDetailDialog extends StatefulWidget {
 
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
   final AlertController _alertController = AlertController();
+  final CommunityService _communityService = CommunityService();
+  final CommunityRepository _communityRepository = CommunityRepository();
+  String? _communityName;
+  bool _isLoadingCommunity = false;
 
   /// Obtiene el tipo de alerta traducido
   String _getTranslatedAlertType() {
@@ -30,6 +37,79 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     // Marcar la alerta como vista cuando se abre el diálogo
     if (widget.alert.id != null) {
       _alertController.markAlertAsViewed(widget.alert.id!);
+    }
+    // Cargar nombre de la comunidad si la alerta tiene community_id
+    if (widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty) {
+      _loadCommunityName();
+    }
+  }
+  
+  Future<void> _loadCommunityName() async {
+    if (widget.alert.communityId == null) return;
+    
+    setState(() => _isLoadingCommunity = true);
+    try {
+      final community = await _communityRepository.getCommunityById(widget.alert.communityId!);
+      if (community != null && mounted) {
+        setState(() {
+          _communityName = community.name;
+          _isLoadingCommunity = false;
+        });
+      } else {
+        setState(() => _isLoadingCommunity = false);
+      }
+    } catch (e) {
+      print('Error cargando nombre de comunidad: $e');
+      if (mounted) {
+        setState(() => _isLoadingCommunity = false);
+      }
+    }
+  }
+  
+  Future<void> _navigateToCommunity() async {
+    if (widget.alert.communityId == null) return;
+    
+    // Verificar que el usuario es miembro de la comunidad
+    final role = await _communityService.getUserRole(widget.alert.communityId!);
+    if (role == null) {
+      // Usuario no es miembro
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No eres miembro de esta comunidad'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Obtener información de la comunidad
+    final community = await _communityRepository.getCommunityById(widget.alert.communityId!);
+    if (community == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Comunidad no encontrada'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Navegar al feed de la comunidad
+    if (mounted) {
+      Navigator.of(context).pop(); // Cerrar diálogo
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CommunityFeedView(
+            communityId: widget.alert.communityId!,
+            communityName: community.name,
+            isEntity: community.isEntity,
+          ),
+        ),
+      );
     }
   }
 
@@ -652,6 +732,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   }
 
   Widget _buildActionButtons(BuildContext context) {
+    final hasCommunity = widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty;
+    
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -668,58 +750,105 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          // Botón para ir a la comunidad (solo si tiene community_id)
+          if (hasCommunity) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLoadingCommunity ? null : _navigateToCommunity,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F2937),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 2,
                 ),
-                side: BorderSide(
-                  color: const Color(0xFFE5E7EB),
-                  width: 1.5,
-                ),
-              ),
-              child: Text(
-                AppLocalizations.of(context)!.close,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
-                ),
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: 16),
-          
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                // TODO: Implementar acción de respuesta
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getAlertColor(widget.alert.alertType),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 2,
-                shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
-              ),
-              child: Text(
-                AppLocalizations.of(context)!.respond,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                icon: _isLoadingCommunity
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.people, size: 20),
+                label: Text(
+                  _isLoadingCommunity
+                      ? 'Cargando...'
+                      : _communityName != null
+                          ? 'Ver en $_communityName'
+                          : 'Ver en Comunidad',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+          ],
+          
+          // Botones principales
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    side: BorderSide(
+                      color: const Color(0xFFE5E7EB),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.close,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 16),
+              
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    // TODO: Implementar acción de respuesta
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _getAlertColor(widget.alert.alertType),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 2,
+                    shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.respond,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

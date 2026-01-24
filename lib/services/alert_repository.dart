@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/alert_model.dart';
 import 'user_service.dart';
+import 'community_service.dart';
 
 class AlertRepository {
   static final AlertRepository _instance = AlertRepository._internal();
@@ -9,6 +10,12 @@ class AlertRepository {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final UserService _userService = UserService();
+  final CommunityService _communityService = CommunityService();
+  
+  // Cache de IDs de comunidades del usuario (se actualiza periódicamente)
+  List<String>? _cachedUserCommunityIds;
+  DateTime? _cacheTimestamp;
+  static const _cacheValidityDuration = Duration(minutes: 5);
 
   /// Guarda una alerta en Firestore
   Future<String> saveAlert(AlertModel alert) async {
@@ -61,7 +68,38 @@ class AlertRepository {
     }
   }
 
+  /// Obtiene los IDs de comunidades del usuario (con cache)
+  Future<List<String>> _getUserCommunityIds() async {
+    // Verificar cache
+    if (_cachedUserCommunityIds != null && 
+        _cacheTimestamp != null && 
+        DateTime.now().difference(_cacheTimestamp!) < _cacheValidityDuration) {
+      return _cachedUserCommunityIds!;
+    }
+    
+    try {
+      final communities = await _communityService.getMyCommunities();
+      final communityIds = communities.map((c) => c['id'] as String).toList();
+      
+      // Actualizar cache
+      _cachedUserCommunityIds = communityIds;
+      _cacheTimestamp = DateTime.now();
+      
+      return communityIds;
+    } catch (e) {
+      print('❌ Error obteniendo IDs de comunidades: $e');
+      return _cachedUserCommunityIds ?? [];
+    }
+  }
+  
+  /// Invalida el cache de comunidades (llamar cuando el usuario se une/abandona una comunidad)
+  void invalidateCommunityCache() {
+    _cachedUserCommunityIds = null;
+    _cacheTimestamp = null;
+  }
+
   /// Obtiene alertas recientes (últimas 24 horas)
+  /// Filtra por comunidades del usuario (Iteración 2.5)
   Future<List<AlertModel>> getRecentAlerts() async {
     try {
       final yesterday = DateTime.now().subtract(const Duration(hours: 24));
@@ -74,12 +112,33 @@ class AlertRepository {
       
       final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
       
-      // Filtrar alertas según permisos del usuario
-      return allAlerts.where((alert) => _userService.canUserViewAlert(
-        alert.userId, 
-        alert.userEmail, 
-        alert.isAnonymous
-      )).toList();
+      // Obtener IDs de comunidades del usuario
+      final userCommunityIds = await _getUserCommunityIds();
+      
+      // Filtrar alertas:
+      // 1. Según permisos del usuario
+      // 2. Si tiene community_id: solo si el usuario es miembro de esa comunidad
+      // 3. Si NO tiene community_id: mantener comportamiento legacy (mostrar a todos)
+      final filteredAlerts = allAlerts.where((alert) {
+        // Verificar permisos básicos
+        if (!_userService.canUserViewAlert(
+          alert.userId, 
+          alert.userEmail, 
+          alert.isAnonymous
+        )) {
+          return false;
+        }
+        
+        // Si la alerta tiene community_id, verificar membresía
+        if (alert.communityId != null && alert.communityId!.isNotEmpty) {
+          return userCommunityIds.contains(alert.communityId);
+        }
+        
+        // Alerta sin community_id (legacy) - mantener comportamiento anterior
+        return true;
+      }).toList();
+      
+      return filteredAlerts;
     } catch (e) {
       print('Error getting recent alerts: $e');
       return [];
@@ -120,6 +179,7 @@ class AlertRepository {
   }
 
   /// Obtiene un stream de alertas recientes
+  /// Filtra por comunidades del usuario (Iteración 2.5)
   Stream<List<AlertModel>> getRecentAlertsStream() {
     final yesterday = DateTime.now().subtract(const Duration(hours: 24));
     
@@ -128,15 +188,34 @@ class AlertRepository {
         .where('timestamp', isGreaterThan: Timestamp.fromDate(yesterday))
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
           final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
           
-          // Filtrar alertas según permisos del usuario
-          return allAlerts.where((alert) => _userService.canUserViewAlert(
-            alert.userId, 
-            alert.userEmail, 
-            alert.isAnonymous
-          )).toList();
+          // Obtener IDs de comunidades del usuario (con cache)
+          final userCommunityIds = await _getUserCommunityIds();
+          
+          // Filtrar alertas:
+          // 1. Según permisos del usuario
+          // 2. Si tiene community_id: solo si el usuario es miembro de esa comunidad
+          // 3. Si NO tiene community_id: mantener comportamiento legacy (mostrar a todos)
+          return allAlerts.where((alert) {
+            // Verificar permisos básicos
+            if (!_userService.canUserViewAlert(
+              alert.userId, 
+              alert.userEmail, 
+              alert.isAnonymous
+            )) {
+              return false;
+            }
+            
+            // Si la alerta tiene community_id, verificar membresía
+            if (alert.communityId != null && alert.communityId!.isNotEmpty) {
+              return userCommunityIds.contains(alert.communityId);
+            }
+            
+            // Alerta sin community_id (legacy) - mantener comportamiento anterior
+            return true;
+          }).toList();
         });
   }
 
