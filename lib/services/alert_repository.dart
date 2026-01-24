@@ -204,23 +204,27 @@ class AlertRepository {
   }
 
   /// Obtiene alertas de una comunidad específica
+  /// Nota: Ordena en memoria para evitar requerir índice compuesto en Firestore (plan gratuito)
   Future<List<AlertModel>> getCommunityAlerts(String communityId) async {
     try {
+      // Query sin orderBy para evitar requerir índice compuesto
       final snapshot = await _firestore
           .collection('alerts')
           .where('community_id', isEqualTo: communityId)
-          .orderBy('timestamp', descending: true)
-          .limit(50) // Limitar a 50 alertas más recientes
           .get();
       
       final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
       
       // Filtrar alertas según permisos del usuario
-      return allAlerts.where((alert) => _userService.canUserViewAlert(
+      final filteredAlerts = allAlerts.where((alert) => _userService.canUserViewAlert(
         alert.userId, 
         alert.userEmail, 
         alert.isAnonymous
       )).toList();
+      
+      // Ordenar en memoria por timestamp (más reciente primero) y limitar a 50
+      filteredAlerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return filteredAlerts.take(50).toList();
     } catch (e) {
       print('Error getting community alerts: $e');
       return [];
@@ -228,22 +232,25 @@ class AlertRepository {
   }
 
   /// Obtiene un stream de alertas de una comunidad específica
+  /// Nota: Ordena en memoria para evitar requerir índice compuesto en Firestore (plan gratuito)
   Stream<List<AlertModel>> getCommunityAlertsStream(String communityId) {
     return _firestore
         .collection('alerts')
         .where('community_id', isEqualTo: communityId)
-        .orderBy('timestamp', descending: true)
-        .limit(50)
         .snapshots()
         .map((snapshot) {
           final allAlerts = snapshot.docs.map((doc) => AlertModel.fromFirestore(doc)).toList();
           
           // Filtrar alertas según permisos del usuario
-          return allAlerts.where((alert) => _userService.canUserViewAlert(
+          final filteredAlerts = allAlerts.where((alert) => _userService.canUserViewAlert(
             alert.userId, 
             alert.userEmail, 
             alert.isAnonymous
           )).toList();
+          
+          // Ordenar en memoria por timestamp (más reciente primero) y limitar a 50
+          filteredAlerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return filteredAlerts.take(50).toList();
         });
   }
 }
