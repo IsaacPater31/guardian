@@ -458,6 +458,42 @@ class CommunityService {
     }
   }
 
+  /// Obtiene información de una invitación sin unirse
+  /// Útil para mostrar preview antes de confirmar
+  Future<Map<String, dynamic>?> getInviteInfo(String token) async {
+    try {
+      final inviteDoc = await _firestore.collection('invites').doc(token).get();
+      if (!inviteDoc.exists) {
+        print('❌ Token de invitación no encontrado');
+        return null;
+      }
+
+      final inviteData = inviteDoc.data();
+      final communityId = inviteData?['community_id'] as String?;
+      final expiresAt = (inviteData?['expires_at'] as Timestamp?)?.toDate();
+
+      if (communityId == null || expiresAt == null) {
+        print('❌ Datos de invitación inválidos');
+        return null;
+      }
+
+      // Verificar expiración
+      if (DateTime.now().isAfter(expiresAt)) {
+        print('❌ Token de invitación expirado');
+        return null;
+      }
+
+      return {
+        'community_id': communityId,
+        'expires_at': expiresAt,
+        'is_valid': true,
+      };
+    } catch (e) {
+      print('❌ Error obteniendo info de invitación: $e');
+      return null;
+    }
+  }
+
   /// Une a un usuario a una comunidad mediante token de invitación
   /// Valida que el token no esté expirado y que el usuario exista
   Future<bool> joinCommunityByToken(String token) async {
@@ -603,6 +639,150 @@ class CommunityService {
       return true;
     } catch (e) {
       print('❌ Error abandonando comunidad: $e');
+      return false;
+    }
+  }
+
+  /// Elimina una comunidad (solo el creador puede eliminar)
+  /// También elimina todos los miembros y invitaciones asociadas
+  Future<bool> deleteCommunity(String communityId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        print('❌ No hay usuario autenticado');
+        return false;
+      }
+
+      // Obtener la comunidad
+      final communityDoc = await _firestore
+          .collection('communities')
+          .doc(communityId)
+          .get();
+
+      if (!communityDoc.exists) {
+        print('❌ Comunidad no existe');
+        return false;
+      }
+
+      final communityData = communityDoc.data();
+      final isEntity = communityData?['is_entity'] ?? false;
+      final createdBy = communityData?['created_by'] as String?;
+
+      // No se pueden eliminar entidades
+      if (isEntity) {
+        print('⚠️ No se pueden eliminar entidades oficiales');
+        return false;
+      }
+
+      // Solo el creador puede eliminar
+      if (createdBy != userId) {
+        print('⚠️ Solo el creador puede eliminar la comunidad');
+        return false;
+      }
+
+      // Usar batch para eliminar todo de forma atómica
+      final batch = _firestore.batch();
+
+      // 1. Eliminar todos los miembros de la comunidad
+      final membersSnapshot = await _firestore
+          .collection('community_members')
+          .where('community_id', isEqualTo: communityId)
+          .get();
+
+      for (final doc in membersSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // 2. Eliminar todas las invitaciones de la comunidad
+      final invitesSnapshot = await _firestore
+          .collection('invites')
+          .where('community_id', isEqualTo: communityId)
+          .get();
+
+      for (final doc in invitesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // 3. Eliminar la comunidad
+      batch.delete(communityDoc.reference);
+
+      // Ejecutar batch
+      await batch.commit();
+
+      // Invalidar cache de alertas
+      AlertRepository().invalidateCommunityCache();
+
+      print('✅ Comunidad eliminada: $communityId');
+      return true;
+    } catch (e) {
+      print('❌ Error eliminando comunidad: $e');
+      return false;
+    }
+  }
+
+  /// Verifica si el usuario actual es el creador de una comunidad
+  Future<bool> isCreator(String communityId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return false;
+
+      final communityDoc = await _firestore
+          .collection('communities')
+          .doc(communityId)
+          .get();
+
+      if (!communityDoc.exists) return false;
+
+      final createdBy = communityDoc.data()?['created_by'] as String?;
+      return createdBy == userId;
+    } catch (e) {
+      print('❌ Error verificando creador: $e');
+      return false;
+    }
+  }
+
+  /// Actualiza una comunidad (solo el creador puede actualizar)
+  Future<bool> updateCommunity(String communityId, {
+    String? name,
+    String? description,
+    bool? allowForwardToEntities,
+  }) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        print('❌ No hay usuario autenticado');
+        return false;
+      }
+
+      // Verificar que es el creador
+      final isOwner = await isCreator(communityId);
+      if (!isOwner) {
+        print('⚠️ Solo el creador puede actualizar la comunidad');
+        return false;
+      }
+
+      // Construir datos a actualizar
+      final Map<String, dynamic> updateData = {};
+      if (name != null) updateData['name'] = name;
+      if (description != null) updateData['description'] = description;
+      if (allowForwardToEntities != null) {
+        updateData['allow_forward_to_entities'] = allowForwardToEntities;
+      }
+
+      if (updateData.isEmpty) {
+        print('ℹ️ No hay datos para actualizar');
+        return true;
+      }
+
+      await _firestore
+          .collection('communities')
+          .doc(communityId)
+          .update(updateData);
+
+      print('✅ Comunidad actualizada');
+      return true;
+    } catch (e) {
+      print('❌ Error actualizando comunidad: $e');
       return false;
     }
   }

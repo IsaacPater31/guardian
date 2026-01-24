@@ -29,6 +29,8 @@ dependencies:
   shared_preferences: ^2.3.2
   intl: ^0.20.2
   provider: ^6.1.1
+  app_links: ^6.3.3          # Deep links para invitaciones
+  share_plus: ^10.1.4        # Compartir links de invitación
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/models/community_model.dart';
@@ -45,6 +46,126 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     }
   }
 
+  void _showEditCommunityDialog() {
+    final nameController = TextEditingController(text: _community?.name ?? '');
+    final descriptionController = TextEditingController(text: _community?.description ?? '');
+    final formKey = GlobalKey<FormState>();
+    bool isUpdating = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Editar Comunidad'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de la comunidad *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.group),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'El nombre es requerido';
+                      }
+                      if (value.trim().length < 3) {
+                        return 'Mínimo 3 caracteres';
+                      }
+                      return null;
+                    },
+                    enabled: !isUpdating,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción (opcional)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    enabled: !isUpdating,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isUpdating ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isUpdating
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+
+                      setDialogState(() => isUpdating = true);
+
+                      final newName = nameController.text.trim();
+                      final newDescription = descriptionController.text.trim();
+
+                      final success = await _communityService.updateCommunity(
+                        widget.communityId,
+                        name: newName,
+                        description: newDescription.isEmpty ? null : newDescription,
+                      );
+
+                      if (mounted) {
+                        Navigator.pop(context);
+
+                        if (success) {
+                          setState(() {
+                            _community = _community!.copyWith(
+                              name: newName,
+                              description: newDescription.isEmpty ? null : newDescription,
+                            );
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Comunidad actualizada'),
+                              backgroundColor: Colors.green,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Error actualizando la comunidad'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                foregroundColor: Colors.white,
+              ),
+              child: isUpdating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _generateInviteLink() async {
     setState(() => _isGeneratingLink = true);
     try {
@@ -78,6 +199,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
   }
 
   void _showInviteLinkDialog(String link) {
+    final communityName = _community?.name ?? 'la comunidad';
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,7 +222,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                 border: Border.all(color: Colors.grey[300]!),
               ),
               child: SelectableText(
-                link,
+                'https://$link',
                 style: const TextStyle(
                   fontSize: 12,
                   fontFamily: 'monospace',
@@ -122,10 +245,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
           ),
-          ElevatedButton.icon(
+          OutlinedButton.icon(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: link));
-              Navigator.pop(context);
+              Clipboard.setData(ClipboardData(text: 'https://$link'));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Link copiado al portapapeles'),
@@ -135,6 +257,17 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             },
             icon: const Icon(Icons.copy, size: 18),
             label: const Text('Copiar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              Share.share(
+                '¡Únete a $communityName en Guardian!\n\nhttps://$link',
+                subject: 'Invitación a $communityName - Guardian',
+              );
+            },
+            icon: const Icon(Icons.share, size: 18),
+            label: const Text('Compartir'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1F2937),
               foregroundColor: Colors.white,
@@ -149,25 +282,37 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     if (_community == null) return;
 
     try {
-      await _communityRepository.updateCommunity(
+      final success = await _communityService.updateCommunity(
         widget.communityId,
-        {'allow_forward_to_entities': value},
+        allowForwardToEntities: value,
       );
-      setState(() {
-        _community = _community!.copyWith(allowForwardToEntities: value);
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              value
-                  ? 'Reenvío a entidades habilitado'
-                  : 'Reenvío a entidades deshabilitado',
+      
+      if (success) {
+        setState(() {
+          _community = _community!.copyWith(allowForwardToEntities: value);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                value
+                    ? 'Reenvío a entidades habilitado'
+                    : 'Reenvío a entidades deshabilitado',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Solo el creador puede modificar la configuración'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -177,6 +322,94 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _deleteCommunity() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[400]),
+            const SizedBox(width: 8),
+            const Text('Eliminar Comunidad'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro de que quieres eliminar esta comunidad?',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Esta acción es irreversible y eliminará:',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 8),
+            Text('• Todos los miembros', style: TextStyle(fontSize: 14)),
+            Text('• Todas las invitaciones', style: TextStyle(fontSize: 14)),
+            Text('• La comunidad por completo', style: TextStyle(fontSize: 14)),
+            SizedBox(height: 12),
+            Text(
+              'Las alertas enviadas a esta comunidad permanecerán en el historial.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final success = await _communityService.deleteCommunity(widget.communityId);
+      
+      if (mounted) {
+        Navigator.pop(context); // Cerrar indicador de carga
+        
+        if (success) {
+          Navigator.pop(context); // Volver de settings
+          Navigator.pop(context); // Volver de feed a lista de comunidades
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Comunidad eliminada'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al eliminar la comunidad'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -284,14 +517,29 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _community!.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _community!.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (isAdmin)
+                        IconButton(
+                          onPressed: _showEditCommunityDialog,
+                          icon: const Icon(Icons.edit, size: 20),
+                          tooltip: 'Editar comunidad',
+                          style: IconButton.styleFrom(
+                            foregroundColor: const Color(0xFF1F2937),
+                          ),
+                        ),
+                    ],
                   ),
-                  if (_community!.description != null) ...[
+                  if (_community!.description != null && _community!.description!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
                       _community!.description!,
@@ -306,6 +554,40 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             ),
           ),
           const SizedBox(height: 24),
+          
+          // Opciones de invitación (todos los miembros)
+          const Text(
+            'Invitar Miembros',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.person_add, color: Color(0xFF1F2937)),
+              title: const Text('Generar link de invitación'),
+              subtitle: _isGeneratingLink
+                  ? const Text('Generando...')
+                  : const Text('Comparte el link para invitar a otros'),
+              trailing: _isGeneratingLink
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.chevron_right),
+              onTap: _isGeneratingLink ? null : _generateInviteLink,
+            ),
+          ),
+          const SizedBox(height: 24),
+          
           // Opciones de administrador
           if (isAdmin) ...[
             const Text(
@@ -322,38 +604,39 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    title: const Text('Permitir reenvío a entidades'),
-                    subtitle: const Text(
-                      'Permite que los miembros reenvíen alertas a entidades oficiales',
-                    ),
-                    value: _community!.allowForwardToEntities,
-                    onChanged: _updateAllowForward,
-                    activeColor: const Color(0xFF1F2937),
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.link),
-                    title: const Text('Generar link de invitación'),
-                    subtitle: _isGeneratingLink
-                        ? const Text('Generando...')
-                        : const Text('Crea un link para invitar a otros'),
-                    trailing: _isGeneratingLink
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.chevron_right),
-                    onTap: _isGeneratingLink ? null : _generateInviteLink,
-                  ),
-                ],
+              child: SwitchListTile(
+                title: const Text('Permitir reenvío a entidades'),
+                subtitle: const Text(
+                  'Permite que los miembros reenvíen alertas a entidades oficiales',
+                ),
+                value: _community!.allowForwardToEntities,
+                onChanged: _updateAllowForward,
+                activeColor: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Zona de peligro - Eliminar comunidad
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+              ),
+              child: ListTile(
+                leading: Icon(Icons.delete_forever, color: Colors.red[400]),
+                title: Text(
+                  'Eliminar comunidad',
+                  style: TextStyle(color: Colors.red[700]),
+                ),
+                subtitle: const Text(
+                  'Elimina la comunidad permanentemente',
+                ),
+                onTap: _deleteCommunity,
               ),
             ),
             const SizedBox(height: 24),
           ],
+          
           // Opciones de miembro
           const Text(
             'Opciones de Miembro',

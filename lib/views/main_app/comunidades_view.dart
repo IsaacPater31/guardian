@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
+import 'package:guardian/views/main_app/join_community_view.dart';
 
 class ComunidadesView extends StatefulWidget {
   const ComunidadesView({super.key});
@@ -58,6 +59,22 @@ class _ComunidadesViewState extends State<ComunidadesView> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.link),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const JoinCommunityView(),
+                ),
+              ).then((joined) {
+                if (joined == true) {
+                  _loadCommunities();
+                }
+              });
+            },
+            tooltip: 'Unirse con link',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _showCreateCommunityDialog,

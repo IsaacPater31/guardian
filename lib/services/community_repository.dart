@@ -33,10 +33,28 @@ class CommunityRepository {
     }
   }
 
-  // Más métodos se agregarán en iteraciones siguientes:
-  // - createCommunity()
-  // - getMyCommunities()
-  // - deleteCommunity()
-  // - etc.
+  /// Elimina una comunidad por ID (sin validaciones - usar CommunityService.deleteCommunity para validación de creador)
+  Future<bool> deleteCommunity(String communityId) async {
+    try {
+      await _firestore.collection('communities').doc(communityId).delete();
+      return true;
+    } catch (e) {
+      print('❌ Error eliminando comunidad: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene todas las comunidades (para uso administrativo)
+  Future<List<CommunityModel>> getAllCommunities() async {
+    try {
+      final snapshot = await _firestore.collection('communities').get();
+      return snapshot.docs
+          .map((doc) => CommunityModel.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      print('❌ Error obteniendo comunidades: $e');
+      return [];
+    }
+  }
 }
 
