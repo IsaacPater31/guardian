@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/models/alert_model.dart';
+import 'package:guardian/models/community_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:guardian/controllers/alert_controller.dart';
@@ -157,8 +158,16 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             const SizedBox(height: 24),
             
             // Descripción
-            if (widget.alert.description != null && widget.alert.description!.isNotEmpty)
+            if (widget.alert.description != null && widget.alert.description!.isNotEmpty) ...[
               _buildDescriptionSection(),
+              const SizedBox(height: 16),
+            ],
+            
+            // Contadores de reenvíos y reportes
+            if (widget.alert.forwardsCount > 0 || widget.alert.reportsCount > 0) ...[
+              _buildCountersSection(),
+              const SizedBox(height: 16),
+            ],
             
             // Ubicación
             if (widget.alert.shareLocation && widget.alert.location != null) ...[
@@ -365,6 +374,93 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCountersSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          // Contador de reenvíos
+          if (widget.alert.forwardsCount > 0) ...[
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.forward, color: Colors.blue[700], size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${widget.alert.forwardsCount}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.alert.forwardsCount == 1 ? 'reenvío' : 'reenvíos',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          
+          // Contador de reportes
+          if (widget.alert.reportsCount > 0) ...[
+            if (widget.alert.forwardsCount > 0) const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.report, color: Colors.orange[700], size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${widget.alert.reportsCount}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.alert.reportsCount == 1 ? 'reporte' : 'reportes',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -731,6 +827,136 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     }
   }
 
+  /// Muestra diálogo para reenviar alerta a otras comunidades
+  Future<void> _showForwardDialog() async {
+    if (widget.alert.id == null) return;
+
+    // Cargar comunidades del usuario
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final allCommunities = await _communityService.getMyCommunities();
+      
+      if (mounted) {
+        Navigator.pop(context); // Cerrar loading
+      }
+
+      // Obtener información de la comunidad original (si existe)
+      CommunityModel? originalCommunity;
+      bool canForwardToEntities = true;
+      
+      if (widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty) {
+        originalCommunity = await _communityRepository.getCommunityById(widget.alert.communityId!);
+        canForwardToEntities = originalCommunity?.allowForwardToEntities ?? true;
+      }
+
+      // Filtrar comunidades disponibles:
+      // 1. Excluir la comunidad de origen
+      // 2. Si no se permite reenvío a entidades, excluir entidades
+      final availableCommunities = allCommunities.where((c) {
+        final id = c['id'] as String;
+        final isEntity = c['is_entity'] as bool;
+        
+        // Excluir comunidad de origen
+        if (widget.alert.communityId == id) {
+          return false;
+        }
+        
+        // Si no se permite reenvío a entidades, excluir entidades
+        if (isEntity && !canForwardToEntities) {
+          return false;
+        }
+        
+        return true;
+      }).toList();
+
+      if (availableCommunities.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No hay comunidades disponibles para reenviar'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // Mostrar diálogo de selección
+      final selectedIds = await showDialog<Set<String>>(
+        context: context,
+        builder: (context) => _ForwardAlertDialog(
+          availableCommunities: availableCommunities,
+          canForwardToEntities: canForwardToEntities,
+        ),
+      );
+
+      if (selectedIds == null || selectedIds.isEmpty) return;
+
+      // Reenviar alerta
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        final successCount = await _alertController.forwardAlert(
+          alertId: widget.alert.id!,
+          targetCommunityIds: selectedIds.toList(),
+        );
+
+        if (mounted) {
+          Navigator.pop(context); // Cerrar loading
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✅ Alerta reenviada a $successCount ${successCount == 1 ? 'comunidad' : 'comunidades'}',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Cerrar loading
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error reenviando alerta: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Cerrar loading si aún está abierto
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildActionButtons(BuildContext context) {
     final hasCommunity = widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty;
     
@@ -793,6 +1019,33 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             ),
             const SizedBox(height: 12),
           ],
+          
+          // Botón de reenviar
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.alert.id != null ? _showForwardDialog : null,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: Colors.blue.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              icon: const Icon(Icons.forward, size: 20),
+              label: const Text(
+                'Reenviar',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           
           // Botones principales
           Row(
@@ -917,5 +1170,178 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     } else {
       return '${difference.inDays}d ago';
     }
+  }
+}
+
+/// Diálogo para seleccionar comunidades destino al reenviar alerta
+class _ForwardAlertDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> availableCommunities;
+  final bool canForwardToEntities;
+
+  const _ForwardAlertDialog({
+    required this.availableCommunities,
+    required this.canForwardToEntities,
+  });
+
+  @override
+  State<_ForwardAlertDialog> createState() => _ForwardAlertDialogState();
+}
+
+class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
+  final Set<String> _selectedIds = {};
+
+  @override
+  Widget build(BuildContext context) {
+    // Separar entidades y comunidades normales
+    final entities = widget.availableCommunities.where((c) => c['is_entity'] == true).toList();
+    final normalCommunities = widget.availableCommunities.where((c) => c['is_entity'] != true).toList();
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.forward, color: Color(0xFF1F2937)),
+          const SizedBox(width: 8),
+          const Text('Reenviar Alerta'),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Selecciona a qué comunidades reenviar esta alerta:',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              
+              // Sección de entidades (si hay y está permitido)
+              if (entities.isNotEmpty && widget.canForwardToEntities) ...[
+                const Text(
+                  'Entidades Oficiales',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...entities.map((entity) => _buildCommunityCheckbox(entity)),
+                const SizedBox(height: 16),
+              ],
+              
+              // Sección de comunidades normales
+              if (normalCommunities.isNotEmpty) ...[
+                const Text(
+                  'Comunidades',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...normalCommunities.map((community) => _buildCommunityCheckbox(community)),
+              ],
+              
+              if (entities.isEmpty && normalCommunities.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No hay comunidades disponibles para reenviar',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedIds.isEmpty
+              ? null
+              : () => Navigator.pop(context, _selectedIds),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1F2937),
+            foregroundColor: Colors.white,
+          ),
+          child: Text(
+            'Reenviar (${_selectedIds.length})',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommunityCheckbox(Map<String, dynamic> community) {
+    final id = community['id'] as String;
+    final name = community['name'] as String;
+    final isEntity = community['is_entity'] as bool;
+    final isSelected = _selectedIds.contains(id);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: CheckboxListTile(
+        value: isSelected,
+        onChanged: (value) {
+          setState(() {
+            if (value == true) {
+              _selectedIds.add(id);
+            } else {
+              _selectedIds.remove(id);
+            }
+          });
+        },
+        title: Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: isEntity
+            ? Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Entidad Oficial',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            : null,
+        secondary: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: isEntity
+                ? Colors.blue.withValues(alpha: 0.1)
+                : Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            isEntity ? Icons.shield : Icons.people,
+            color: isEntity ? Colors.blue : Colors.green,
+            size: 20,
+          ),
+        ),
+      ),
+    );
   }
 } 

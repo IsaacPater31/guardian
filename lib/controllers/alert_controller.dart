@@ -7,6 +7,8 @@ import '../services/image_service.dart';
 import '../services/user_service.dart';
 import '../services/permission_service.dart';
 import '../services/quick_alert_config_service.dart';
+import '../services/community_service.dart';
+import '../services/community_repository.dart';
 
 class AlertController {
   final AlertRepository _alertRepository = AlertRepository();
@@ -246,5 +248,114 @@ class AlertController {
   /// Solicita permisos de ubicación
   Future<bool> requestLocationPermission() async {
     return await _locationService.requestLocationPermission();
+  }
+
+  /// Reenvía una alerta a múltiples comunidades/entidades
+  /// [alertId] - ID de la alerta original
+  /// [targetCommunityIds] - Lista de IDs de comunidades destino
+  /// Retorna el número de comunidades a las que se reenvió exitosamente
+  Future<int> forwardAlert({
+    required String alertId,
+    required List<String> targetCommunityIds,
+  }) async {
+    try {
+      if (targetCommunityIds.isEmpty) {
+        throw Exception('Debe seleccionar al menos una comunidad destino');
+      }
+
+      // Verificar que el usuario puede enviar alertas
+      if (!_userService.canUserSendAlerts()) {
+        throw Exception('Usuario no autenticado');
+      }
+
+      // Obtener la alerta original
+      final alertDoc = await FirebaseFirestore.instance
+          .collection('alerts')
+          .doc(alertId)
+          .get();
+
+      if (!alertDoc.exists) {
+        throw Exception('Alerta no encontrada');
+      }
+
+      final originalAlert = AlertModel.fromFirestore(alertDoc);
+
+      // Si la alerta original tiene comunidad, verificar allow_forward_to_entities
+      if (originalAlert.communityId != null && originalAlert.communityId!.isNotEmpty) {
+        final communityRepo = CommunityRepository();
+        final originalCommunity = await communityRepo.getCommunityById(originalAlert.communityId!);
+        
+        if (originalCommunity != null) {
+          // Obtener todas las comunidades destino para verificar si alguna es entidad
+          final communityService = CommunityService();
+          final allCommunities = await communityService.getMyCommunities();
+          
+          // Verificar si alguna comunidad destino es entidad
+          final targetCommunities = allCommunities.where(
+            (c) => targetCommunityIds.contains(c['id'] as String),
+          ).toList();
+          
+          final hasEntityTarget = targetCommunities.any((c) => c['is_entity'] == true);
+          
+          // Si se intenta reenviar a entidades y no está permitido
+          if (hasEntityTarget && !originalCommunity.allowForwardToEntities) {
+            throw Exception('Esta comunidad no permite reenviar alertas a entidades');
+          }
+        }
+      }
+
+      // Obtener información del usuario actual (para la nueva alerta)
+      final userInfo = _userService.getUserInfoForAlert();
+      final userName = _userService.getUserDisplayName(isAnonymous: false);
+
+      // Crear copias de la alerta para cada comunidad destino
+      // Usar batch write para optimizar (plan gratuito)
+      final batch = FirebaseFirestore.instance.batch();
+      final timestamp = DateTime.now();
+      int successCount = 0;
+
+      for (final targetCommunityId in targetCommunityIds) {
+        // Crear copia de la alerta con nueva comunidad
+        final forwardedAlert = AlertModel(
+          type: originalAlert.type,
+          alertType: originalAlert.alertType,
+          description: originalAlert.description,
+          timestamp: timestamp,
+          isAnonymous: false, // Alertas reenviadas no son anónimas
+          shareLocation: originalAlert.shareLocation,
+          location: originalAlert.location,
+          userId: userInfo['userId'],
+          userEmail: userInfo['userEmail'],
+          userName: userName,
+          viewedCount: 0,
+          viewedBy: [],
+          communityId: targetCommunityId, // Nueva comunidad destino
+          forwardsCount: 0, // Nueva alerta, sin reenvíos
+          reportsCount: 0,
+          imageBase64: originalAlert.imageBase64, // Copiar imagen si existe
+        );
+
+        // Agregar al batch
+        final alertRef = FirebaseFirestore.instance.collection('alerts').doc();
+        batch.set(alertRef, forwardedAlert.toFirestore());
+        successCount++;
+      }
+
+      // Incrementar forwards_count en la alerta original
+      final currentForwardsCount = originalAlert.forwardsCount;
+      batch.update(
+        FirebaseFirestore.instance.collection('alerts').doc(alertId),
+        {'forwards_count': currentForwardsCount + successCount},
+      );
+
+      // Ejecutar batch (1 write operation para todas las alertas + actualización)
+      await batch.commit();
+
+      print('✅ Alerta reenviada a $successCount comunidades');
+      return successCount;
+    } catch (e) {
+      print('❌ Error reenviando alerta: $e');
+      rethrow;
+    }
   }
 } 
