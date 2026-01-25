@@ -6,6 +6,7 @@ import '../services/location_service.dart';
 import '../services/image_service.dart';
 import '../services/user_service.dart';
 import '../services/permission_service.dart';
+import '../services/quick_alert_config_service.dart';
 
 class AlertController {
   final AlertRepository _alertRepository = AlertRepository();
@@ -76,8 +77,6 @@ class AlertController {
           FirebaseFirestore.instance.collection('alerts').doc(alertId));
       }
 
-      // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: alertId);
       // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;
@@ -88,6 +87,8 @@ class AlertController {
   }
 
   /// Envía una alerta rápida a Firebase
+  /// Envía a todas las comunidades configuradas en QuickAlertConfigService
+  /// Por defecto: todas las entidades
   /// [alertType] - Tipo de alerta
   /// [isAnonymous] - Si la alerta debe ser anónima
   Future<bool> sendQuickAlert({
@@ -116,26 +117,47 @@ class AlertController {
       final userInfo = _userService.getUserInfoForAlert();
       final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
 
-      // Crear modelo de alerta
-      final alert = AlertModel(
-        type: 'quick',
-        alertType: alertType,
-        timestamp: DateTime.now(),
-        isAnonymous: isAnonymous,
-        shareLocation: true,
-        location: locationData,
-        userId: !isAnonymous ? userInfo['userId'] : null,
-        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
-        userName: userName,
-        viewedCount: 0,
-        viewedBy: [],
-      );
+      // Obtener destinos configurados para quick alerts
+      final configService = QuickAlertConfigService();
+      final destinations = await configService.getQuickAlertDestinations();
+      
+      if (destinations.isEmpty) {
+        throw Exception('No hay destinos configurados para quick alerts');
+      }
 
-      // Guardar en Firestore
-      final alertId = await _alertRepository.saveAlert(alert);
+      // Crear una alerta por cada comunidad configurada
+      // Usar batch write para optimizar (plan gratuito)
+      final batch = FirebaseFirestore.instance.batch();
+      final timestamp = DateTime.now();
+      
+      for (final communityId in destinations) {
+        final alert = AlertModel(
+          type: 'quick',
+          alertType: alertType,
+          timestamp: timestamp,
+          isAnonymous: isAnonymous,
+          shareLocation: true,
+          location: locationData,
+          userId: !isAnonymous ? userInfo['userId'] : null,
+          userEmail: !isAnonymous ? userInfo['userEmail'] : null,
+          userName: userName,
+          viewedCount: 0,
+          viewedBy: [],
+          communityId: communityId, // Enviar a esta comunidad
+          forwardsCount: 0,
+          reportsCount: 0,
+        );
 
-      // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: alertId);
+        // Agregar al batch
+        final alertRef = FirebaseFirestore.instance.collection('alerts').doc();
+        batch.set(alertRef, alert.toFirestore());
+      }
+
+      // Ejecutar batch (1 write operation para todas las alertas)
+      await batch.commit();
+
+      print('✅ Quick alert enviada a ${destinations.length} comunidades');
+      
       // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;
@@ -196,10 +218,8 @@ class AlertController {
       );
 
       // Guardar en Firestore
-      final alertId = await _alertRepository.saveAlert(alert);
+      await _alertRepository.saveAlert(alert);
 
-      // Enviar notificación push a otros usuarios
-      final alertWithId = alert.copyWith(id: alertId);
       // Las notificaciones se manejan automáticamente por GuardianBackgroundService.kt
 
       return true;

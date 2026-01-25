@@ -4,6 +4,7 @@ import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
+import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/services/localization_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
@@ -197,15 +198,14 @@ class _HomeViewState extends State<HomeView> {
           
           const SizedBox(width: 12),
           
-          // Botón de configuración (sin funcionalidad por ahora)
+          // Botón de configuración
           _buildHeaderButton(
             icon: Icons.settings_outlined,
             onPressed: () {
-              // Sin funcionalidad - se implementará más adelante
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(AppLocalizations.of(context)!.settings + ' - Funcionalidad próximamente'),
-                  duration: const Duration(seconds: 2),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsView(),
                 ),
               );
             },
@@ -733,4 +733,5 @@ class _HomeViewState extends State<HomeView> {
       },
     );
   }
+
 }
