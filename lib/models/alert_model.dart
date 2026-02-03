@@ -20,6 +20,7 @@ class AlertModel {
   final String? communityId; // FK a community (null para alertas antiguas - compatibilidad)
   final int forwardsCount; // Contador de reenvíos
   final int reportsCount; // Contador de reportes
+  final List<String> reportedBy; // IDs de usuarios que han reportado (evitar doble reporte)
 
   AlertModel({
     this.id,
@@ -40,6 +41,7 @@ class AlertModel {
     this.communityId,
     this.forwardsCount = 0,
     this.reportsCount = 0,
+    this.reportedBy = const [],
   });
 
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
@@ -63,6 +65,7 @@ class AlertModel {
       communityId: data['community_id'],
       forwardsCount: data['forwards_count'] ?? 0,
       reportsCount: data['reports_count'] ?? 0,
+      reportedBy: data['reported_by'] != null ? List<String>.from(data['reported_by']) : [],
     );
   }
 
@@ -85,6 +88,7 @@ class AlertModel {
       'community_id': communityId,
       'forwards_count': forwardsCount,
       'reports_count': reportsCount,
+      'reported_by': reportedBy,
     };
   }
 
@@ -108,6 +112,7 @@ class AlertModel {
     String? communityId,
     int? forwardsCount,
     int? reportsCount,
+    List<String>? reportedBy,
   }) {
     return AlertModel(
       id: id ?? this.id,
@@ -128,6 +133,7 @@ class AlertModel {
       communityId: communityId ?? this.communityId,
       forwardsCount: forwardsCount ?? this.forwardsCount,
       reportsCount: reportsCount ?? this.reportsCount,
+      reportedBy: reportedBy ?? this.reportedBy,
     );
   }
 }

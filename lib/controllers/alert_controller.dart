@@ -240,6 +240,12 @@ class AlertController {
     }
   }
 
+  /// Reporta una alerta (contenido inapropiado, etc.). Un usuario solo puede reportar una vez por alerta.
+  /// Lanza [Exception] si no autenticado, alerta no encontrada o ya reportada.
+  Future<void> reportAlert(String alertId) async {
+    await _alertRepository.reportAlert(alertId);
+  }
+
   /// Verifica si el usuario tiene permisos de ubicación
   Future<bool> hasLocationPermission() async {
     return await _locationService.hasLocationPermission();

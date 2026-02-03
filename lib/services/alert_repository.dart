@@ -68,6 +68,38 @@ class AlertRepository {
     }
   }
 
+  /// Reporta una alerta (multi-reporte). Un usuario solo puede reportar una vez por alerta.
+  /// Lanza [Exception] si el usuario no está autenticado, la alerta no existe o ya fue reportada.
+  Future<void> reportAlert(String alertId) async {
+    final currentUser = _userService.currentUser;
+    if (currentUser == null) {
+      throw Exception('Usuario no autenticado');
+    }
+
+    final alertRef = _firestore.collection('alerts').doc(alertId);
+
+    await _firestore.runTransaction((transaction) async {
+      final alertDoc = await transaction.get(alertRef);
+      if (!alertDoc.exists) {
+        throw Exception('Alerta no encontrada');
+      }
+
+      final data = alertDoc.data() ?? {};
+      final reportedBy = List<String>.from(data['reported_by'] ?? []);
+      final reportsCount = (data['reports_count'] as int?) ?? 0;
+
+      if (reportedBy.contains(currentUser.uid)) {
+        throw Exception('Ya has reportado esta alerta');
+      }
+
+      reportedBy.add(currentUser.uid);
+      transaction.update(alertRef, {
+        'reported_by': reportedBy,
+        'reports_count': reportsCount + 1,
+      });
+    });
+  }
+
   /// Obtiene los IDs de comunidades del usuario (con cache)
   Future<List<String>> _getUserCommunityIds() async {
     // Verificar cache

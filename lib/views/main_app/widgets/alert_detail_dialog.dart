@@ -8,6 +8,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
+import 'package:guardian/services/user_service.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'dart:convert';
 
@@ -24,8 +25,12 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   final AlertController _alertController = AlertController();
   final CommunityService _communityService = CommunityService();
   final CommunityRepository _communityRepository = CommunityRepository();
+  final UserService _userService = UserService();
   String? _communityName;
   bool _isLoadingCommunity = false;
+  bool _userHasReported = false;
+  int? _reportsCountOverride;
+  bool _isReporting = false;
 
   /// Obtiene el tipo de alerta traducido
   String _getTranslatedAlertType() {
@@ -164,7 +169,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             ],
             
             // Contadores de reenvíos y reportes
-            if (widget.alert.forwardsCount > 0 || widget.alert.reportsCount > 0) ...[
+            if (widget.alert.forwardsCount > 0 || (_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
               _buildCountersSection(),
               const SizedBox(height: 16),
             ],
@@ -426,7 +431,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ],
           
           // Contador de reportes
-          if (widget.alert.reportsCount > 0) ...[
+          if ((_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
             if (widget.alert.forwardsCount > 0) const SizedBox(width: 12),
             Expanded(
               child: Container(
@@ -441,7 +446,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     Icon(Icons.report, color: Colors.orange[700], size: 18),
                     const SizedBox(width: 6),
                     Text(
-                      '${widget.alert.reportsCount}',
+                      '${_reportsCountOverride ?? widget.alert.reportsCount}',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -450,7 +455,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      widget.alert.reportsCount == 1 ? 'reporte' : 'reportes',
+                      (_reportsCountOverride ?? widget.alert.reportsCount) == 1 ? 'reporte' : 'reportes',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.orange[700],
@@ -464,6 +469,85 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         ],
       ),
     );
+  }
+
+  bool get _hasUserReported {
+    final uid = _userService.currentUser?.uid ?? '';
+    return _userHasReported || (uid.isNotEmpty && widget.alert.reportedBy.contains(uid));
+  }
+
+  Future<void> _showReportConfirm() async {
+    if (widget.alert.id == null || _hasUserReported || _isReporting) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.report_problem, color: Colors.orange[700]),
+            const SizedBox(width: 8),
+            const Text('Reportar alerta'),
+          ],
+        ),
+        content: const Text(
+          '¿Reportar esta alerta como inapropiada o con contenido problemático? '
+          'Solo puedes reportar una vez por alerta.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reportar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isReporting = true);
+    try {
+      await _alertController.reportAlert(widget.alert.id!);
+      if (mounted) {
+        setState(() {
+          _userHasReported = true;
+          _reportsCountOverride = (widget.alert.reportsCount + 1);
+          _isReporting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text('Alerta reportada correctamente'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isReporting = false);
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildLocationSection() {
@@ -1041,6 +1125,48 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Botón reportar
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: (widget.alert.id != null && !_hasUserReported && !_isReporting)
+                  ? _showReportConfirm
+                  : null,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: _hasUserReported
+                      ? Colors.grey.withValues(alpha: 0.5)
+                      : Colors.orange.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              icon: _isReporting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _hasUserReported ? Icons.check_circle : Icons.report,
+                      size: 20,
+                      color: _hasUserReported ? Colors.grey : Colors.orange[700],
+                    ),
+              label: Text(
+                _hasUserReported ? 'Ya reportada' : (_isReporting ? 'Reportando...' : 'Reportar'),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _hasUserReported ? Colors.grey : Colors.orange[700],
                 ),
               ),
             ),
