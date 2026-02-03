@@ -81,11 +81,22 @@ class _HomeViewState extends State<HomeView> {
       }
     };
 
-    // Inicializar el controlador
-    await _homeController.initialize();
-    
-    // Refrescar alertas recientes para asegurar que se muestren
-    await _homeController.refreshRecentAlerts();
+    try {
+      await _homeController.initialize();
+      await _homeController.refreshRecentAlerts();
+    } catch (e) {
+      print('Error inicializando Home: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudieron cargar las alertas. Desliza hacia abajo para reintentar.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _checkServiceStatus() async {
@@ -379,14 +390,39 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildAlertsList() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const BouncingScrollPhysics(),
-      itemCount: _recentAlerts.length,
-      itemBuilder: (context, index) {
-        final alert = _recentAlerts[index];
-        return _buildAlertCard(alert);
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() => _isLoading = true);
+        try {
+          await _homeController.refreshRecentAlerts();
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('No se pudieron actualizar las alertas. Intenta de nuevo.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+        if (mounted) setState(() => _isLoading = false);
       },
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        itemCount: _recentAlerts.length,
+        itemBuilder: (context, index) {
+          final alert = _recentAlerts[index];
+          return TweenAnimationBuilder<double>(
+            key: ValueKey(alert.id ?? index),
+            tween: Tween(begin: 0, end: 1),
+            duration: Duration(milliseconds: 200 + (index * 50).clamp(0, 300)),
+            curve: Curves.easeOut,
+            builder: (context, value, child) => Opacity(opacity: value, child: child),
+            child: _buildAlertCard(alert),
+          );
+        },
+      ),
     );
   }
 
@@ -542,6 +578,48 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ),
                       ],
+                      if (alert.forwardsCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.forward, size: 10, color: Colors.blue[700]),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${alert.forwardsCount}',
+                                style: TextStyle(fontSize: 10, color: Colors.blue[700], fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (alert.reportsCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.report, size: 10, color: Colors.orange[700]),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${alert.reportsCount}',
+                                style: TextStyle(fontSize: 10, color: Colors.orange[700], fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       
                       const Spacer(),
                       
@@ -568,15 +646,19 @@ class _HomeViewState extends State<HomeView> {
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
+    final locale = Localizations.localeOf(context);
+    final isSpanish = locale.languageCode == 'es';
 
     if (difference.inMinutes < 1) {
-      return 'Just now';
+      return isSpanish ? 'Ahora' : 'Just now';
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
+      return isSpanish ? 'hace ${difference.inMinutes} min' : '${difference.inMinutes}m ago';
     } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
+      return isSpanish ? 'hace ${difference.inHours} h' : '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return isSpanish ? 'Ayer' : 'Yesterday';
     } else {
-      return '${difference.inDays}d ago';
+      return isSpanish ? 'hace ${difference.inDays} días' : '${difference.inDays}d ago';
     }
   }
 

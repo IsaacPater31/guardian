@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
+import 'package:guardian/services/alert_repository.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
 
@@ -13,8 +14,11 @@ class ComunidadesView extends StatefulWidget {
 
 class _ComunidadesViewState extends State<ComunidadesView> {
   final CommunityService _communityService = CommunityService();
+  final AlertRepository _alertRepository = AlertRepository();
   List<Map<String, dynamic>> _communities = [];
+  Map<String, int> _unreadByCommunity = {};
   bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -27,15 +31,30 @@ class _ComunidadesViewState extends State<ComunidadesView> {
     setState(() => _isLoading = true);
     try {
       final communities = await _communityService.getMyCommunities();
+      final unread = await _alertRepository.getUnreadCountByCommunity();
       if (!mounted) return;
       setState(() {
         _communities = communities;
+        _unreadByCommunity = unread;
         _isLoading = false;
       });
     } catch (e) {
       print('Error cargando comunidades: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudieron cargar las comunidades. Intenta de nuevo.'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Reintentar',
+              textColor: Colors.white,
+              onPressed: _loadCommunities,
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -83,7 +102,16 @@ class _ComunidadesViewState extends State<ComunidadesView> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Cargando comunidades...', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
           : _communities.isEmpty
               ? _buildEmptyState()
               : _buildCommunitiesList(),
@@ -129,17 +157,43 @@ class _ComunidadesViewState extends State<ComunidadesView> {
     );
   }
 
+  List<Map<String, dynamic>> get _filteredCommunities {
+    if (_searchQuery.trim().isEmpty) return _communities;
+    final q = _searchQuery.trim().toLowerCase();
+    return _communities.where((c) => (c['name'] as String? ?? '').toLowerCase().contains(q)).toList();
+  }
+
   Widget _buildCommunitiesList() {
-    return RefreshIndicator(
-      onRefresh: _loadCommunities,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _communities.length,
-        itemBuilder: (context, index) {
-          final community = _communities[index];
-          return _buildCommunityCard(community);
-        },
-      ),
+    return Column(
+      children: [
+        if (_communities.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              onChanged: (v) => setState(() => _searchQuery = v),
+              decoration: InputDecoration(
+                hintText: 'Buscar comunidades...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+            ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadCommunities,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _filteredCommunities.length,
+              itemBuilder: (context, index) {
+                final community = _filteredCommunities[index];
+                return _buildCommunityCard(community);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -210,7 +264,29 @@ class _ComunidadesViewState extends State<ComunidadesView> {
               ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if ((community['id'] != null) && ((_unreadByCommunity[community['id'] as String] ?? 0) > 0))
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_unreadByCommunity[community['id'] as String]}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
         onTap: () {
           final communityId = community['id'] as String;
           final communityName = community['name'] as String;

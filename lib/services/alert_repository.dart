@@ -130,6 +130,29 @@ class AlertRepository {
     _cacheTimestamp = null;
   }
 
+  /// Cuenta alertas no leídas por comunidad (últimas 24h). Una alerta es "no leída" si el usuario actual no está en viewedBy.
+  /// Retorna Map<communityId, count>. Reutiliza la misma query que getRecentAlerts para no hacer reads extra.
+  Future<Map<String, int>> getUnreadCountByCommunity() async {
+    try {
+      final alerts = await getRecentAlerts();
+      final uid = _userService.currentUser?.uid;
+      if (uid == null) return {};
+
+      final Map<String, int> counts = {};
+      for (final alert in alerts) {
+        if (alert.communityId == null || alert.communityId!.isEmpty) continue;
+        final viewed = alert.viewedBy.contains(uid);
+        if (!viewed) {
+          counts[alert.communityId!] = (counts[alert.communityId!] ?? 0) + 1;
+        }
+      }
+      return counts;
+    } catch (e) {
+      print('Error getUnreadCountByCommunity: $e');
+      return {};
+    }
+  }
+
   /// Obtiene alertas recientes (últimas 24 horas)
   /// Filtra por comunidades del usuario (Iteración 2.5)
   Future<List<AlertModel>> getRecentAlerts() async {

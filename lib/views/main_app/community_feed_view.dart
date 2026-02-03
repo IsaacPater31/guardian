@@ -46,15 +46,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
     final now = DateTime.now();
     final difference = now.difference(dateTime);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m';
-    } else {
-      return 'Ahora';
-    }
+    if (difference.inMinutes < 1) return 'Ahora';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m';
+    if (difference.inHours < 24) return '${difference.inHours}h';
+    if (difference.inDays == 1) return 'Ayer';
+    return '${difference.inDays}d';
   }
 
   void _showAlertDetail(AlertModel alert) {
@@ -102,16 +98,36 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
 
           if (snapshot.hasError) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error cargando alertas',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 56, color: Colors.red[300]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No se pudieron cargar las alertas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Comprueba tu conexión y vuelve a intentarlo.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton.icon(
+                      onPressed: () => setState(() {}),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
@@ -158,7 +174,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
 
           return RefreshIndicator(
             onRefresh: () async {
-              // El stream se actualiza automáticamente
+              setState(() {});
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
