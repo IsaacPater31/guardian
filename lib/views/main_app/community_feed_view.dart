@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/alert_repository.dart';
@@ -43,14 +44,13 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
   }
 
   String _getTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) return 'Ahora';
-    if (difference.inMinutes < 60) return '${difference.inMinutes}m';
-    if (difference.inHours < 24) return '${difference.inHours}h';
-    if (difference.inDays == 1) return 'Ayer';
-    return '${difference.inDays}d';
+    final difference = DateTime.now().difference(dateTime);
+    final l10n = AppLocalizations.of(context)!;
+    if (difference.inMinutes < 1) return l10n.timeNow;
+    if (difference.inMinutes < 60) return l10n.timeMinutesAgoShort(difference.inMinutes);
+    if (difference.inHours < 24) return l10n.timeHoursAgoShort(difference.inHours);
+    if (difference.inDays == 1) return l10n.timeYesterday;
+    return l10n.timeDaysAgoShort(difference.inDays);
   }
 
   void _showAlertDetail(AlertModel alert) {
@@ -106,7 +106,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
                     Icon(Icons.error_outline, size: 56, color: Colors.red[300]),
                     const SizedBox(height: 16),
                     Text(
-                      'No se pudieron cargar las alertas',
+                      AppLocalizations.of(context)!.alertsLoadErrorFeed,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -116,7 +116,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Comprueba tu conexión y vuelve a intentarlo.',
+                      AppLocalizations.of(context)!.checkConnectionRetry,
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       textAlign: TextAlign.center,
                     ),
@@ -124,7 +124,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
                     TextButton.icon(
                       onPressed: () => setState(() {}),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
+                      label: Text(AppLocalizations.of(context)!.retry),
                     ),
                   ],
                 ),

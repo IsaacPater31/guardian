@@ -90,7 +90,7 @@ class _HomeViewState extends State<HomeView> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No se pudieron cargar las alertas. Desliza hacia abajo para reintentar.'),
+            content: Text(AppLocalizations.of(context)!.alertsLoadError),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -399,7 +399,7 @@ class _HomeViewState extends State<HomeView> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('No se pudieron actualizar las alertas. Intenta de nuevo.'),
+                content: Text(AppLocalizations.of(context)!.alertsUpdateError),
                 backgroundColor: Colors.red,
               ),
             );
@@ -646,20 +646,13 @@ class _HomeViewState extends State<HomeView> {
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    final locale = Localizations.localeOf(context);
-    final isSpanish = locale.languageCode == 'es';
+    final l10n = AppLocalizations.of(context)!;
 
-    if (difference.inMinutes < 1) {
-      return isSpanish ? 'Ahora' : 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return isSpanish ? 'hace ${difference.inMinutes} min' : '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return isSpanish ? 'hace ${difference.inHours} h' : '${difference.inHours}h ago';
-    } else if (difference.inDays == 1) {
-      return isSpanish ? 'Ayer' : 'Yesterday';
-    } else {
-      return isSpanish ? 'hace ${difference.inDays} días' : '${difference.inDays}d ago';
-    }
+    if (difference.inMinutes < 1) return l10n.timeNow;
+    if (difference.inMinutes < 60) return l10n.timeMinutesAgo(difference.inMinutes);
+    if (difference.inHours < 24) return l10n.timeHoursAgo(difference.inHours);
+    if (difference.inDays == 1) return l10n.timeYesterday;
+    return l10n.timeDaysAgo(difference.inDays);
   }
 
   Widget _buildAlertButtonSection() {

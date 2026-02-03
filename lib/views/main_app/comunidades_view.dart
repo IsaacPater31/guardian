@@ -45,10 +45,10 @@ class _ComunidadesViewState extends State<ComunidadesView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No se pudieron cargar las comunidades. Intenta de nuevo.'),
+            content: Text(AppLocalizations.of(context)!.communitiesLoadError),
             backgroundColor: Colors.red,
             action: SnackBarAction(
-              label: 'Reintentar',
+              label: AppLocalizations.of(context)!.retry,
               textColor: Colors.white,
               onPressed: _loadCommunities,
             ),
@@ -92,23 +92,23 @@ class _ComunidadesViewState extends State<ComunidadesView> {
                 }
               });
             },
-            tooltip: 'Unirse con link',
+            tooltip: AppLocalizations.of(context)!.joinWithLink,
           ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _showCreateCommunityDialog,
-            tooltip: 'Crear comunidad',
+            tooltip: AppLocalizations.of(context)!.createCommunity,
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Cargando comunidades...', style: TextStyle(color: Colors.grey)),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(AppLocalizations.of(context)!.loadingCommunities, style: TextStyle(color: Colors.grey)),
                 ],
               ),
             )
@@ -119,7 +119,7 @@ class _ComunidadesViewState extends State<ComunidadesView> {
         onPressed: _showCreateCommunityDialog,
         backgroundColor: const Color(0xFF1F2937),
         icon: const Icon(Icons.add),
-        label: const Text('Crear Comunidad'),
+        label: Text(AppLocalizations.of(context)!.createCommunity),
       ),
     );
   }
@@ -136,7 +136,7 @@ class _ComunidadesViewState extends State<ComunidadesView> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No tienes comunidades',
+            AppLocalizations.of(context)!.noCommunities,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -145,7 +145,7 @@ class _ComunidadesViewState extends State<ComunidadesView> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Las entidades aparecerán aquí automáticamente',
+            AppLocalizations.of(context)!.entitiesAppearHere,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -172,7 +172,7 @@ class _ComunidadesViewState extends State<ComunidadesView> {
             child: TextField(
               onChanged: (v) => setState(() => _searchQuery = v),
               decoration: InputDecoration(
-                hintText: 'Buscar comunidades...',
+                hintText: AppLocalizations.of(context)!.searchCommunities,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
@@ -253,8 +253,8 @@ class _ComunidadesViewState extends State<ComunidadesView> {
                   color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'Entidad Oficial',
+                child: Text(
+                  AppLocalizations.of(context)!.officialEntity,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -308,7 +308,7 @@ class _ComunidadesViewState extends State<ComunidadesView> {
             // Para entidades, mostrar mensaje (por ahora)
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${community['name']} es una entidad oficial'),
+                content: Text(AppLocalizations.of(context)!.entityOfficialMessage(community['name'] as String)),
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -362,8 +362,8 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
         Navigator.pop(context);
         widget.onCommunityCreated();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Comunidad creada exitosamente'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.communityCreatedSuccess),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -371,8 +371,8 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Error creando la comunidad'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.errorCreatingCommunity),
               backgroundColor: Colors.red,
             ),
           );
@@ -382,7 +382,7 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('${AppLocalizations.of(context)!.errorOccurred}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -397,7 +397,7 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Crear Nueva Comunidad'),
+      title: Text(AppLocalizations.of(context)!.createNewCommunity),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -407,17 +407,17 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de la comunidad *',
-                  hintText: 'Ej: Vecinos del Barrio',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.communityNameRequired,
+                  hintText: AppLocalizations.of(context)!.communityNameHint,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'El nombre es requerido';
+                    return AppLocalizations.of(context)!.nameRequired;
                   }
                   if (value.trim().length < 3) {
-                    return 'El nombre debe tener al menos 3 caracteres';
+                    return AppLocalizations.of(context)!.nameMinLength;
                   }
                   return null;
                 },
@@ -426,19 +426,19 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
-                  hintText: 'Describe el propósito de la comunidad',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.descriptionOptional,
+                  hintText: AppLocalizations.of(context)!.descriptionHint,
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
                 enabled: !_isCreating,
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Permitir reenvío a entidades'),
-                subtitle: const Text(
-                  'Los miembros podrán reenviar alertas a entidades oficiales',
+                title: Text(AppLocalizations.of(context)!.allowForwardToEntities),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.allowForwardSubtitle,
                 ),
                 value: _allowForwardToEntities,
                 onChanged: _isCreating
@@ -457,7 +457,7 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
       actions: [
         TextButton(
           onPressed: _isCreating ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         ElevatedButton(
           onPressed: _isCreating ? null : _createCommunity,
@@ -474,7 +474,7 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text('Crear'),
+                  : Text(AppLocalizations.of(context)!.create),
         ),
       ],
     );

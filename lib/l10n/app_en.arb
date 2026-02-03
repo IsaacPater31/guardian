@@ -125,5 +125,60 @@
   "selectEmergencyType": "Select emergency type",
   "confirmReport": "Confirm Report",
   "reportEmergency": "Report Emergency",
-  "unknown": "UNKNOWN"
+  "unknown": "UNKNOWN",
+
+  "@@communities": {},
+  "loadingCommunities": "Loading communities...",
+  "communitiesLoadError": "Could not load communities. Please try again.",
+  "retry": "Retry",
+  "createCommunity": "Create Community",
+  "noCommunities": "You have no communities",
+  "entitiesAppearHere": "Entities will appear here automatically",
+  "searchCommunities": "Search communities...",
+  "officialEntity": "Official Entity",
+  "communityCreatedSuccess": "Community created successfully",
+  "errorCreatingCommunity": "Error creating community",
+  "createNewCommunity": "Create New Community",
+  "communityNameRequired": "Community name *",
+  "communityNameHint": "e.g. Neighborhood Watch",
+  "nameRequired": "Name is required",
+  "nameMinLength": "Name must be at least 3 characters",
+  "descriptionOptional": "Description (optional)",
+  "descriptionHint": "Describe the purpose of the community",
+  "allowForwardToEntities": "Allow forward to entities",
+  "allowForwardSubtitle": "Members will be able to forward alerts to official entities",
+  "create": "Create",
+  "joinWithLink": "Join with link",
+  "entityOfficialMessage": "{name} is an official entity",
+  "@entityOfficialMessage": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
+  "@@homeErrors": {},
+  "alertsLoadError": "Could not load alerts. Pull down to retry.",
+  "alertsUpdateError": "Could not update alerts. Please try again.",
+
+  "@@feedErrors": {},
+  "alertsLoadErrorFeed": "Could not load alerts",
+  "checkConnectionRetry": "Check your connection and try again.",
+
+  "@@time": {},
+  "timeNow": "Now",
+  "timeJustNow": "Just now",
+  "timeYesterday": "Yesterday",
+  "timeMinutesAgo": "{n} min ago",
+  "@timeMinutesAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeHoursAgo": "{n}h ago",
+  "@timeHoursAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeDaysAgo": "{n}d ago",
+  "@timeDaysAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeMinutesAgoShort": "{n}m ago",
+  "@timeMinutesAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeHoursAgoShort": "{n}h ago",
+  "@timeHoursAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeDaysAgoShort": "{n}d ago",
+  "@timeDaysAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeYesterdayEn": "Yesterday"
 }

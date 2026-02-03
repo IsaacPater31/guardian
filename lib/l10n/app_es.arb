@@ -125,5 +125,60 @@
   "selectEmergencyType": "Selecciona el tipo de emergencia",
   "confirmReport": "Confirmar Reporte",
   "reportEmergency": "Reportar Emergencia",
-  "unknown": "DESCONOCIDO"
+  "unknown": "DESCONOCIDO",
+
+  "@@communities": {},
+  "loadingCommunities": "Cargando comunidades...",
+  "communitiesLoadError": "No se pudieron cargar las comunidades. Intenta de nuevo.",
+  "retry": "Reintentar",
+  "createCommunity": "Crear Comunidad",
+  "noCommunities": "No tienes comunidades",
+  "entitiesAppearHere": "Las entidades aparecerán aquí automáticamente",
+  "searchCommunities": "Buscar comunidades...",
+  "officialEntity": "Entidad Oficial",
+  "communityCreatedSuccess": "Comunidad creada exitosamente",
+  "errorCreatingCommunity": "Error creando la comunidad",
+  "createNewCommunity": "Crear Nueva Comunidad",
+  "communityNameRequired": "Nombre de la comunidad *",
+  "communityNameHint": "Ej: Vecinos del Barrio",
+  "nameRequired": "El nombre es requerido",
+  "nameMinLength": "El nombre debe tener al menos 3 caracteres",
+  "descriptionOptional": "Descripción (opcional)",
+  "descriptionHint": "Describe el propósito de la comunidad",
+  "allowForwardToEntities": "Permitir reenvío a entidades",
+  "allowForwardSubtitle": "Los miembros podrán reenviar alertas a entidades oficiales",
+  "create": "Crear",
+  "joinWithLink": "Unirse con link",
+  "entityOfficialMessage": "{name} es una entidad oficial",
+  "@entityOfficialMessage": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
+  "@@homeErrors": {},
+  "alertsLoadError": "No se pudieron cargar las alertas. Desliza hacia abajo para reintentar.",
+  "alertsUpdateError": "No se pudieron actualizar las alertas. Intenta de nuevo.",
+
+  "@@feedErrors": {},
+  "alertsLoadErrorFeed": "No se pudieron cargar las alertas",
+  "checkConnectionRetry": "Comprueba tu conexión y vuelve a intentarlo.",
+
+  "@@time": {},
+  "timeNow": "Ahora",
+  "timeJustNow": "Just now",
+  "timeYesterday": "Ayer",
+  "timeMinutesAgo": "hace {n} min",
+  "@timeMinutesAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeHoursAgo": "hace {n} h",
+  "@timeHoursAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeDaysAgo": "hace {n} días",
+  "@timeDaysAgo": { "placeholders": { "n": { "type": "int" } } },
+  "timeMinutesAgoShort": "{n}m ago",
+  "@timeMinutesAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeHoursAgoShort": "{n}h ago",
+  "@timeHoursAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeDaysAgoShort": "{n}d ago",
+  "@timeDaysAgoShort": { "placeholders": { "n": { "type": "int" } } },
+  "timeYesterdayEn": "Yesterday"
 }

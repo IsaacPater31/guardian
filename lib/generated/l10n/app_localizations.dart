@@ -757,6 +757,222 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'DESCONOCIDO'**
   String get unknown;
+
+  /// No description provided for @loadingCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando comunidades...'**
+  String get loadingCommunities;
+
+  /// No description provided for @communitiesLoadError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron cargar las comunidades. Intenta de nuevo.'**
+  String get communitiesLoadError;
+
+  /// No description provided for @retry.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get retry;
+
+  /// No description provided for @createCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear Comunidad'**
+  String get createCommunity;
+
+  /// No description provided for @noCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes comunidades'**
+  String get noCommunities;
+
+  /// No description provided for @entitiesAppearHere.
+  ///
+  /// In es, this message translates to:
+  /// **'Las entidades aparecerán aquí automáticamente'**
+  String get entitiesAppearHere;
+
+  /// No description provided for @searchCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar comunidades...'**
+  String get searchCommunities;
+
+  /// No description provided for @officialEntity.
+  ///
+  /// In es, this message translates to:
+  /// **'Entidad Oficial'**
+  String get officialEntity;
+
+  /// No description provided for @communityCreatedSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad creada exitosamente'**
+  String get communityCreatedSuccess;
+
+  /// No description provided for @errorCreatingCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Error creando la comunidad'**
+  String get errorCreatingCommunity;
+
+  /// No description provided for @createNewCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear Nueva Comunidad'**
+  String get createNewCommunity;
+
+  /// No description provided for @communityNameRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre de la comunidad *'**
+  String get communityNameRequired;
+
+  /// No description provided for @communityNameHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Vecinos del Barrio'**
+  String get communityNameHint;
+
+  /// No description provided for @nameRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre es requerido'**
+  String get nameRequired;
+
+  /// No description provided for @nameMinLength.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre debe tener al menos 3 caracteres'**
+  String get nameMinLength;
+
+  /// No description provided for @descriptionOptional.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción (opcional)'**
+  String get descriptionOptional;
+
+  /// No description provided for @descriptionHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe el propósito de la comunidad'**
+  String get descriptionHint;
+
+  /// No description provided for @allowForwardToEntities.
+  ///
+  /// In es, this message translates to:
+  /// **'Permitir reenvío a entidades'**
+  String get allowForwardToEntities;
+
+  /// No description provided for @allowForwardSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Los miembros podrán reenviar alertas a entidades oficiales'**
+  String get allowForwardSubtitle;
+
+  /// No description provided for @create.
+  ///
+  /// In es, this message translates to:
+  /// **'Crear'**
+  String get create;
+
+  /// No description provided for @joinWithLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Unirse con link'**
+  String get joinWithLink;
+
+  /// No description provided for @entityOfficialMessage.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} es una entidad oficial'**
+  String entityOfficialMessage(String name);
+
+  /// No description provided for @alertsLoadError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron cargar las alertas. Desliza hacia abajo para reintentar.'**
+  String get alertsLoadError;
+
+  /// No description provided for @alertsUpdateError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron actualizar las alertas. Intenta de nuevo.'**
+  String get alertsUpdateError;
+
+  /// No description provided for @alertsLoadErrorFeed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudieron cargar las alertas'**
+  String get alertsLoadErrorFeed;
+
+  /// No description provided for @checkConnectionRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Comprueba tu conexión y vuelve a intentarlo.'**
+  String get checkConnectionRetry;
+
+  /// No description provided for @timeNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Ahora'**
+  String get timeNow;
+
+  /// No description provided for @timeJustNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Just now'**
+  String get timeJustNow;
+
+  /// No description provided for @timeYesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayer'**
+  String get timeYesterday;
+
+  /// No description provided for @timeMinutesAgo.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {n} min'**
+  String timeMinutesAgo(int n);
+
+  /// No description provided for @timeHoursAgo.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {n} h'**
+  String timeHoursAgo(int n);
+
+  /// No description provided for @timeDaysAgo.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {n} días'**
+  String timeDaysAgo(int n);
+
+  /// No description provided for @timeMinutesAgoShort.
+  ///
+  /// In es, this message translates to:
+  /// **'{n}m ago'**
+  String timeMinutesAgoShort(int n);
+
+  /// No description provided for @timeHoursAgoShort.
+  ///
+  /// In es, this message translates to:
+  /// **'{n}h ago'**
+  String timeHoursAgoShort(int n);
+
+  /// No description provided for @timeDaysAgoShort.
+  ///
+  /// In es, this message translates to:
+  /// **'{n}d ago'**
+  String timeDaysAgoShort(int n);
+
+  /// No description provided for @timeYesterdayEn.
+  ///
+  /// In es, this message translates to:
+  /// **'Yesterday'**
+  String get timeYesterdayEn;
 }
 
 class _AppLocalizationsDelegate

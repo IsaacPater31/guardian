@@ -342,4 +342,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unknown => 'UNKNOWN';
+
+  @override
+  String get loadingCommunities => 'Loading communities...';
+
+  @override
+  String get communitiesLoadError =>
+      'Could not load communities. Please try again.';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get createCommunity => 'Create Community';
+
+  @override
+  String get noCommunities => 'You have no communities';
+
+  @override
+  String get entitiesAppearHere => 'Entities will appear here automatically';
+
+  @override
+  String get searchCommunities => 'Search communities...';
+
+  @override
+  String get officialEntity => 'Official Entity';
+
+  @override
+  String get communityCreatedSuccess => 'Community created successfully';
+
+  @override
+  String get errorCreatingCommunity => 'Error creating community';
+
+  @override
+  String get createNewCommunity => 'Create New Community';
+
+  @override
+  String get communityNameRequired => 'Community name *';
+
+  @override
+  String get communityNameHint => 'e.g. Neighborhood Watch';
+
+  @override
+  String get nameRequired => 'Name is required';
+
+  @override
+  String get nameMinLength => 'Name must be at least 3 characters';
+
+  @override
+  String get descriptionOptional => 'Description (optional)';
+
+  @override
+  String get descriptionHint => 'Describe the purpose of the community';
+
+  @override
+  String get allowForwardToEntities => 'Allow forward to entities';
+
+  @override
+  String get allowForwardSubtitle =>
+      'Members will be able to forward alerts to official entities';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get joinWithLink => 'Join with link';
+
+  @override
+  String entityOfficialMessage(String name) {
+    return '$name is an official entity';
+  }
+
+  @override
+  String get alertsLoadError => 'Could not load alerts. Pull down to retry.';
+
+  @override
+  String get alertsUpdateError => 'Could not update alerts. Please try again.';
+
+  @override
+  String get alertsLoadErrorFeed => 'Could not load alerts';
+
+  @override
+  String get checkConnectionRetry => 'Check your connection and try again.';
+
+  @override
+  String get timeNow => 'Now';
+
+  @override
+  String get timeJustNow => 'Just now';
+
+  @override
+  String get timeYesterday => 'Yesterday';
+
+  @override
+  String timeMinutesAgo(int n) {
+    return '$n min ago';
+  }
+
+  @override
+  String timeHoursAgo(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String timeDaysAgo(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String timeMinutesAgoShort(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String timeHoursAgoShort(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String timeDaysAgoShort(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get timeYesterdayEn => 'Yesterday';
 }
