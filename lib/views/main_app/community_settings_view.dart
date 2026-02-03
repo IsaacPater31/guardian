@@ -440,26 +440,23 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     );
 
     if (confirm == true) {
-      final success = await _communityService.leaveCommunity(widget.communityId);
-      if (mounted) {
-        if (success) {
-          Navigator.pop(context); // Volver a la lista de comunidades
+      try {
+        final success = await _communityService.leaveCommunity(widget.communityId);
+        if (mounted && success) {
+          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Has abandonado la comunidad'),
               backgroundColor: Colors.orange,
             ),
           );
-        } else {
-          // Verificar si es porque es admin
-          final role = await _communityService.getUserRole(widget.communityId);
-          final errorMessage = role == 'admin'
-              ? 'El administrador no puede abandonar su propia comunidad'
-              : 'Error al abandonar la comunidad';
-          
+        }
+      } catch (e) {
+        if (mounted) {
+          final msg = e.toString().replaceFirst('Exception: ', '');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(errorMessage),
+              content: Text(msg),
               backgroundColor: Colors.red,
             ),
           );

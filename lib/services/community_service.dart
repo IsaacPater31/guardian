@@ -627,65 +627,48 @@ class CommunityService {
     }
   }
 
-  /// Abandona una comunidad (solo para comunidades normales, no entidades)
+  /// Abandona una comunidad (solo para comunidades normales, no entidades).
+  /// Lanza [Exception] con mensaje claro si no puede abandonar (entidad, admin, etc.).
   Future<bool> leaveCommunity(String communityId) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        print('❌ No hay usuario autenticado');
-        return false;
-      }
-
-      // Verificar que la comunidad existe y no es entidad
-      final communityDoc = await _firestore
-          .collection('communities')
-          .doc(communityId)
-          .get();
-
-      if (!communityDoc.exists) {
-        print('❌ Comunidad no existe');
-        return false;
-      }
-
-      final isEntity = communityDoc.data()?['is_entity'] ?? false;
-      if (isEntity) {
-        print('⚠️ No se puede abandonar una entidad oficial');
-        return false;
-      }
-
-      // Buscar y eliminar el membership
-      final memberSnapshot = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .where('community_id', isEqualTo: communityId)
-          .limit(1)
-          .get();
-
-      if (memberSnapshot.docs.isEmpty) {
-        print('ℹ️ Usuario no es miembro de esta comunidad');
-        return false;
-      }
-
-      // Validar que NO sea admin (el creador no puede abandonar su propia comunidad)
-      final memberData = memberSnapshot.docs.first.data();
-      final role = memberData['role'] as String? ?? 'member';
-      if (role == 'admin') {
-        print('⚠️ El administrador (creador) no puede abandonar su propia comunidad');
-        return false;
-      }
-
-      // Eliminar el membership
-      await memberSnapshot.docs.first.reference.delete();
-      
-      // Invalidar cache de alertas (Iteración 2.5)
-      AlertRepository().invalidateCommunityCache();
-      
-      print('✅ Usuario abandonó la comunidad');
-      return true;
-    } catch (e) {
-      print('❌ Error abandonando comunidad: $e');
-      return false;
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      throw Exception('Usuario no autenticado');
     }
+
+    final communityDoc = await _firestore
+        .collection('communities')
+        .doc(communityId)
+        .get();
+
+    if (!communityDoc.exists) {
+      throw Exception('La comunidad no existe');
+    }
+
+    final isEntity = communityDoc.data()?['is_entity'] ?? false;
+    if (isEntity) {
+      throw Exception('No se puede abandonar una entidad oficial');
+    }
+
+    final memberSnapshot = await _firestore
+        .collection('community_members')
+        .where('user_id', isEqualTo: userId)
+        .where('community_id', isEqualTo: communityId)
+        .limit(1)
+        .get();
+
+    if (memberSnapshot.docs.isEmpty) {
+      throw Exception('No eres miembro de esta comunidad');
+    }
+
+    final memberData = memberSnapshot.docs.first.data();
+    final role = memberData['role'] as String? ?? 'member';
+    if (role == 'admin') {
+      throw Exception('El administrador no puede abandonar su propia comunidad');
+    }
+
+    await memberSnapshot.docs.first.reference.delete();
+    AlertRepository().invalidateCommunityCache();
+    return true;
   }
 
   /// Elimina una comunidad (solo el creador puede eliminar)
