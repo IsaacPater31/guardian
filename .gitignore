@@ -46,3 +46,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 FIREBASE_SETUP.md
+analyze_result.txt
+icon_output.txt
+analyze_output.txt

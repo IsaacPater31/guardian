@@ -35,10 +35,10 @@ class CommunityService {
   Future<bool> initializeEntityCommunities() async {
     try {
       final entities = [
-        {'name': 'AMBIENTAL', 'description': 'Entidad Ambiental', 'icon_code_point': 0xea35, 'icon_color': '#4CAF50'},
-        {'name': 'POLICIA', 'description': 'Policía Nacional', 'icon_code_point': 0xef56, 'icon_color': '#1565C0'},
-        {'name': 'BOMBEROS', 'description': 'Cuerpo de Bomberos', 'icon_code_point': 0xe25c, 'icon_color': '#E53935'},
-        {'name': 'TRANSITO', 'description': 'Tránsito y Transporte', 'icon_code_point': 0xf233, 'icon_color': '#FF9800'},
+        {'name': 'AMBIENTAL', 'description': 'Entidad Ambiental', 'icon_code_point': 0xe217, 'icon_color': '#4CAF50'},
+        {'name': 'POLICIA', 'description': 'Policía Nacional', 'icon_code_point': 0xe3a2, 'icon_color': '#1565C0'},
+        {'name': 'BOMBEROS', 'description': 'Cuerpo de Bomberos', 'icon_code_point': 0xe392, 'icon_color': '#E53935'},
+        {'name': 'TRANSITO', 'description': 'Tránsito y Transporte', 'icon_code_point': 0xe674, 'icon_color': '#FF9800'},
       ];
 
       bool createdAny = false;
@@ -797,6 +797,8 @@ class CommunityService {
     String? name,
     String? description,
     bool? allowForwardToEntities,
+    int? iconCodePoint,
+    String? iconColor,
   }) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -819,6 +821,8 @@ class CommunityService {
       if (allowForwardToEntities != null) {
         updateData['allow_forward_to_entities'] = allowForwardToEntities;
       }
+      if (iconCodePoint != null) updateData['icon_code_point'] = iconCodePoint;
+      if (iconColor != null) updateData['icon_color'] = iconColor;
 
       if (updateData.isEmpty) {
         print('ℹ️ No hay datos para actualizar');

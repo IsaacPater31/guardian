@@ -23,24 +23,43 @@ class CommunityFeedView extends StatefulWidget {
   State<CommunityFeedView> createState() => _CommunityFeedViewState();
 }
 
-class _CommunityFeedViewState extends State<CommunityFeedView> {
+class _CommunityFeedViewState extends State<CommunityFeedView>
+    with SingleTickerProviderStateMixin {
   final AlertRepository _alertRepository = AlertRepository();
   final CommunityService _communityService = CommunityService();
   String? _userRole;
   bool _isLoadingRole = true;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
     _loadUserRole();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserRole() async {
     final role = await _communityService.getUserRole(widget.communityId);
-    setState(() {
-      _userRole = role;
-      _isLoadingRole = false;
-    });
+    if (mounted) {
+      setState(() {
+        _userRole = role;
+        _isLoadingRole = false;
+      });
+    }
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -63,15 +82,49 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
-        title: Text(widget.communityName),
-        backgroundColor: const Color(0xFF1F2937),
-        foregroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF2F2F7),
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        title: Column(
+          children: [
+            Text(
+              widget.communityName,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1C1C1E),
+                letterSpacing: -0.3,
+              ),
+            ),
+            Text(
+              widget.isEntity ? 'Entidad Oficial' : 'Comunidad',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            size: 20,
+            color: Color(0xFF007AFF),
+          ),
+        ),
         actions: [
           if (!widget.isEntity && !_isLoadingRole)
             IconButton(
-              icon: const Icon(Icons.settings),
+              icon: Icon(
+                Icons.settings_rounded,
+                size: 22,
+                color: const Color(0xFF007AFF),
+              ),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -81,10 +134,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
                       userRole: _userRole ?? 'member',
                     ),
                   ),
-                ).then((_) {
-                  // Recargar rol después de volver (por si cambió)
-                  _loadUserRole();
-                });
+                ).then((_) => _loadUserRole());
               },
             ),
         ],
@@ -93,99 +143,154 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
         stream: _alertRepository.getCommunityAlertsStream(widget.communityId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Color(0xFF1F2937),
+              ),
+            );
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 56, color: Colors.red[300]),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.alertsLoadErrorFeed,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppLocalizations.of(context)!.checkConnectionRetry,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    TextButton.icon(
-                      onPressed: () => setState(() {}),
-                      icon: const Icon(Icons.refresh),
-                      label: Text(AppLocalizations.of(context)!.retry),
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return _buildErrorState();
           }
 
           final alerts = snapshot.data ?? [];
 
-          // Validar si no hay alertas en esta comunidad
           if (alerts.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 80,
-                      color: Colors.grey[300],
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No hay alertas en esta comunidad',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Las alertas aparecerán aquí cuando se envíen a esta comunidad',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[500],
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
+            return _buildEmptyState();
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {});
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: alerts.length,
-              itemBuilder: (context, index) {
-                final alert = alerts[index];
-                return _buildAlertCard(alert);
-              },
+          // Trigger fade animation
+          _fadeController.forward(from: 0);
+
+          return FadeTransition(
+            opacity: _fadeAnimation,
+            child: RefreshIndicator(
+              onRefresh: () async => setState(() {}),
+              color: const Color(0xFF007AFF),
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                itemCount: alerts.length,
+                itemBuilder: (context, index) =>
+                    _buildAlertCard(alerts[index]),
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF3B30).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.wifi_off_rounded,
+                size: 36,
+                color: Color(0xFFFF3B30),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              AppLocalizations.of(context)!.alertsLoadErrorFeed,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1C1C1E),
+                letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.checkConnectionRetry,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[500],
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TextButton.icon(
+              onPressed: () => setState(() {}),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF007AFF),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(
+                AppLocalizations.of(context)!.retry,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Icon(
+              Icons.notifications_none_rounded,
+              size: 40,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No hay alertas',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1C1C1E),
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: Text(
+              'Las alertas aparecerán aquí cuando se envíen a esta comunidad',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[500],
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -199,15 +304,13 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
       onTap: () => _showAlertDetail(alert),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: alertColor.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: alertColor.withValues(alpha: 0.1),
-              blurRadius: 8,
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
               offset: const Offset(0, 2),
             ),
           ],
@@ -215,138 +318,146 @@ class _CommunityFeedViewState extends State<CommunityFeedView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                // Icono de alerta
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: alertColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    alertIcon,
-                    color: alertColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Tipo de alerta y tiempo
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        alert.alertType,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A1A),
-                        ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  // Alert icon
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          alertColor.withValues(alpha: 0.15),
+                          alertColor.withValues(alpha: 0.06),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        timeAgo,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                    ],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      alertIcon,
+                      color: alertColor,
+                      size: 20,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  // Type and time
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          alert.alertType,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1C1C1E),
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.grey[350],
+                    size: 22,
+                  ),
+                ],
+              ),
             ),
-            if (alert.description != null && alert.description!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                alert.description!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
+
+            // Description
+            if (alert.description != null &&
+                alert.description!.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: Text(
+                  alert.description!,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey[700],
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            // Información adicional
-            Row(
-              children: [
-                if (alert.shareLocation && alert.location != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+
+            // Tags
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+              child: Row(
+                children: [
+                  if (alert.shareLocation && alert.location != null)
+                    _buildTag(
+                      icon: Icons.location_on_rounded,
+                      label: 'Ubicación',
+                      color: const Color(0xFF34C759),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.green[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Ubicación',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                  const Spacer(),
+                  if (alert.forwardsCount > 0) ...[
+                    _buildTag(
+                      icon: Icons.reply_rounded,
+                      label: '${alert.forwardsCount}',
+                      color: const Color(0xFF007AFF),
                     ),
-                  ),
-                const Spacer(),
-                if (alert.forwardsCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                  ],
+                  if (alert.reportsCount > 0) ...[
+                    const SizedBox(width: 8),
+                    _buildTag(
+                      icon: Icons.flag_rounded,
+                      label: '${alert.reportsCount}',
+                      color: const Color(0xFFFF9500),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.forward, size: 14, color: Colors.blue[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${alert.forwardsCount}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (alert.reportsCount > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.report, size: 14, color: Colors.orange[700]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${alert.reportsCount}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTag({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
