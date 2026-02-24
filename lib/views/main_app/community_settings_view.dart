@@ -4,6 +4,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/models/community_model.dart';
+import 'package:guardian/views/main_app/community_members_view.dart';
+import 'package:guardian/views/main_app/community_reports_view.dart';
+import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
 
 class CommunitySettingsView extends StatefulWidget {
   final String communityId;
@@ -25,6 +28,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
   CommunityModel? _community;
   bool _isLoading = true;
   bool _isGeneratingLink = false;
+  int _pendingReportsCount = 0;
 
   @override
   void initState() {
@@ -36,8 +40,14 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     setState(() => _isLoading = true);
     try {
       final community = await _communityRepository.getCommunityById(widget.communityId);
+      // Load pending reports count if admin
+      int reportsCount = 0;
+      if (widget.userRole == 'admin') {
+        reportsCount = await _communityService.getPendingReportsCount(widget.communityId);
+      }
       setState(() {
         _community = community;
+        _pendingReportsCount = reportsCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -516,6 +526,13 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                 children: [
                   Row(
                     children: [
+                      CommunityIconDisplay(
+                        iconCodePoint: _community!.iconCodePoint,
+                        iconColor: _community!.iconColor,
+                        isEntity: _community!.isEntity,
+                        size: 44,
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _community!.name,
@@ -548,6 +565,98 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                   ],
                 ],
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Miembros de la comunidad (visible para todos)
+          const Text(
+            'Comunidad',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.people_outline, color: Color(0xFF1F2937)),
+                  title: const Text('Ver Miembros'),
+                  subtitle: const Text('Todos los integrantes de la comunidad'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommunityMembersView(
+                          communityId: widget.communityId,
+                          communityName: _community?.name ?? '',
+                          userRole: widget.userRole,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (isAdmin) ...[
+                  Divider(height: 1, color: Colors.grey[200]),
+                  ListTile(
+                    leading: Icon(Icons.flag_outlined,
+                        color: _pendingReportsCount > 0
+                            ? const Color(0xFFFF9500)
+                            : const Color(0xFF1F2937)),
+                    title: const Text('Reportes'),
+                    subtitle: Text(
+                      _pendingReportsCount > 0
+                          ? '$_pendingReportsCount reporte${_pendingReportsCount > 1 ? 's' : ''} pendiente${_pendingReportsCount > 1 ? 's' : ''}'
+                          : 'Sin reportes pendientes',
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_pendingReportsCount > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF3B30),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$_pendingReportsCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CommunityReportsView(
+                            communityId: widget.communityId,
+                            communityName: _community?.name ?? '',
+                          ),
+                        ),
+                      );
+                      // Reload to update badge count
+                      _loadCommunity();
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 24),

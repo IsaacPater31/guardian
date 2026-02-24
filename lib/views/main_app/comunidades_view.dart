@@ -4,6 +4,7 @@ import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/alert_repository.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
+import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
 
 class ComunidadesView extends StatefulWidget {
   const ComunidadesView({super.key});
@@ -208,20 +209,11 @@ class _ComunidadesViewState extends State<ComunidadesView> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: isEntity 
-                ? Colors.blue.withValues(alpha: 0.1)
-                : Colors.green.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            isEntity ? Icons.shield : Icons.people,
-            color: isEntity ? Colors.blue : Colors.green,
-            size: 24,
-          ),
+        leading: CommunityIconDisplay(
+          iconCodePoint: community['icon_code_point'] as int?,
+          iconColor: community['icon_color'] as String?,
+          isEntity: isEntity,
+          size: 48,
         ),
         title: Text(
           community['name'] ?? '',
@@ -336,6 +328,8 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
   final CommunityService _communityService = CommunityService();
   bool _allowForwardToEntities = true;
   bool _isCreating = false;
+  int? _selectedIconCodePoint;
+  String? _selectedIconColor;
 
   @override
   void dispose() {
@@ -356,6 +350,8 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
             ? null
             : _descriptionController.text.trim(),
         allowForwardToEntities: _allowForwardToEntities,
+        iconCodePoint: _selectedIconCodePoint,
+        iconColor: _selectedIconColor,
       );
 
       if (communityId != null && mounted) {
@@ -449,6 +445,19 @@ class _CreateCommunityDialogState extends State<_CreateCommunityDialog> {
                         });
                       },
                 activeColor: const Color(0xFF1F2937),
+              ),
+              const SizedBox(height: 16),
+              CommunityIconPickerGrid(
+                selectedCodePoint: _selectedIconCodePoint,
+                selectedColor: _selectedIconColor,
+                onIconSelected: _isCreating
+                    ? (_) {}
+                    : (option) {
+                        setState(() {
+                          _selectedIconCodePoint = option.codePoint;
+                          _selectedIconColor = option.colorHex;
+                        });
+                      },
               ),
             ],
           ),

@@ -8,6 +8,8 @@ class CommunityModel {
   final String? createdBy; // null para entidades, user_id para comunidades normales
   final bool allowForwardToEntities; // Solo creador puede cambiar
   final DateTime createdAt;
+  final int? iconCodePoint; // Material Icons codePoint (ej: Icons.people.codePoint)
+  final String? iconColor; // Color en hex (ej: '#FF9500')
 
   CommunityModel({
     this.id,
@@ -17,6 +19,8 @@ class CommunityModel {
     this.createdBy,
     this.allowForwardToEntities = true,
     required this.createdAt,
+    this.iconCodePoint,
+    this.iconColor,
   });
 
   factory CommunityModel.fromFirestore(DocumentSnapshot doc) {
@@ -29,6 +33,8 @@ class CommunityModel {
       createdBy: data['created_by'],
       allowForwardToEntities: data['allow_forward_to_entities'] ?? true,
       createdAt: (data['created_at'] as Timestamp).toDate(),
+      iconCodePoint: data['icon_code_point'] as int?,
+      iconColor: data['icon_color'] as String?,
     );
   }
 
@@ -40,6 +46,8 @@ class CommunityModel {
       'created_by': createdBy,
       'allow_forward_to_entities': allowForwardToEntities,
       'created_at': Timestamp.fromDate(createdAt),
+      if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
+      if (iconColor != null) 'icon_color': iconColor,
     };
   }
 
@@ -51,6 +59,8 @@ class CommunityModel {
     String? createdBy,
     bool? allowForwardToEntities,
     DateTime? createdAt,
+    int? iconCodePoint,
+    String? iconColor,
   }) {
     return CommunityModel(
       id: id ?? this.id,
@@ -60,7 +70,8 @@ class CommunityModel {
       createdBy: createdBy ?? this.createdBy,
       allowForwardToEntities: allowForwardToEntities ?? this.allowForwardToEntities,
       createdAt: createdAt ?? this.createdAt,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+      iconColor: iconColor ?? this.iconColor,
     );
   }
 }
-

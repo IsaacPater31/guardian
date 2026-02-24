@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'alert_repository.dart';
+import '../models/member_report_model.dart';
 
 /// Resultado de unirse a una comunidad mediante token
 class JoinResult {
@@ -34,10 +35,10 @@ class CommunityService {
   Future<bool> initializeEntityCommunities() async {
     try {
       final entities = [
-        {'name': 'AMBIENTAL', 'description': 'Entidad Ambiental'},
-        {'name': 'POLICIA', 'description': 'Policía Nacional'},
-        {'name': 'BOMBEROS', 'description': 'Cuerpo de Bomberos'},
-        {'name': 'TRANSITO', 'description': 'Tránsito y Transporte'},
+        {'name': 'AMBIENTAL', 'description': 'Entidad Ambiental', 'icon_code_point': 0xea35, 'icon_color': '#4CAF50'},
+        {'name': 'POLICIA', 'description': 'Policía Nacional', 'icon_code_point': 0xef56, 'icon_color': '#1565C0'},
+        {'name': 'BOMBEROS', 'description': 'Cuerpo de Bomberos', 'icon_code_point': 0xe25c, 'icon_color': '#E53935'},
+        {'name': 'TRANSITO', 'description': 'Tránsito y Transporte', 'icon_code_point': 0xf233, 'icon_color': '#FF9800'},
       ];
 
       bool createdAny = false;
@@ -60,6 +61,8 @@ class CommunityService {
             'created_by': null,
             'allow_forward_to_entities': false,
             'created_at': Timestamp.now(),
+            'icon_code_point': entity['icon_code_point'],
+            'icon_color': entity['icon_color'],
           });
           print('✅ Entidad creada: ${entity['name']}');
           createdAny = true;
@@ -203,6 +206,8 @@ class CommunityService {
               'description': data['description'],
               'is_entity': data['is_entity'] ?? false,
               'allow_forward_to_entities': data['allow_forward_to_entities'] ?? true,
+              'icon_code_point': data['icon_code_point'],
+              'icon_color': data['icon_color'],
             };
           }),
         );
@@ -260,6 +265,8 @@ class CommunityService {
               'description': data['description'],
               'is_entity': data['is_entity'] ?? false,
               'allow_forward_to_entities': data['allow_forward_to_entities'] ?? true,
+              'icon_code_point': data['icon_code_point'],
+              'icon_color': data['icon_color'],
             };
           }),
         );
@@ -378,6 +385,8 @@ class CommunityService {
     required String name,
     String? description,
     bool allowForwardToEntities = true,
+    int? iconCodePoint,
+    String? iconColor,
   }) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -387,14 +396,18 @@ class CommunityService {
       }
 
       // Crear la comunidad
-      final communityRef = await _firestore.collection('communities').add({
+      final communityData = <String, dynamic>{
         'name': name,
         'description': description,
         'is_entity': false,
         'created_by': userId,
         'allow_forward_to_entities': allowForwardToEntities,
         'created_at': Timestamp.now(),
-      });
+      };
+      if (iconCodePoint != null) communityData['icon_code_point'] = iconCodePoint;
+      if (iconColor != null) communityData['icon_color'] = iconColor;
+
+      final communityRef = await _firestore.collection('communities').add(communityData);
 
       final communityId = communityRef.id;
 
@@ -628,7 +641,8 @@ class CommunityService {
   }
 
   /// Abandona una comunidad (solo para comunidades normales, no entidades).
-  /// Lanza [Exception] con mensaje claro si no puede abandonar (entidad, admin, etc.).
+  /// Lanza [Exception] con mensaje claro si no puede abandonar (entidad, admin único, etc.).
+  /// Un admin puede abandonar si hay al menos otro admin en la comunidad.
   Future<bool> leaveCommunity(String communityId) async {
     final userId = _auth.currentUser?.uid;
     if (userId == null) {
@@ -663,7 +677,16 @@ class CommunityService {
     final memberData = memberSnapshot.docs.first.data();
     final role = memberData['role'] as String? ?? 'member';
     if (role == 'admin') {
-      throw Exception('El administrador no puede abandonar su propia comunidad');
+      // Verificar si hay al menos otro admin
+      final adminsSnapshot = await _firestore
+          .collection('community_members')
+          .where('community_id', isEqualTo: communityId)
+          .where('role', isEqualTo: 'admin')
+          .get();
+
+      if (adminsSnapshot.docs.length <= 1) {
+        throw Exception('Eres el único administrador. Promueve a otro miembro antes de salir.');
+      }
     }
 
     await memberSnapshot.docs.first.reference.delete();
@@ -812,6 +835,300 @@ class CommunityService {
     } catch (e) {
       print('❌ Error actualizando comunidad: $e');
       return false;
+    }
+  }
+
+  // ===== MEMBER MANAGEMENT =====
+
+  /// Obtiene los miembros de una comunidad con información del usuario
+  /// Retorna una lista de Maps con: memberId, userId, userName, userEmail, role, joinedAt
+  Future<List<Map<String, dynamic>>> getCommunityMembers(String communityId) async {
+    try {
+      final membersSnapshot = await _firestore
+          .collection('community_members')
+          .where('community_id', isEqualTo: communityId)
+          .get();
+
+      if (membersSnapshot.docs.isEmpty) return [];
+
+      final List<Map<String, dynamic>> members = [];
+
+      // Obtener info de cada usuario
+      for (final memberDoc in membersSnapshot.docs) {
+        final memberData = memberDoc.data();
+        final userId = memberData['user_id'] as String? ?? '';
+        if (userId.isEmpty) continue;
+
+        // Buscar nombre y email en users collection
+        String? userName;
+        String? userEmail;
+        try {
+          final userDoc = await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            userName = userData?['name'] as String? ?? userData?['displayName'] as String?;
+            userEmail = userData?['email'] as String?;
+          }
+        } catch (_) {
+          // Si no se puede obtener info del usuario, continuar sin ella
+        }
+
+        // Fallback: obtener displayName de FirebaseAuth si es el usuario actual
+        if (userName == null && userId == _auth.currentUser?.uid) {
+          userName = _auth.currentUser?.displayName;
+          userEmail ??= _auth.currentUser?.email;
+        }
+
+        members.add({
+          'member_id': memberDoc.id,
+          'user_id': userId,
+          'user_name': userName ?? userEmail?.split('@')[0] ?? 'Usuario',
+          'user_email': userEmail ?? '',
+          'role': memberData['role'] as String? ?? 'member',
+          'joined_at': (memberData['joined_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        });
+      }
+
+      // Ordenar: admins primero, luego por nombre
+      members.sort((a, b) {
+        final roleOrder = {'admin': 0, 'official': 1, 'member': 2};
+        final aOrder = roleOrder[a['role']] ?? 3;
+        final bOrder = roleOrder[b['role']] ?? 3;
+        if (aOrder != bOrder) return aOrder.compareTo(bOrder);
+        return (a['user_name'] as String).compareTo(b['user_name'] as String);
+      });
+
+      return members;
+    } catch (e) {
+      print('❌ Error obteniendo miembros: $e');
+      return [];
+    }
+  }
+
+  /// Expulsa un miembro de una comunidad (solo admins)
+  /// No permite expulsar a otros admins ni a uno mismo
+  Future<bool> removeMember(String communityId, String targetUserId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return false;
+
+      // Verificar que el usuario actual es admin
+      final currentRole = await getUserRole(communityId);
+      if (currentRole != 'admin') {
+        print('⚠️ Solo los administradores pueden expulsar miembros');
+        return false;
+      }
+
+      // No puede expulsarse a sí mismo
+      if (targetUserId == userId) {
+        print('⚠️ No puedes expulsarte a ti mismo');
+        return false;
+      }
+
+      // Verificar que el target no es admin
+      final targetMember = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: targetUserId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (targetMember.docs.isEmpty) {
+        print('⚠️ El usuario no es miembro de esta comunidad');
+        return false;
+      }
+
+      final targetRole = targetMember.docs.first.data()['role'] as String? ?? 'member';
+      if (targetRole == 'admin') {
+        print('⚠️ No se puede expulsar a otro administrador');
+        return false;
+      }
+
+      await targetMember.docs.first.reference.delete();
+      print('✅ Miembro expulsado');
+      return true;
+    } catch (e) {
+      print('❌ Error expulsando miembro: $e');
+      return false;
+    }
+  }
+
+  /// Promueve un miembro a admin (solo admins)
+  Future<bool> promoteToAdmin(String communityId, String targetUserId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return false;
+
+      // Verificar que el usuario actual es admin
+      final currentRole = await getUserRole(communityId);
+      if (currentRole != 'admin') {
+        print('⚠️ Solo los administradores pueden promover miembros');
+        return false;
+      }
+
+      // Buscar al target
+      final targetMember = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: targetUserId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (targetMember.docs.isEmpty) {
+        print('⚠️ El usuario no es miembro de esta comunidad');
+        return false;
+      }
+
+      final targetRole = targetMember.docs.first.data()['role'] as String? ?? 'member';
+      if (targetRole == 'admin') {
+        print('ℹ️ El usuario ya es administrador');
+        return true;
+      }
+
+      await targetMember.docs.first.reference.update({'role': 'admin'});
+      print('✅ Miembro promovido a admin');
+      return true;
+    } catch (e) {
+      print('❌ Error promoviendo miembro: $e');
+      return false;
+    }
+  }
+
+  // ===== MEMBER REPORTS =====
+
+  /// Crea un reporte de un miembro (cualquier miembro puede reportar)
+  Future<bool> reportMember({
+    required String communityId,
+    required String reportedUserId,
+    required String reason,
+  }) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return false;
+
+      // No puede reportarse a sí mismo
+      if (reportedUserId == userId) {
+        print('⚠️ No puedes reportarte a ti mismo');
+        return false;
+      }
+
+      // Verificar que ambos son miembros
+      final isReporterMember = await getUserRole(communityId);
+      if (isReporterMember == null) {
+        print('⚠️ No eres miembro de esta comunidad');
+        return false;
+      }
+
+      final report = MemberReportModel(
+        communityId: communityId,
+        reportedUserId: reportedUserId,
+        reportedByUserId: userId,
+        reason: reason,
+        createdAt: DateTime.now(),
+        status: 'pending',
+      );
+
+      await _firestore.collection('member_reports').add(report.toFirestore());
+      print('✅ Reporte creado');
+      return true;
+    } catch (e) {
+      print('❌ Error creando reporte: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene los reportes pendientes de una comunidad (solo admins)
+  Future<List<Map<String, dynamic>>> getReportsForCommunity(String communityId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return [];
+
+      // Verificar que es admin
+      final currentRole = await getUserRole(communityId);
+      if (currentRole != 'admin') {
+        print('⚠️ Solo los administradores pueden ver reportes');
+        return [];
+      }
+
+      final reportsSnapshot = await _firestore
+          .collection('member_reports')
+          .where('community_id', isEqualTo: communityId)
+          .where('status', isEqualTo: 'pending')
+          .orderBy('created_at', descending: true)
+          .get();
+
+      final List<Map<String, dynamic>> reports = [];
+
+      for (final reportDoc in reportsSnapshot.docs) {
+        final reportData = reportDoc.data();
+        final reportedUserId = reportData['reported_user_id'] as String? ?? '';
+        final reportedByUserId = reportData['reported_by_user_id'] as String? ?? '';
+
+        // Obtener nombres de usuarios
+        String reportedUserName = 'Usuario';
+        String reportedByUserName = 'Usuario';
+
+        try {
+          final reportedUserDoc = await _firestore.collection('users').doc(reportedUserId).get();
+          if (reportedUserDoc.exists) {
+            final data = reportedUserDoc.data();
+            reportedUserName = data?['name'] as String? ?? data?['displayName'] as String? ?? data?['email']?.split('@')[0] ?? 'Usuario';
+          }
+        } catch (_) {}
+
+        try {
+          final reportedByUserDoc = await _firestore.collection('users').doc(reportedByUserId).get();
+          if (reportedByUserDoc.exists) {
+            final data = reportedByUserDoc.data();
+            reportedByUserName = data?['name'] as String? ?? data?['displayName'] as String? ?? data?['email']?.split('@')[0] ?? 'Usuario';
+          }
+        } catch (_) {}
+
+        reports.add({
+          'report_id': reportDoc.id,
+          'reported_user_id': reportedUserId,
+          'reported_user_name': reportedUserName,
+          'reported_by_user_id': reportedByUserId,
+          'reported_by_user_name': reportedByUserName,
+          'reason': reportData['reason'] ?? '',
+          'created_at': (reportData['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          'status': reportData['status'] ?? 'pending',
+        });
+      }
+
+      return reports;
+    } catch (e) {
+      print('❌ Error obteniendo reportes: $e');
+      return [];
+    }
+  }
+
+  /// Descarta un reporte (solo admins)
+  Future<bool> dismissReport(String reportId) async {
+    try {
+      await _firestore
+          .collection('member_reports')
+          .doc(reportId)
+          .update({'status': 'dismissed'});
+      print('✅ Reporte descartado');
+      return true;
+    } catch (e) {
+      print('❌ Error descartando reporte: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene el conteo de reportes pendientes de una comunidad
+  Future<int> getPendingReportsCount(String communityId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('member_reports')
+          .where('community_id', isEqualTo: communityId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      return 0;
     }
   }
 
