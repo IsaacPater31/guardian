@@ -486,6 +486,154 @@ class CommunityService {
     }
   }
 
+  /// Busca usuarios por email o nombre para agregar directamente a una comunidad
+  /// Excluye al usuario actual y a los que ya son miembros de la comunidad dada
+  /// Retorna máximo 10 resultados para minimizar reads
+  Future<List<Map<String, dynamic>>> searchUsers(String query, {String? excludeCommunityId}) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      final trimmed = query.trim().toLowerCase();
+      if (trimmed.isEmpty || trimmed.length < 2) return [];
+
+      final List<Map<String, dynamic>> results = [];
+      final Set<String> addedIds = {};
+
+      // Obtener miembros existentes para excluirlos
+      Set<String> existingMemberIds = {};
+      if (excludeCommunityId != null) {
+        final membersSnapshot = await _firestore
+            .collection('community_members')
+            .where('community_id', isEqualTo: excludeCommunityId)
+            .get();
+        existingMemberIds = membersSnapshot.docs
+            .map((d) => d.data()['user_id'] as String? ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet();
+      }
+
+      // 1. Búsqueda por email exacto
+      final emailSnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: trimmed)
+          .limit(5)
+          .get();
+
+      for (final doc in emailSnapshot.docs) {
+        final uid = doc.id;
+        if (uid == userId || existingMemberIds.contains(uid) || addedIds.contains(uid)) continue;
+        addedIds.add(uid);
+        final data = doc.data();
+        results.add({
+          'uid': uid,
+          'name': data['name'] as String? ?? data['displayName'] as String? ?? 'Usuario',
+          'email': data['email'] as String? ?? '',
+        });
+      }
+
+      // 2. Búsqueda por nombre (obtener lote y filtrar client-side)
+      // Firestore no soporta búsqueda por substring, así que traemos un lote razonable
+      // y filtramos en el cliente. Esto es eficiente para apps pequeñas/medianas.
+      if (results.length < 10) {
+        final nameSnapshot = await _firestore
+            .collection('users')
+            .limit(100)
+            .get();
+
+        for (final doc in nameSnapshot.docs) {
+          if (results.length >= 10) break;
+          final uid = doc.id;
+          if (uid == userId || existingMemberIds.contains(uid) || addedIds.contains(uid)) continue;
+
+          final data = doc.data();
+          final name = (data['name'] as String? ?? data['displayName'] as String? ?? '').toLowerCase();
+          final email = (data['email'] as String? ?? '').toLowerCase();
+
+          if (name.contains(trimmed) || email.contains(trimmed)) {
+            addedIds.add(uid);
+            results.add({
+              'uid': uid,
+              'name': data['name'] as String? ?? data['displayName'] as String? ?? 'Usuario',
+              'email': data['email'] as String? ?? '',
+            });
+          }
+        }
+      }
+
+      return results;
+    } catch (e) {
+      print('❌ Error buscando usuarios: $e');
+      return [];
+    }
+  }
+
+  /// Agrega un usuario directamente a una comunidad (sin token de invitación)
+  /// Solo admins pueden ejecutar esta acción
+  /// Retorna JoinResult con información detallada
+  Future<JoinResult> addMemberDirectly(String communityId, String targetUserId) async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        return JoinResult(success: false, message: 'No hay usuario autenticado');
+      }
+
+      // Verificar que quien agrega es admin
+      final callerRole = await getUserRole(communityId);
+      if (callerRole != 'admin') {
+        return JoinResult(success: false, message: 'Solo administradores pueden agregar miembros');
+      }
+
+      // Verificar que el usuario objetivo existe
+      final targetUserDoc = await _firestore.collection('users').doc(targetUserId).get();
+      if (!targetUserDoc.exists) {
+        return JoinResult(success: false, message: 'Usuario no encontrado');
+      }
+
+      // Verificar si ya es miembro
+      final existingMember = await _firestore
+          .collection('community_members')
+          .where('user_id', isEqualTo: targetUserId)
+          .where('community_id', isEqualTo: communityId)
+          .limit(1)
+          .get();
+
+      if (existingMember.docs.isNotEmpty) {
+        final role = existingMember.docs.first.data()['role'] as String? ?? 'member';
+        return JoinResult(
+          success: true,
+          alreadyMember: true,
+          role: role,
+          message: 'Este usuario ya es miembro de la comunidad',
+        );
+      }
+
+      // Agregar como miembro
+      await _firestore.collection('community_members').add({
+        'user_id': targetUserId,
+        'community_id': communityId,
+        'joined_at': Timestamp.now(),
+        'role': 'member',
+      });
+
+      // Invalidar caché si existe
+      try {
+        AlertRepository();
+      } catch (_) {}
+
+      final targetData = targetUserDoc.data();
+      final targetName = targetData?['name'] as String? ?? targetData?['displayName'] as String? ?? 'Usuario';
+      print('✅ Usuario $targetName agregado a la comunidad');
+
+      return JoinResult(
+        success: true,
+        role: 'member',
+        message: '$targetName ha sido agregado a la comunidad',
+      );
+    } catch (e) {
+      print('❌ Error agregando miembro: $e');
+      return JoinResult(success: false, message: 'Error al agregar miembro');
+    }
+  }
+
   /// Obtiene información de una invitación sin unirse
   /// Útil para mostrar preview antes de confirmar
   Future<Map<String, dynamic>?> getInviteInfo(String token) async {

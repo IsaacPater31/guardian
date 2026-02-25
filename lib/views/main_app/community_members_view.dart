@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:guardian/services/community_service.dart';
@@ -8,12 +9,14 @@ class CommunityMembersView extends StatefulWidget {
   final String communityId;
   final String communityName;
   final String userRole;
+  final bool autoOpenAddSheet;
 
   const CommunityMembersView({
     super.key,
     required this.communityId,
     required this.communityName,
     required this.userRole,
+    this.autoOpenAddSheet = false,
   });
 
   @override
@@ -42,7 +45,13 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
       parent: _fadeController,
       curve: Curves.easeOut,
     );
-    _loadMembers();
+    _loadMembers().then((_) {
+      if (widget.autoOpenAddSheet && _isAdmin) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showAddMemberSheet();
+        });
+      }
+    });
   }
 
   @override
@@ -596,6 +605,380 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
 
   // ─── Build ───
 
+  // ─── Add Member Sheet ───
+
+  void _showAddMemberSheet() {
+    final searchController = TextEditingController();
+    List<Map<String, dynamic>> searchResults = [];
+    bool isSearching = false;
+    String? statusMessage;
+    bool hasSearched = false;
+    Timer? debounce;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          void performSearch(String query) {
+            debounce?.cancel();
+            if (query.trim().length < 2) {
+              setSheetState(() {
+                searchResults = [];
+                hasSearched = false;
+                statusMessage = null;
+              });
+              return;
+            }
+            debounce = Timer(const Duration(milliseconds: 500), () async {
+              setSheetState(() {
+                isSearching = true;
+                statusMessage = null;
+              });
+              try {
+                final results = await _communityService.searchUsers(
+                  query,
+                  excludeCommunityId: widget.communityId,
+                );
+                setSheetState(() {
+                  searchResults = results;
+                  isSearching = false;
+                  hasSearched = true;
+                });
+              } catch (_) {
+                setSheetState(() {
+                  isSearching = false;
+                  hasSearched = true;
+                });
+              }
+            });
+          }
+
+          Future<void> addUser(Map<String, dynamic> user) async {
+            setSheetState(() => statusMessage = 'Agregando ${user['name']}...');
+            final result = await _communityService.addMemberDirectly(
+              widget.communityId,
+              user['uid'],
+            );
+            if (result.success && !result.alreadyMember) {
+              setSheetState(() {
+                statusMessage = null;
+                searchResults.removeWhere((u) => u['uid'] == user['uid']);
+              });
+              _loadMembers();
+              if (mounted) {
+                _showSnackBar(result.message ?? '¡Miembro agregado!', isSuccess: true);
+              }
+            } else {
+              setSheetState(() => statusMessage = null);
+              if (mounted) {
+                _showSnackBar(
+                  result.message ?? 'No se pudo agregar',
+                  isSuccess: result.alreadyMember,
+                );
+              }
+            }
+          }
+
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF2F2F7),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 36,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF34C759).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.person_add_rounded,
+                          color: Color(0xFF34C759),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Agregar Miembro',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C1C1E),
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Search field
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: performSearch,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por email o nombre...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 16,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: Colors.grey[400],
+                          size: 22,
+                        ),
+                        suffixIcon: isSearching
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF007AFF),
+                                  ),
+                                ),
+                              )
+                            : searchController.text.isNotEmpty
+                                ? IconButton(
+                                    onPressed: () {
+                                      searchController.clear();
+                                      performSearch('');
+                                    },
+                                    icon: Icon(
+                                      Icons.close_rounded,
+                                      color: Colors.grey[400],
+                                      size: 20,
+                                    ),
+                                  )
+                                : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // Status message
+                if (statusMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF007AFF),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          statusMessage!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Results
+                Flexible(
+                  child: searchResults.isNotEmpty
+                      ? ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: searchResults.length,
+                          itemBuilder: (context, index) {
+                            final user = searchResults[index];
+                            final name = user['name'] as String;
+                            final email = user['email'] as String;
+                            final isFirst = index == 0;
+                            final isLast = index == searchResults.length - 1;
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.vertical(
+                                  top: isFirst ? const Radius.circular(12) : Radius.zero,
+                                  bottom: isLast ? const Radius.circular(12) : Radius.zero,
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  InkWell(
+                                    onTap: statusMessage != null ? null : () => addUser(user),
+                                    borderRadius: BorderRadius.vertical(
+                                      top: isFirst ? const Radius.circular(12) : Radius.zero,
+                                      bottom: isLast ? const Radius.circular(12) : Radius.zero,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      child: Row(
+                                        children: [
+                                          _buildAvatar(name, 'member'),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  name,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFF1C1C1E),
+                                                    letterSpacing: -0.2,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                if (email.isNotEmpty)
+                                                  Text(
+                                                    email,
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[500],
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF34C759).withValues(alpha: 0.12),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.add_rounded,
+                                              color: Color(0xFF34C759),
+                                              size: 20,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (!isLast)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 70),
+                                      child: Divider(
+                                        height: 0.5,
+                                        thickness: 0.5,
+                                        color: Colors.grey[200],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                      : hasSearched && searchResults.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Icon(
+                                      Icons.person_search_rounded,
+                                      size: 28,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No se encontraron usuarios',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Verifica el email o nombre e intenta de nuevo',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[400],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Text(
+                                'Escribe al menos 2 caracteres para buscar',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[400],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ).then((_) {
+      debounce?.cancel();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -636,6 +1019,21 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           ),
         ),
       ),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton(
+              onPressed: _showAddMemberSheet,
+              backgroundColor: const Color(0xFF1C1C1E),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.person_add_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
+            )
+          : null,
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
@@ -651,7 +1049,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                     onRefresh: _loadMembers,
                     color: const Color(0xFF007AFF),
                     child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                       itemCount: _members.length + 1, // +1 for section header
                       itemBuilder: (context, index) {
                         if (index == 0) {

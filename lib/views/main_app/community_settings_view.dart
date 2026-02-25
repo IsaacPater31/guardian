@@ -825,12 +825,32 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           const SizedBox(height: 24),
 
           // ─── Invite Section ───────────────────────────
-          _buildSectionHeader('INVITACIÓN'),
+          _buildSectionHeader('AGREGAR MIEMBROS'),
           const SizedBox(height: 8),
           _buildGroupedCard([
+            if (isAdmin)
+              _buildSettingsTile(
+                icon: Icons.person_search_rounded,
+                iconColor: const Color(0xFF34C759),
+                title: 'Buscar y agregar',
+                subtitle: 'Agrega miembros por email o nombre',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CommunityMembersView(
+                        communityId: widget.communityId,
+                        communityName: _community?.name ?? '',
+                        userRole: widget.userRole,
+                        autoOpenAddSheet: true,
+                      ),
+                    ),
+                  );
+                },
+              ),
             _buildSettingsTile(
-              icon: Icons.person_add_outlined,
-              iconColor: const Color(0xFF34C759),
+              icon: Icons.link_rounded,
+              iconColor: const Color(0xFF007AFF),
               title: 'Generar link de invitación',
               subtitle: _isGeneratingLink
                   ? 'Generando...'
@@ -841,7 +861,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF34C759),
+                        color: Color(0xFF007AFF),
                       ),
                     )
                   : null,

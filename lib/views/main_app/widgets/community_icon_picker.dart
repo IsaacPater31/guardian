@@ -58,16 +58,21 @@ class CommunityIconPicker {
   static const int defaultIconCodePoint = 0xe7ef; // Icons.people
   static const String defaultIconColor = '#5B6ABF';
 
+  /// Cache para mapeo de codePoint -> IconData, inicializado una sola vez
+  static late final Map<int, IconData> _codePointToIcon = {
+    for (var option in availableIcons) option.codePoint: option.icon,
+  };
+
+  /// Obtiene IconData desde codePoint con cache
+  static IconData iconFromCodePoint(int codePoint) {
+    return _codePointToIcon[codePoint] ?? Icons.people;
+  }
+
   /// Convierte hex string a Color
   static Color colorFromHex(String hex) {
     hex = hex.replaceFirst('#', '');
     if (hex.length == 6) hex = 'FF$hex';
     return Color(int.parse(hex, radix: 16));
-  }
-
-  /// Obtiene IconData desde codePoint
-  static IconData iconFromCodePoint(int codePoint) {
-    return IconData(codePoint, fontFamily: 'MaterialIcons');
   }
 }
 
