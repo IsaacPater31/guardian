@@ -127,6 +127,10 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     final contentPadding = isSmall ? 14.0 : 20.0;
 
     return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 10 : 16,
+        vertical: isSmall ? 10 : 20,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -185,7 +189,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                         widget.alert.location != null) ...[
                       SizedBox(height: isSmall ? 16 : 24),
                       _buildLocationSection(),
-                      _buildLocationMapSection(),
+                  _buildLocationMapSection(isSmall),
                     ],
 
                     // Información adicional
@@ -206,7 +210,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             ),
 
             // Botones de acción
-            _buildActionButtons(context),
+            _buildActionButtons(context, isSmall),
           ],
         ),
       ),
@@ -621,12 +625,12 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildLocationMapSection() {
+  Widget _buildLocationMapSection(bool isSmall) {
     if (widget.alert.location == null) return const SizedBox.shrink();
     
     return Container(
       margin: const EdgeInsets.only(top: 12),
-      height: 250,
+      height: isSmall ? 200 : 250,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -1060,11 +1064,16 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     }
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildActionButtons(BuildContext context, bool isSmall) {
     final hasCommunity = widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty;
     
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(
+        isSmall ? 12 : 24,
+        isSmall ? 12 : 20,
+        isSmall ? 12 : 24,
+        isSmall ? 12 : 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
@@ -1193,13 +1202,18 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           const SizedBox(height: 12),
           
           // Botones principales
-          Row(
+          Wrap(
+            spacing: isSmall ? 10 : 16,
+            runSpacing: isSmall ? 10 : 12,
             children: [
-              Expanded(
+              SizedBox(
+                width: isSmall
+                    ? double.infinity
+                    : (MediaQuery.of(context).size.width * 0.40),
                 child: OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 14 : 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -1210,7 +1224,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   ),
                   child: Text(
                     AppLocalizations.of(context)!.close,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF374151),
@@ -1218,28 +1232,28 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   ),
                 ),
               ),
-              
-              const SizedBox(width: 16),
-              
-              Expanded(
+              SizedBox(
+                width: isSmall
+                    ? double.infinity
+                    : (MediaQuery.of(context).size.width * 0.40),
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: Implementar acción de respuesta
                     Navigator.of(context).pop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _getAlertColor(widget.alert.alertType),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 14 : 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 2,
-                    shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
+                    shadowColor:
+                        _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
                   ),
                   child: Text(
                     AppLocalizations.of(context)!.respond,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),

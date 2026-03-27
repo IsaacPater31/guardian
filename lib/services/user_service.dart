@@ -89,12 +89,8 @@ class UserService {
     
     // Si no hay usuario logueado, no puede ver alertas no anónimas
     if (!isUserLoggedIn) return false;
-    
-    // Si es el propietario de la alerta, no debe verla (para evitar duplicados)
-    if (isUserOwnerOfAlert(alertUserId, alertUserEmail)) {
-      return false;
-    }
-    
+
+    // Usuario autenticado puede ver alertas propias y de terceros.
     return true;
   }
 }

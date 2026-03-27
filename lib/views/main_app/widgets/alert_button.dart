@@ -182,7 +182,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _showEmergencyDialog(String emergencyType) async {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
-    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
     
     if (emergencyData == null) return; // Salir si no se encuentra el tipo
     
@@ -251,12 +250,17 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             final subtitleFontSize = isSmall ? 12.0 : 14.0;
 
             return Dialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: isSmall ? 10 : 18,
+                vertical: isSmall ? 12 : 24,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
               elevation: 0,
               backgroundColor: Colors.transparent,
-              child: Container(
+              child: SafeArea(
+                child: Container(
                 constraints: BoxConstraints(
                   maxWidth: (sw * 0.95).clamp(0.0, 420.0),
                   maxHeight: sh * (isSmall ? 0.85 : 0.80),
@@ -493,6 +497,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     ),
                   ],
                 ),
+                ),
               ),
             );
           },
@@ -527,12 +532,17 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       context: context,
       barrierDismissible: false,
       builder: (context) => Dialog(
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width < 360 ? 10 : 18,
+          vertical: MediaQuery.of(context).size.width < 360 ? 12 : 24,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
         elevation: 0,
         backgroundColor: Colors.transparent,
-        child: LayoutBuilder(
+        child: SafeArea(
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final screenHeight = MediaQuery.of(context).size.height;
             final maxHeight = screenHeight * 0.8;
@@ -540,7 +550,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             return Container(
               constraints: BoxConstraints(
                 maxHeight: maxHeight,
-                maxWidth: constraints.maxWidth * 0.9,
+                maxWidth: constraints.maxWidth,
               ),
               padding: EdgeInsets.all(
                 constraints.maxWidth < 400 ? 16 : 24,
@@ -577,8 +587,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
-                          // Volver a mostrar diálogo de selección
-                          _showEmergencyDialog(emergencyType);
+                          // Volver a mostrar solo la selección
+                          _showCommunitySelectionDialog(emergencyType).then((selection) {
+                            if (selection != null && selection.isNotEmpty && mounted) {
+                              _showFinalConfirmationDialog(emergencyType, selection);
+                            } else {
+                              _hideEmergencyOptions();
+                            }
+                          });
                         },
                         tooltip: 'Volver',
                       ),
@@ -595,7 +611,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       const Spacer(),
                       // Espacio para balancear el layout
                       SizedBox(
-                        width: 48,
+                        width: 44,
                       ),
                     ],
                   ),
@@ -956,6 +972,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 ),
               );
           },
+          ),
         ),
       ),
     );
@@ -965,6 +982,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     // Use the emergencyType parameter directly - it already contains the correct alert type
     final alertType = emergencyType;
     
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -991,7 +1009,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        margin: EdgeInsets.all(16),
+        margin: EdgeInsets.fromLTRB(12, 12, 12, (bottomInset + 12).clamp(12.0, 40.0)),
       ),
     );
 
@@ -1458,28 +1476,5 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ),
     );
   }
-
-  String _getDirectionText(Offset offset) {
-    final direction = _getDirection(offset);
-    switch (direction) {
-      case 'up': return 'ARRIBA';
-      case 'upLeft': return 'ARRIBA-IZQ';
-      case 'left': return 'IZQUIERDA';
-      case 'downLeft': return 'ABAJO-IZQ';
-      case 'down': return 'ABAJO';
-      case 'downRight': return 'ABAJO-DER';
-      case 'right': return 'DERECHA';
-      case 'upRight': return 'ARRIBA-DER';
-      default: return '';
-    }
-  }
-
-
-
-
-
-
-
-
 
 }

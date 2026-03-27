@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
@@ -7,6 +6,7 @@ import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/services/localization_service.dart';
+import 'package:guardian/services/user_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
@@ -19,19 +19,22 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   final HomeController _homeController = HomeController();
+  final UserService _userService = UserService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
-  /// true = mostrar MIS alertas enviadas (⬆), false = alertas recibidas (⬇)
+  /// true = modo UP (mis alertas enviadas), false = modo DOWN (recibidas)
   bool _showingOwn = false;
-
-  String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   /// Lista filtrada según el toggle Up/Down
   List<AlertModel> get _filteredAlerts {
     if (_showingOwn) {
-      return _recentAlerts.where((a) => a.userId == _currentUid).toList();
+      return _recentAlerts
+          .where((a) => _userService.isUserOwnerOfAlert(a.userId, a.userEmail))
+          .toList();
     } else {
-      return _recentAlerts.where((a) => a.userId != _currentUid).toList();
+      return _recentAlerts
+          .where((a) => !_userService.isUserOwnerOfAlert(a.userId, a.userEmail))
+          .toList();
     }
   }
 
@@ -362,14 +365,19 @@ class _HomeViewState extends State<HomeView> {
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmall ? 8 : 10,
-                    vertical: 5,
+                    horizontal: isSmall ? 8 : 11,
+                    vertical: isSmall ? 6 : 7,
                   ),
                   decoration: BoxDecoration(
                     color: _showingOwn
                         ? const Color(0xFF007AFF).withValues(alpha: 0.12)
                         : Colors.grey.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _showingOwn
+                          ? const Color(0xFF007AFF).withValues(alpha: 0.35)
+                          : Colors.grey.withValues(alpha: 0.30),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -384,26 +392,9 @@ class _HomeViewState extends State<HomeView> {
                           size: isSmall ? 18 : 20,
                           color: _showingOwn
                               ? const Color(0xFF007AFF)
-                              : Colors.grey[500],
+                              : Colors.grey[600],
                         ),
                       ),
-                      if (!isSmall) ...[
-                        const SizedBox(width: 4),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _showingOwn ? 'Yo' : 'Todos',
-                            key: ValueKey(_showingOwn),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: _showingOwn
-                                  ? const Color(0xFF007AFF)
-                                  : Colors.grey[500],
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -471,7 +462,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 8),
           Text(
-            AppLocalizations.of(context)!.noRecentAlerts,
+            _showingOwn ? 'No has enviado alertas recientes' : AppLocalizations.of(context)!.noRecentAlerts,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -480,7 +471,9 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 4),
           Text(
-            AppLocalizations.of(context)!.everythingQuiet,
+            _showingOwn
+                ? 'Tus alertas enviadas apareceran aqui'
+                : AppLocalizations.of(context)!.everythingQuiet,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[500],

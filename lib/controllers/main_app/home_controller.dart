@@ -58,7 +58,7 @@ class HomeController {
   /// Carga las alertas recientes sin generar notificaciones
   Future<void> _loadRecentAlerts() async {
     try {
-      final alerts = await getRecentAlerts();
+      final alerts = await getAllRecentAlerts();
       print('📊 Loaded ${alerts.length} recent alerts');
       
       // Notificar a la UI con las alertas cargadas
@@ -87,17 +87,20 @@ class HomeController {
     _alertsSubscription = _alertRepository.getRecentAlertsStream().listen((alerts) {
       print('📊 Received ${alerts.length} alerts from stream');
       
-      // Filtrar alertas del usuario actual
+      // Mantener TODAS las alertas para que la UI pueda alternar UP/DOWN
       final currentUser = _userService.currentUser;
       if (currentUser != null) {
-        final otherUserAlerts = alerts.where((alert) => alert.userId != currentUser.uid).toList();
+        final ownAndReceivedAlerts = alerts;
         
         // Notificar a la UI
-        onAlertsUpdated?.call(otherUserAlerts);
+        onAlertsUpdated?.call(ownAndReceivedAlerts);
         
-        // Detectar nuevas alertas - solo notificar si es realmente nueva
-        if (otherUserAlerts.isNotEmpty) {
-          final latestAlert = otherUserAlerts.first;
+        // Detectar nuevas alertas recibidas - solo notificar si es realmente nueva
+        final receivedAlerts = ownAndReceivedAlerts
+            .where((alert) => !_userService.isUserOwnerOfAlert(alert.userId, alert.userEmail))
+            .toList();
+        if (receivedAlerts.isNotEmpty) {
+          final latestAlert = receivedAlerts.first;
           
           // Verificar si esta alerta ya fue procesada
           if (latestAlert.id != null && !_processedAlertIds.contains(latestAlert.id)) {
@@ -110,7 +113,7 @@ class HomeController {
         }
         
         // Actualizar la lista de alertas conocidas
-        _lastKnownAlerts = otherUserAlerts;
+        _lastKnownAlerts = ownAndReceivedAlerts;
       }
     }, onError: (error) {
       print('❌ Error in alerts listener: $error');
@@ -121,16 +124,26 @@ class HomeController {
   Future<List<AlertModel>> getRecentAlerts() async {
     try {
       final alerts = await _alertRepository.getRecentAlerts();
-      final currentUser = _userService.currentUser;
-      
-      if (currentUser != null) {
-        // Filtrar alertas del usuario actual
-        return alerts.where((alert) => alert.userId != currentUser.uid).toList();
+      if (_userService.currentUser != null) {
+        // Filtrar alertas propias de forma robusta (userId/userEmail)
+        return alerts
+            .where((alert) => !_userService.isUserOwnerOfAlert(alert.userId, alert.userEmail))
+            .toList();
       }
       
       return alerts;
     } catch (e) {
       print('❌ Error getting recent alerts: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene todas las alertas recientes (propias + recibidas)
+  Future<List<AlertModel>> getAllRecentAlerts() async {
+    try {
+      return await _alertRepository.getRecentAlerts();
+    } catch (e) {
+      print('❌ Error getting all recent alerts: $e');
       return [];
     }
   }

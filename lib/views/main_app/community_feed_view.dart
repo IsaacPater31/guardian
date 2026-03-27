@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/alert_repository.dart';
 import 'package:guardian/services/community_service.dart';
+import 'package:guardian/services/user_service.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
 
@@ -28,12 +28,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     with SingleTickerProviderStateMixin {
   final AlertRepository _alertRepository = AlertRepository();
   final CommunityService _communityService = CommunityService();
+  final UserService _userService = UserService();
   String? _userRole;
   bool _isLoadingRole = true;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
-
-  String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
@@ -196,14 +195,14 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // ─── Chat Bubble ───────────────────────────────────────────────────────────
 
   Widget _buildBubble(AlertModel alert, double sw) {
-    final isOwn = alert.userId == _currentUid;
+    final isOwn = _userService.isUserOwnerOfAlert(alert.userId, alert.userEmail);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
     final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
     final isSmall = sw < 360;
 
-    // Burbujas grandes: 88% del ancho, mínimo 260px
-    final maxBubbleWidth = (sw * 0.88).clamp(260.0, 420.0);
+    // Burbujas grandes para mostrar TODO el contenido sin recortes
+    final maxBubbleWidth = (sw * (isSmall ? 0.90 : 0.86)).clamp(220.0, 560.0);
 
     final bubbleColor = isOwn
         ? const Color(0xFFDCEFFE) // azul clarito propio
@@ -231,38 +230,41 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isOwn) _buildAvatar(alertColor, alertIcon, isOwn: false),
-          SizedBox(width: isSmall ? 6 : 8),
+          SizedBox(width: isSmall ? 4 : 8),
 
           // Burbuja
-          ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxBubbleWidth),
-            child: GestureDetector(
-              onTap: () => showDialog(
-                context: context,
-                builder: (_) => AlertDetailDialog(alert: alert),
-              ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: bubbleBorderRadius,
-                  border: isOwn
-                      ? Border.all(
-                          color:
-                              const Color(0xFF007AFF).withValues(alpha: 0.25))
-                      : Border.all(
-                          color: Colors.grey.withValues(alpha: 0.18)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+              child: GestureDetector(
+                onTap: () => showDialog(
+                  context: context,
+                  builder: (_) => AlertDetailDialog(alert: alert),
                 ),
-                padding: EdgeInsets.all(isSmall ? 12 : 15),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: bubbleColor,
+                    borderRadius: bubbleBorderRadius,
+                    border: isOwn
+                        ? Border.all(
+                            color:
+                                const Color(0xFF007AFF).withValues(alpha: 0.25),
+                          )
+                        : Border.all(
+                            color: Colors.grey.withValues(alpha: 0.18),
+                          ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.all(isSmall ? 13 : 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // ── Header ─────────────────────────────────────
                     Row(
                       children: [
@@ -289,6 +291,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                                   color: const Color(0xFF1C1C1E),
                                   letterSpacing: -0.2,
                                 ),
+                                maxLines: 3,
+                                overflow: TextOverflow.visible,
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -318,7 +322,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                           color: Colors.grey[750],
                           height: 1.4,
                         ),
-                        // Sin maxLines: mostrar TODO el texto
+                        softWrap: true,
                       ),
                     ],
 
@@ -353,13 +357,14 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                           ),
                       ],
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
 
-          SizedBox(width: isSmall ? 6 : 8),
+          SizedBox(width: isSmall ? 4 : 8),
           if (isOwn) _buildAvatar(alertColor, alertIcon, isOwn: true),
         ],
       ),
