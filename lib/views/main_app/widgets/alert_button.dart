@@ -233,16 +233,23 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       }
 
       if (!mounted) return null;
-      
+
       // Lista de comunidades seleccionadas
       final Set<String> selectedCommunityIds = {};
-      
+
       // Mostrar diálogo de selección (múltiple, con scroll)
       final selectedCommunities = await showDialog<List<Map<String, dynamic>>>(
         context: context,
         barrierDismissible: false,
         builder: (context) => StatefulBuilder(
           builder: (context, setState) {
+            final sw = MediaQuery.of(context).size.width;
+            final sh = MediaQuery.of(context).size.height;
+            final isSmall = sw < 360;
+            final dialogPadding = isSmall ? 14.0 : 20.0;
+            final titleFontSize = isSmall ? 16.0 : 20.0;
+            final subtitleFontSize = isSmall ? 12.0 : 14.0;
+
             return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -251,10 +258,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               backgroundColor: Colors.transparent,
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: 400,
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  maxWidth: (sw * 0.95).clamp(0.0, 420.0),
+                  maxHeight: sh * (isSmall ? 0.85 : 0.80),
                 ),
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(dialogPadding),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -274,48 +281,52 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.all(isSmall ? 6 : 8),
                           decoration: BoxDecoration(
                             color: Colors.blue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.people,
                             color: Colors.blue,
-                            size: 24,
+                            size: isSmall ? 20 : 24,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: isSmall ? 8 : 12),
                         Expanded(
                           child: Text(
                             'Seleccionar Comunidades',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: titleFontSize,
                               fontWeight: FontWeight.bold,
                               color: const Color(0xFF1A1A1A),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
+                          icon: Icon(Icons.close, size: isSmall ? 20 : 24),
+                          onPressed: () => Navigator.of(context).pop(),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(
+                            minWidth: isSmall ? 32 : 40,
+                            minHeight: isSmall ? 32 : 40,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isSmall ? 8 : 12),
                     Text(
                       'Selecciona una o más comunidades',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: subtitleFontSize,
                         color: Colors.grey[600],
                       ),
                     ),
                     if (selectedCommunityIds.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -330,7 +341,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
+                    SizedBox(height: isSmall ? 10 : 14),
                     // Lista de comunidades con scroll
                     Expanded(
                       child: ListView.builder(
@@ -340,18 +351,22 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           final isEntity = community['is_entity'] as bool;
                           final communityId = community['id'] as String;
                           final isSelected = selectedCommunityIds.contains(communityId);
-                          
+
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            color: isSelected 
-                                ? Colors.blue.withValues(alpha: 0.1)
+                            margin: EdgeInsets.only(bottom: isSmall ? 6 : 8),
+                            color: isSelected
+                                ? Colors.blue.withValues(alpha: 0.08)
                                 : Colors.white,
                             child: ListTile(
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: isSmall ? 10 : 16,
+                                vertical: isSmall ? 2 : 4,
+                              ),
                               leading: Container(
-                                width: 40,
-                                height: 40,
+                                width: isSmall ? 34 : 40,
+                                height: isSmall ? 34 : 40,
                                 decoration: BoxDecoration(
-                                  color: isEntity 
+                                  color: isEntity
                                       ? Colors.blue.withValues(alpha: 0.1)
                                       : Colors.green.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
@@ -359,50 +374,28 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 child: Icon(
                                   isEntity ? Icons.shield : Icons.people,
                                   color: isEntity ? Colors.blue : Colors.green,
-                                  size: 20,
+                                  size: isSmall ? 17 : 20,
                                 ),
                               ),
                               title: Text(
                                 community['name'] ?? '',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: isSmall ? 14 : 16,
                                   fontWeight: FontWeight.w600,
                                   color: isSelected ? Colors.blue : Colors.black,
                                 ),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (community['description'] != null)
-                                    Text(
+                              subtitle: community['description'] != null
+                                  ? Text(
                                       community['description'] ?? '',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: isSmall ? 11 : 12,
                                         color: Colors.grey[600],
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                    ),
-                                  if (isEntity) ...[
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'Entidad Oficial',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
+                                    )
+                                  : null,
                               trailing: Checkbox(
                                 value: isSelected,
                                 onChanged: (value) {
@@ -415,6 +408,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   });
                                 },
                                 activeColor: Colors.blue,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
                               ),
                               onTap: () {
                                 setState(() {
@@ -430,105 +425,66 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         },
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isSmall ? 10 : 14),
                     // Botones
                     Row(
                       children: [
                         // Botón Cancelar
                         Expanded(
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
-                            ),
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                              style: TextButton.styleFrom(
+                          child: SizedBox(
+                            height: isSmall ? 44 : 48,
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
+                                side: BorderSide(color: Colors.grey[300]!),
                               ),
                               child: Text(
-                                AppLocalizations.of(context)!.cancel,
+                                'Cancelar',
                                 style: TextStyle(
                                   color: Colors.grey[700],
-                                  fontSize: 14,
+                                  fontSize: isSmall ? 13 : 14,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: isSmall ? 8 : 12),
                         // Botón Continuar
                         Expanded(
-                          child: Container(
-                            height: 48,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  selectedCommunityIds.isNotEmpty 
-                                      ? Colors.blue 
-                                      : Colors.grey,
-                                  selectedCommunityIds.isNotEmpty 
-                                      ? Colors.blue.withValues(alpha: 0.8)
-                                      : Colors.grey.withValues(alpha: 0.8),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (selectedCommunityIds.isNotEmpty 
-                                      ? Colors.blue 
-                                      : Colors.grey).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                          child: SizedBox(
+                            height: isSmall ? 44 : 48,
+                            child: ElevatedButton.icon(
+                              onPressed: selectedCommunityIds.isNotEmpty
+                                  ? () {
+                                      final selected = communities
+                                          .where((c) => selectedCommunityIds
+                                              .contains(c['id']))
+                                          .toList();
+                                      Navigator.of(context).pop(selected);
+                                    }
+                                  : null,
+                              icon: Icon(Icons.arrow_forward,
+                                  size: isSmall ? 16 : 18),
+                              label: Text(
+                                'Continuar',
+                                style: TextStyle(
+                                  fontSize: isSmall ? 13 : 14,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              onPressed: selectedCommunityIds.isNotEmpty ? () {
-                                final selected = communities
-                                    .where((c) => selectedCommunityIds.contains(c['id']))
-                                    .toList();
-                                Navigator.of(context).pop(selected);
-                              } : null,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                disabledBackgroundColor: Colors.transparent,
+                                backgroundColor: selectedCommunityIds.isNotEmpty
+                                    ? Colors.blue
+                                    : Colors.grey,
+                                foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.arrow_forward,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      'Continuar',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
@@ -542,7 +498,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           },
         ),
       );
-      
+
       return selectedCommunities;
     } catch (e) {
       // Cerrar indicador de carga si hay error

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
@@ -20,6 +21,19 @@ class _HomeViewState extends State<HomeView> {
   final HomeController _homeController = HomeController();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
+  /// true = mostrar MIS alertas enviadas (⬆), false = alertas recibidas (⬇)
+  bool _showingOwn = false;
+
+  String get _currentUid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  /// Lista filtrada según el toggle Up/Down
+  List<AlertModel> get _filteredAlerts {
+    if (_showingOwn) {
+      return _recentAlerts.where((a) => a.userId == _currentUid).toList();
+    } else {
+      return _recentAlerts.where((a) => a.userId != _currentUid).toList();
+    }
+  }
 
   @override
   void initState() {
@@ -122,20 +136,27 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Altura del panel de alertas: 30% en pantallas pequeñas, 34% en normales
+    final alertsPanelHeight = (screenHeight *
+        (screenWidth < 360 ? 0.28 : screenWidth < 400 ? 0.30 : 0.34))
+        .clamp(200.0, 320.0);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Column(
           children: [
-            // Header elegante
+            // Header
             _buildHeader(),
-            
-            // Sección de alertas recientes con altura fija
-            Container(
-              height: 280, // Altura fija para respetar el círculo
+
+            // Sección de alertas recientes con altura adaptativa
+            SizedBox(
+              height: alertsPanelHeight,
               child: _buildRecentAlertsSection(),
             ),
-            
+
             // Área principal del botón de alerta
             Expanded(
               child: _buildAlertButtonSection(),
@@ -147,8 +168,19 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 360;
+    final headerPadding = isSmall
+        ? const EdgeInsets.symmetric(horizontal: 14, vertical: 14)
+        : const EdgeInsets.all(20);
+    final titleFontSize = (screenWidth * 0.068).clamp(20.0, 28.0);
+    final subtitleFontSize = isSmall ? 12.0 : 14.0;
+    final buttonSize = isSmall ? 40.0 : 48.0;
+    final iconSize = isSmall ? 20.0 : 24.0;
+    final spacing = isSmall ? 8.0 : 12.0;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: headerPadding,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -169,17 +201,17 @@ class _HomeViewState extends State<HomeView> {
                 Text(
                   AppLocalizations.of(context)!.appTitle,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                    letterSpacing: 1.5,
+                    color: const Color(0xFF1A1A1A),
+                    letterSpacing: isSmall ? 0.8 : 1.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   AppLocalizations.of(context)!.safetyPriority,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: subtitleFontSize,
                     color: Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
@@ -187,31 +219,35 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
           ),
-          
-          // Botón de notificaciones (sin funcionalidad por ahora)
+
+          // Botón de notificaciones
           _buildHeaderButton(
             icon: Icons.notifications_outlined,
+            iconSize: iconSize,
+            buttonSize: buttonSize,
             onPressed: () {
-              // Sin funcionalidad - se implementará más adelante
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}'),
+                  content: Text(
+                      '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}'),
                   duration: const Duration(seconds: 2),
                 ),
               );
             },
           ),
-          
-          const SizedBox(width: 12),
-          
+
+          SizedBox(width: spacing),
+
           // Botón de idioma
-          _buildLanguageButton(),
-          
-          const SizedBox(width: 12),
-          
+          _buildLanguageButton(buttonSize: buttonSize),
+
+          SizedBox(width: spacing),
+
           // Botón de configuración
           _buildHeaderButton(
             icon: Icons.settings_outlined,
+            iconSize: iconSize,
+            buttonSize: buttonSize,
             onPressed: () {
               Navigator.push(
                 context,
@@ -229,8 +265,12 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildHeaderButton({
     required IconData icon,
     required VoidCallback onPressed,
+    double iconSize = 24,
+    double buttonSize = 48,
   }) {
     return Container(
+      width: buttonSize,
+      height: buttonSize,
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
@@ -239,16 +279,23 @@ class _HomeViewState extends State<HomeView> {
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon, color: const Color(0xFF1A1A1A)),
-        iconSize: 24,
-        padding: const EdgeInsets.all(12),
+        iconSize: iconSize,
+        padding: EdgeInsets.zero,
       ),
     );
   }
 
   Widget _buildRecentAlertsSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 360;
+    final sectionPadding = isSmall ? 14.0 : 20.0;
+    final titleFontSize = isSmall ? 15.0 : 18.0;
+    final iconSize = isSmall ? 17.0 : 20.0;
+    final filtered = _filteredAlerts;
+
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(sectionPadding),
+      padding: EdgeInsets.all(sectionPadding),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -263,40 +310,42 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Título de la sección
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(isSmall ? 6 : 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE3F2FD),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.warning_amber_rounded,
-                  color: Color(0xFF1976D2),
-                  size: 20,
+                  color: const Color(0xFF1976D2),
+                  size: iconSize,
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                AppLocalizations.of(context)!.recentAlerts,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+              SizedBox(width: isSmall ? 6 : 10),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.recentAlerts,
+                  style: TextStyle(
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A1A1A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Spacer(),
-              if (_recentAlerts.isNotEmpty)
+              // Count badge
+              if (filtered.isNotEmpty) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${_recentAlerts.length}',
+                    '${filtered.length}',
                     style: const TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.bold,
@@ -304,18 +353,72 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                 ),
+                SizedBox(width: isSmall ? 6 : 8),
+              ],
+              // ── Up/Down toggle ──────────────────────────────────
+              GestureDetector(
+                onTap: () => setState(() => _showingOwn = !_showingOwn),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmall ? 8 : 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _showingOwn
+                        ? const Color(0xFF007AFF).withValues(alpha: 0.12)
+                        : Colors.grey.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          _showingOwn
+                              ? Icons.arrow_circle_up_rounded
+                              : Icons.arrow_circle_down_rounded,
+                          key: ValueKey(_showingOwn),
+                          size: isSmall ? 18 : 20,
+                          color: _showingOwn
+                              ? const Color(0xFF007AFF)
+                              : Colors.grey[500],
+                        ),
+                      ),
+                      if (!isSmall) ...[
+                        const SizedBox(width: 4),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Text(
+                            _showingOwn ? 'Yo' : 'Todos',
+                            key: ValueKey(_showingOwn),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _showingOwn
+                                  ? const Color(0xFF007AFF)
+                                  : Colors.grey[500],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
-          
-          const SizedBox(height: 16),
-          
-          // Estado de alertas con scroll
+
+          SizedBox(height: isSmall ? 10 : 16),
+
           Expanded(
             child: _isLoading
                 ? _buildLoadingState()
-                : _recentAlerts.isEmpty
+                : filtered.isEmpty
                     ? _buildNoAlertsState()
-                    : _buildAlertsList(),
+                    : _buildAlertsList(filtered),
           ),
         ],
       ),
@@ -389,7 +492,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildAlertsList() {
+  Widget _buildAlertsList(List<AlertModel> alerts) {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _isLoading = true);
@@ -410,9 +513,9 @@ class _HomeViewState extends State<HomeView> {
       child: ListView.builder(
         shrinkWrap: true,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        itemCount: _recentAlerts.length,
+        itemCount: alerts.length,
         itemBuilder: (context, index) {
-          final alert = _recentAlerts[index];
+          final alert = alerts[index];
           return TweenAnimationBuilder<double>(
             key: ValueKey(alert.id ?? index),
             tween: Tween(begin: 0, end: 1),
@@ -656,75 +759,62 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildAlertButtonSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmall = screenWidth < 360;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 10), // Subir un poco más todo el bloque
+      padding: EdgeInsets.fromLTRB(
+        isSmall ? 12 : 20,
+        isSmall ? 8 : 12,
+        isSmall ? 12 : 20,
+        isSmall ? 6 : 10,
+      ),
       child: Column(
         children: [
-          // Título de la sección
           Text(
             AppLocalizations.of(context)!.emergencyButton,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: (screenWidth * 0.05).clamp(16.0, 22.0),
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A1A),
+              color: const Color(0xFF1A1A1A),
             ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isSmall ? 4 : 8),
           Text(
             AppLocalizations.of(context)!.dragForEmergencyTypes,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isSmall ? 12.0 : 14.0,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
           ),
-          
-          const SizedBox(height: 6), // Aún menos espacio para subir el botón
-          
-          // Botón de alerta responsivo
+          SizedBox(height: isSmall ? 4 : 6),
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Calcular dimensiones responsivas basadas en el tamaño de pantalla
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final screenHeight = MediaQuery.of(context).size.height;
-                  
-                  // Dimensiones base para diferentes tipos de pantalla
-                  double containerWidth;
-                  double containerHeight;
-                  
-                  if (screenWidth < 400) {
-                    // Pantallas pequeñas (teléfonos compactos)
-                    containerWidth = screenWidth * 0.9;
-                    containerHeight = screenHeight * 0.4;
+                  double size;
+                  if (screenWidth < 360) {
+                    // iPhone SE y similares
+                    size = (screenHeight * 0.28).clamp(160.0, 220.0);
+                  } else if (screenWidth < 400) {
+                    size = (screenHeight * 0.30).clamp(190.0, 250.0);
                   } else if (screenWidth < 600) {
-                    // Pantallas medianas (teléfonos normales)
-                    containerWidth = screenWidth * 0.85;
-                    containerHeight = screenHeight * 0.45;
+                    size = (screenHeight * 0.32).clamp(210.0, 280.0);
                   } else if (screenWidth < 900) {
-                    // Pantallas grandes (tablets pequeñas)
-                    containerWidth = screenWidth * 0.7;
-                    containerHeight = screenHeight * 0.5;
+                    size = (screenHeight * 0.38).clamp(240.0, 320.0);
                   } else {
-                    // Pantallas muy grandes (tablets grandes)
-                    containerWidth = screenWidth * 0.6;
-                    containerHeight = screenHeight * 0.55;
+                    size = (screenHeight * 0.42).clamp(280.0, 380.0);
                   }
-                  
-                  // Asegurar que no exceda las dimensiones disponibles
-                  final minWidth = 200.0;
-                  final minHeight = 200.0;
-                  final maxWidth = constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
-                  final maxHeight = constraints.maxHeight > minHeight ? constraints.maxHeight : minHeight;
-                  
-                  containerWidth = containerWidth.clamp(minWidth, maxWidth);
-                  containerHeight = containerHeight.clamp(minHeight, maxHeight);
-                  
+                  final clampedSize = size.clamp(
+                      0.0, constraints.maxWidth.clamp(160.0, double.infinity));
+
                   return SizedBox(
-                    width: containerWidth,
-                    height: containerHeight,
+                    width: clampedSize,
+                    height: clampedSize,
                     child: AlertButton(
                       onPressed: () {
                         // TODO: Implement general alert
@@ -735,17 +825,15 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          
         ],
       ),
     );
   }
 
   // Método para construir el botón de idioma
-  Widget _buildLanguageButton() {
+  Widget _buildLanguageButton({double buttonSize = 48}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: const Color(0xFFE9ECEF),
@@ -757,18 +845,19 @@ class _HomeViewState extends State<HomeView> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () => _showLanguageDialog(context),
-          child: Container(
-            width: 48,
-            height: 48,
-            padding: const EdgeInsets.all(12),
-            child: Consumer<LocalizationService>(
-              builder: (context, localizationService, child) {
-                return Text(
-                  localizationService.currentFlag,
-                  style: const TextStyle(fontSize: 20),
-                  textAlign: TextAlign.center,
-                );
-              },
+          child: SizedBox(
+            width: buttonSize,
+            height: buttonSize,
+            child: Center(
+              child: Consumer<LocalizationService>(
+                builder: (context, localizationService, child) {
+                  return Text(
+                    localizationService.currentFlag,
+                    style: TextStyle(fontSize: buttonSize < 44 ? 17 : 20),
+                    textAlign: TextAlign.center,
+                  );
+                },
+              ),
             ),
           ),
         ),

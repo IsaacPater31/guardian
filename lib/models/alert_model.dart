@@ -18,6 +18,7 @@ class AlertModel {
   
   // NUEVOS CAMPOS para sistema de comunidades
   final String? communityId; // FK a community (null para alertas antiguas - compatibilidad)
+  final String alertStatus; // 'pending' | 'attended' — solo oficiales pueden cambiar
   final int forwardsCount; // Contador de reenvíos
   final int reportsCount; // Contador de reportes
   final List<String> reportedBy; // IDs de usuarios que han reportado (evitar doble reporte)
@@ -39,6 +40,7 @@ class AlertModel {
     this.viewedBy = const [],
     // NUEVOS CAMPOS
     this.communityId,
+    this.alertStatus = 'pending',
     this.forwardsCount = 0,
     this.reportsCount = 0,
     this.reportedBy = const [],
@@ -63,6 +65,7 @@ class AlertModel {
       viewedBy: data['viewedBy'] != null ? List<String>.from(data['viewedBy']) : [],
       // NUEVOS CAMPOS (compatibilidad: si no existen, son null/0)
       communityId: data['community_id'],
+      alertStatus: data['alert_status'] ?? 'pending',
       forwardsCount: data['forwards_count'] ?? 0,
       reportsCount: data['reports_count'] ?? 0,
       reportedBy: data['reported_by'] != null ? List<String>.from(data['reported_by']) : [],
@@ -86,6 +89,7 @@ class AlertModel {
       'viewedBy': viewedBy,
       // NUEVOS CAMPOS
       'community_id': communityId,
+      'alert_status': alertStatus,
       'forwards_count': forwardsCount,
       'reports_count': reportsCount,
       'reported_by': reportedBy,
@@ -110,6 +114,7 @@ class AlertModel {
     List<String>? viewedBy,
     // NUEVOS CAMPOS
     String? communityId,
+    String? alertStatus,
     int? forwardsCount,
     int? reportsCount,
     List<String>? reportedBy,
@@ -131,6 +136,7 @@ class AlertModel {
       viewedBy: viewedBy ?? this.viewedBy,
       // NUEVOS CAMPOS
       communityId: communityId ?? this.communityId,
+      alertStatus: alertStatus ?? this.alertStatus,
       forwardsCount: forwardsCount ?? this.forwardsCount,
       reportsCount: reportsCount ?? this.reportsCount,
       reportedBy: reportedBy ?? this.reportedBy,

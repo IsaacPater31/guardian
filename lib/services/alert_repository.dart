@@ -320,6 +320,55 @@ class AlertRepository {
     }
   }
 
+  /// Obtiene un stream de alertas PROPIAS del usuario en una comunidad.
+  /// Filtra server-side por userId == uid (eficiente, sin leer datos extra).
+  Stream<List<AlertModel>> getOwnAlertsStream(String communityId, String uid) {
+    return _firestore
+        .collection('alerts')
+        .where('community_id', isEqualTo: communityId)
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
+          final alerts = snapshot.docs
+              .map((doc) => AlertModel.fromFirestore(doc))
+              .toList();
+          alerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return alerts;
+        });
+  }
+
+  /// Obtiene un stream de alertas DE OTROS en una comunidad.
+  /// Filtra server-side por userId != uid.
+  /// Nota: puede requerir índice compuesto Firestore: community_id + userId.
+  Stream<List<AlertModel>> getOthersAlertsStream(String communityId, String uid) {
+    return _firestore
+        .collection('alerts')
+        .where('community_id', isEqualTo: communityId)
+        .where('userId', isNotEqualTo: uid)
+        .snapshots()
+        .map((snapshot) {
+          final alerts = snapshot.docs
+              .map((doc) => AlertModel.fromFirestore(doc))
+              .toList();
+          alerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return alerts;
+        });
+  }
+
+  /// Actualiza el estado de una alerta. Solo para usuarios con rol 'official'.
+  /// [status]: 'pending' | 'attended'
+  Future<void> updateAlertStatus(String alertId, String status) async {
+    try {
+      await _firestore
+          .collection('alerts')
+          .doc(alertId)
+          .update({'alert_status': status});
+    } catch (e) {
+      print('Error updating alert status: $e');
+      rethrow;
+    }
+  }
+
   /// Obtiene estadísticas de vistas
   Future<Map<String, int>> getViewStatistics() async {
     try {

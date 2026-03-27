@@ -121,20 +121,25 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final isSmall = sw < 360;
+    final contentPadding = isSmall ? 14.0 : 20.0;
+
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-          maxWidth: MediaQuery.of(context).size.width * 0.95,
+          maxHeight: sh * (isSmall ? 0.88 : 0.85),
+          maxWidth: (sw * 0.96).clamp(0.0, 480.0),
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -148,55 +153,58 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header con información de la alerta
-            _buildHeader(context),
-            
+            _buildHeader(context, isSmall),
+
             // Contenido scrolleable
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(contentPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                                // Tipo de alerta
-            _buildAlertTypeSection(),
-            
-            const SizedBox(height: 24),
-            
-            // Descripción
-            if (widget.alert.description != null && widget.alert.description!.isNotEmpty) ...[
-              _buildDescriptionSection(),
-              const SizedBox(height: 16),
-            ],
-            
-            // Contadores de reenvíos y reportes
-            if (widget.alert.forwardsCount > 0 || (_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
-              _buildCountersSection(),
-              const SizedBox(height: 16),
-            ],
-            
-            // Ubicación
-            if (widget.alert.shareLocation && widget.alert.location != null) ...[
-              const SizedBox(height: 24),
-              _buildLocationSection(),
-              _buildLocationMapSection(),
-            ],
-            
-            // Información adicional
-            const SizedBox(height: 24),
-            _buildAdditionalInfoSection(),
-            
-            // Imágenes (si las hay)
-            if (widget.alert.imageBase64 != null && widget.alert.imageBase64!.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _buildImagesSection(),
-            ],
-                    
-                    const SizedBox(height: 16),
+                    _buildAlertTypeSection(),
+
+                    SizedBox(height: isSmall ? 16 : 24),
+
+                    // Descripción
+                    if (widget.alert.description != null &&
+                        widget.alert.description!.isNotEmpty) ...[
+                      _buildDescriptionSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // Contadores
+                    if (widget.alert.forwardsCount > 0 ||
+                        (_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
+                      _buildCountersSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // Ubicación
+                    if (widget.alert.shareLocation &&
+                        widget.alert.location != null) ...[
+                      SizedBox(height: isSmall ? 16 : 24),
+                      _buildLocationSection(),
+                      _buildLocationMapSection(),
+                    ],
+
+                    // Información adicional
+                    SizedBox(height: isSmall ? 16 : 24),
+                    _buildAdditionalInfoSection(),
+
+                    // Imágenes
+                    if (widget.alert.imageBase64 != null &&
+                        widget.alert.imageBase64!.isNotEmpty) ...[
+                      SizedBox(height: isSmall ? 16 : 24),
+                      _buildImagesSection(),
+                    ],
+
+                    SizedBox(height: isSmall ? 8 : 16),
                   ],
                 ),
               ),
             ),
-            
+
             // Botones de acción
             _buildActionButtons(context),
           ],
@@ -205,16 +213,19 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isSmall) {
     final alertColor = _getAlertColor(widget.alert.alertType);
     final alertIcon = _getAlertIcon(widget.alert.alertType);
-    
+    final iconSize = isSmall ? 54.0 : 70.0;
+    final iconInnerSize = isSmall ? 26.0 : 35.0;
+    final titleFontSize = isSmall ? 17.0 : 22.0;
+
     return Container(
       decoration: BoxDecoration(
         color: alertColor,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
         boxShadow: [
           BoxShadow(
@@ -224,13 +235,18 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.fromLTRB(
+        isSmall ? 16 : 24,
+        isSmall ? 16 : 24,
+        isSmall ? 16 : 24,
+        isSmall ? 16 : 24,
+      ),
       child: Column(
         children: [
-          // Icono de alerta
+          // Ícono de alerta
           Container(
-            width: 70,
-            height: 70,
+            width: iconSize,
+            height: iconSize,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.25),
               shape: BoxShape.circle,
@@ -245,29 +261,32 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             child: Icon(
               alertIcon,
               color: Colors.white,
-              size: 35,
+              size: iconInnerSize,
             ),
           ),
-          
-          const SizedBox(height: 20),
-          
+
+          SizedBox(height: isSmall ? 12 : 20),
+
           // Título de la alerta
           Text(
             _getTranslatedAlertType(),
-            style: const TextStyle(
-              fontSize: 22,
+            style: TextStyle(
+              fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              letterSpacing: 0.5,
+              letterSpacing: 0.3,
             ),
             textAlign: TextAlign.center,
           ),
-          
-          const SizedBox(height: 8),
-          
+
+          SizedBox(height: isSmall ? 6 : 8),
+
           // Fecha y hora
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmall ? 10 : 12,
+              vertical: isSmall ? 4 : 6,
+            ),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
@@ -275,7 +294,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             child: Text(
               _formatDateTime(widget.alert.timestamp),
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isSmall ? 11 : 13,
                 color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w500,
               ),
