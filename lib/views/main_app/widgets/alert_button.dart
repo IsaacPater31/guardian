@@ -16,6 +16,11 @@ class AlertButton extends StatefulWidget {
 }
 
 class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin {
+  static const Color _primary = Color(0xFF007AFF);
+  static const Color _primaryDark = Color(0xFF1C1C1E);
+  static const Color _danger = Color(0xFFFF3B30);
+  static const Color _surface = Color(0xFFF8F9FA);
+
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -92,7 +97,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             Text(AppLocalizations.of(context)!.sendingAlert),
           ],
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: _primaryDark,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -124,7 +129,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   ),
                   child: const Icon(
                     Icons.check_circle,
-                    color: Color(0xFF4CAF50),
+                    color: _primary,
                     size: 20,
                   ),
                 ),
@@ -155,7 +160,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ],
             ),
           ),
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: _primaryDark,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -168,7 +173,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.errorSendingAlert),
-          backgroundColor: Colors.red,
+          backgroundColor: _danger,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -287,12 +292,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         Container(
                           padding: EdgeInsets.all(isSmall ? 6 : 8),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.1),
+                            color: _primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             Icons.people,
-                            color: Colors.blue,
+                            color: _primary,
                             size: isSmall ? 20 : 24,
                           ),
                         ),
@@ -332,7 +337,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
+                          color: _primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -340,7 +345,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.blue,
+                            color: _primary,
                           ),
                         ),
                       ),
@@ -359,7 +364,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           return Card(
                             margin: EdgeInsets.only(bottom: isSmall ? 6 : 8),
                             color: isSelected
-                                ? Colors.blue.withValues(alpha: 0.08)
+                                ? _primary.withValues(alpha: 0.10)
                                 : Colors.white,
                             child: ListTile(
                               contentPadding: EdgeInsets.symmetric(
@@ -371,13 +376,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 height: isSmall ? 34 : 40,
                                 decoration: BoxDecoration(
                                   color: isEntity
-                                      ? Colors.blue.withValues(alpha: 0.1)
-                                      : Colors.green.withValues(alpha: 0.1),
+                                      ? _primary.withValues(alpha: 0.10)
+                                      : const Color(0xFF5AC8FA).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
                                   isEntity ? Icons.shield : Icons.people,
-                                  color: isEntity ? Colors.blue : Colors.green,
+                                  color: isEntity ? _primary : const Color(0xFF5AC8FA),
                                   size: isSmall ? 17 : 20,
                                 ),
                               ),
@@ -386,7 +391,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 style: TextStyle(
                                   fontSize: isSmall ? 14 : 16,
                                   fontWeight: FontWeight.w600,
-                                  color: isSelected ? Colors.blue : Colors.black,
+                                  color: isSelected ? _primary : _primaryDark,
                                 ),
                               ),
                               subtitle: community['description'] != null
@@ -411,7 +416,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     }
                                   });
                                 },
-                                activeColor: Colors.blue,
+                                activeColor: _primary,
                                 materialTapTargetSize:
                                     MaterialTapTargetSize.shrinkWrap,
                               ),
@@ -483,7 +488,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: selectedCommunityIds.isNotEmpty
-                                    ? Colors.blue
+                                    ? _primaryDark
                                     : Colors.grey,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
@@ -629,16 +634,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             width: constraints.maxWidth < 400 ? 64 : 80,
                             height: constraints.maxWidth < 400 ? 64 : 80,
                             decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
+                              color: _danger.withValues(alpha: 0.10),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.red,
+                                color: _danger,
                                 width: 2.5,
                               ),
                             ),
                             child: Icon(
                               emergencyData['icon'],
-                              color: Colors.red,
+                              color: _danger,
                               size: constraints.maxWidth < 400 ? 30 : 38,
                             ),
                           ),
@@ -663,10 +668,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0F7FF),
+                              color: _surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color(0xFF2196F3).withValues(alpha: 0.2),
+                                color: _primary.withValues(alpha: 0.18),
                                 width: 1.5,
                               ),
                             ),
@@ -678,12 +683,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     Container(
                                       padding: const EdgeInsets.all(6),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF2196F3).withValues(alpha: 0.15),
+                                        color: _primary.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Icon(
                                         Icons.people,
-                                        color: Color(0xFF2196F3),
+                                        color: _primary,
                                         size: 18,
                                       ),
                                     ),
@@ -694,7 +699,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                         style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1976D2),
+                                          color: _primary,
                                           letterSpacing: 0.2,
                                         ),
                                       ),
@@ -733,13 +738,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                               height: 36,
                                               decoration: BoxDecoration(
                                                 color: isEntity 
-                                                    ? const Color(0xFF2196F3).withValues(alpha: 0.1)
-                                                    : const Color(0xFF4CAF50).withValues(alpha: 0.1),
+                                                    ? _primary.withValues(alpha: 0.1)
+                                                    : const Color(0xFF5AC8FA).withValues(alpha: 0.1),
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Icon(
                                                 isEntity ? Icons.shield : Icons.people,
-                                                color: isEntity ? const Color(0xFF2196F3) : const Color(0xFF4CAF50),
+                                                color: isEntity ? _primary : const Color(0xFF5AC8FA),
                                                 size: 18,
                                               ),
                                             ),
@@ -773,7 +778,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                             ),
                                             Icon(
                                               Icons.check_circle,
-                                              color: const Color(0xFF4CAF50),
+                                              color: _primary,
                                               size: 20,
                                             ),
                                           ],
@@ -808,7 +813,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               constraints.maxWidth < 400 ? 14 : 16,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF8E1),
+                              color: const Color(0xFFFFF5EB),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: const Color(0xFFFF9800).withValues(alpha: 0.25),
@@ -821,12 +826,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFF9800).withValues(alpha: 0.15),
+                                  color: const Color(0xFFFF9500).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
                                     Icons.warning_amber_rounded,
-                                    color: Color(0xFFFF9800),
+                                    color: Color(0xFFFF9500),
                                     size: 20,
                                   ),
                                 ),
@@ -853,10 +858,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
                     
                     // Botones fijos en la parte inferior
-                    Row(
+                    Wrap(
+                      spacing: constraints.maxWidth < 400 ? 10 : 16,
+                      runSpacing: constraints.maxWidth < 400 ? 10 : 12,
                       children: [
                         // Botón Cancelar
-                        Expanded(
+                        SizedBox(
+                          width: constraints.maxWidth < 400
+                              ? double.infinity
+                              : (constraints.maxWidth * 0.36),
                           child: Container(
                             height: constraints.maxWidth < 400 ? 50 : 52,
                             decoration: BoxDecoration(
@@ -891,18 +901,21 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           ),
                         ),
                         
-                        SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
+                        if (constraints.maxWidth >= 400)
+                          SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
                         
                         // Botón Enviar
-                        Expanded(
-                          flex: 2,
+                        SizedBox(
+                          width: constraints.maxWidth < 400
+                              ? double.infinity
+                              : (constraints.maxWidth * 0.58),
                           child: Container(
                             height: constraints.maxWidth < 400 ? 50 : 52,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [
-                                  Color(0xFFD32F2F),
-                                  Color(0xFFC62828),
+                                  Color(0xFF007AFF),
+                                  Color(0xFF005FCC),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -910,7 +923,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.red.withValues(alpha: 0.4),
+                                  color: _primary.withValues(alpha: 0.35),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                   spreadRadius: 0,
@@ -1003,7 +1016,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF4CAF50),
+        backgroundColor: _primaryDark,
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -1043,7 +1056,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   ),
                   child: const Icon(
                     Icons.check_circle,
-                    color: Color(0xFF4CAF50),
+                    color: Color(0xFF007AFF),
                     size: 20,
                   ),
                 ),
@@ -1074,7 +1087,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ],
             ),
           ),
-          backgroundColor: const Color(0xFF4CAF50),
+          backgroundColor: _primaryDark,
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -1087,7 +1100,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.errorSendingAlert),
-          backgroundColor: Colors.red,
+          backgroundColor: _danger,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(

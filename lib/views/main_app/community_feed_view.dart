@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
@@ -7,6 +8,7 @@ import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
+import 'package:latlong2/latlong.dart';
 
 class CommunityFeedView extends StatefulWidget {
   final String communityId;
@@ -79,6 +81,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   }
 
   bool get _isOfficial => _userRole == 'official';
+
+  String _formatExactTime(DateTime dateTime) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(dateTime.day)}/${two(dateTime.month)}/${dateTime.year} ${two(dateTime.hour)}:${two(dateTime.minute)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +331,41 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                         ),
                         softWrap: true,
                       ),
+                    ],
+
+                    SizedBox(height: isSmall ? 8 : 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _buildChip(
+                          icon: Icons.access_time_rounded,
+                          label: _formatExactTime(alert.timestamp),
+                          color: const Color(0xFF007AFF),
+                          isSmall: isSmall,
+                        ),
+                        _buildChip(
+                          icon: Icons.visibility_rounded,
+                          label: '${alert.viewedCount}',
+                          color: const Color(0xFF5AC8FA),
+                          isSmall: isSmall,
+                        ),
+                        _buildChip(
+                          icon: Icons.person_rounded,
+                          label: alert.isAnonymous
+                              ? 'Anonimo'
+                              : (alert.userName?.trim().isNotEmpty == true
+                                  ? alert.userName!
+                                  : 'Usuario'),
+                          color: const Color(0xFF1C1C1E),
+                          isSmall: isSmall,
+                        ),
+                      ],
+                    ),
+
+                    if (alert.shareLocation && alert.location != null) ...[
+                      SizedBox(height: isSmall ? 10 : 12),
+                      _buildMiniMapPreview(alert, isSmall),
                     ],
 
                     SizedBox(height: isSmall ? 10 : 12),
@@ -600,6 +642,84 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMiniMapPreview(AlertModel alert, bool isSmall) {
+    final lat = alert.location!.latitude;
+    final lng = alert.location!.longitude;
+    final alertColor = EmergencyTypes.getColor(alert.alertType);
+    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: isSmall ? 105 : 120,
+          width: double.infinity,
+          child: Stack(
+            children: [
+              IgnorePointer(
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(lat, lng),
+                    initialZoom: 15.0,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.guardian',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(lat, lng),
+                          width: 28,
+                          height: 28,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: alertColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: Icon(alertIcon, color: Colors.white, size: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.66),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Ubicacion',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

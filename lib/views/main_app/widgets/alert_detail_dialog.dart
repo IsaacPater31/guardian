@@ -22,6 +22,11 @@ class AlertDetailDialog extends StatefulWidget {
 }
 
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
+  static const Color _primary = Color(0xFF007AFF);
+  static const Color _primaryDark = Color(0xFF1C1C1E);
+  static const Color _surface = Color(0xFFF8F9FA);
+  static const Color _error = Color(0xFFFF3B30);
+
   final AlertController _alertController = AlertController();
   final CommunityService _communityService = CommunityService();
   final CommunityRepository _communityRepository = CommunityRepository();
@@ -83,7 +88,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No eres miembro de esta comunidad'),
-            backgroundColor: Colors.orange,
+            backgroundColor: _primaryDark,
           ),
         );
       }
@@ -97,7 +102,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Comunidad no encontrada'),
-            backgroundColor: Colors.red,
+            backgroundColor: _error,
           ),
         );
       }
@@ -358,7 +363,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -411,7 +416,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -553,7 +558,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 const Text('Alerta reportada correctamente'),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: _primaryDark,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -565,7 +570,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),
-            backgroundColor: Colors.red,
+            backgroundColor: _error,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -577,7 +582,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -719,7 +724,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -849,7 +854,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: _surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -988,7 +993,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('No hay comunidades disponibles para reenviar'),
-              backgroundColor: Colors.orange,
+              backgroundColor: _primaryDark,
             ),
           );
         }
@@ -1033,7 +1038,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               content: Text(
                 '✅ Alerta reenviada a $successCount ${successCount == 1 ? 'comunidad' : 'comunidades'}',
               ),
-              backgroundColor: Colors.green,
+              backgroundColor: _primaryDark,
               duration: const Duration(seconds: 3),
             ),
           );
@@ -1045,7 +1050,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error reenviando alerta: ${e.toString()}'),
-              backgroundColor: Colors.red,
+              backgroundColor: _error,
             ),
           );
         }
@@ -1057,7 +1062,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: _error,
           ),
         );
       }
@@ -1143,7 +1148,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 side: BorderSide(
-                  color: Colors.blue.withValues(alpha: 0.5),
+                  color: _primary.withValues(alpha: 0.5),
                   width: 1.5,
                 ),
               ),
@@ -1174,7 +1179,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 side: BorderSide(
                   color: _hasUserReported
                       ? Colors.grey.withValues(alpha: 0.5)
-                      : Colors.orange.withValues(alpha: 0.5),
+                      : _primary.withValues(alpha: 0.5),
                   width: 1.5,
                 ),
               ),
@@ -1187,14 +1192,14 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                   : Icon(
                       _hasUserReported ? Icons.check_circle : Icons.report,
                       size: 20,
-                      color: _hasUserReported ? Colors.grey : Colors.orange[700],
+                      color: _hasUserReported ? Colors.grey : _primary,
                     ),
               label: Text(
                 _hasUserReported ? 'Ya reportada' : (_isReporting ? 'Reportando...' : 'Reportar'),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: _hasUserReported ? Colors.grey : Colors.orange[700],
+                  color: _hasUserReported ? Colors.grey : _primary,
                 ),
               ),
             ),
@@ -1310,7 +1315,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       case 'ASSISTANCE':
         return Colors.blue;
       case 'PUBLIC SERVICES EMERGENCY':
-        return Colors.yellow;
+        return const Color(0xFFFF9500);
       default:
         return Colors.grey;
     }
