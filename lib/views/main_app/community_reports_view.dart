@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
 
 /// Vista de reportes de miembros para admins. Diseño premium Apple-inspired.
@@ -66,16 +67,16 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Descartar Reporte',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)!.dismissReport,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.3,
           ),
         ),
         content: Text(
-          '¿Descartar el reporte contra ${report['reported_user_name']}? El reporte será archivado.',
+          AppLocalizations.of(context)!.dismissQuestion(report['reported_user_name']),
           style: TextStyle(
             fontSize: 15,
             color: Colors.grey[700],
@@ -86,7 +87,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
@@ -95,9 +96,9 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Descartar',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context)!.dismiss,
+              style: const TextStyle(
                 color: Color(0xFF007AFF),
                 fontWeight: FontWeight.w600,
               ),
@@ -114,10 +115,10 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
     if (mounted) Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar('Reporte descartado', isSuccess: true);
+      _showSnackBar(AppLocalizations.of(context)!.reportDismissed, isSuccess: true);
       _loadReports();
     } else {
-      _showSnackBar('Error al descartar el reporte', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.errorDismissingReport, isSuccess: false);
     }
   }
 
@@ -130,9 +131,9 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           children: [
             Icon(Icons.warning_rounded, color: Colors.red[400], size: 22),
             const SizedBox(width: 8),
-            const Text(
-              'Expulsar Miembro',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.expelFromReports,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
@@ -141,7 +142,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           ],
         ),
         content: Text(
-          '¿Expulsar a ${report['reported_user_name']} de la comunidad? Esta acción no se puede deshacer.',
+          AppLocalizations.of(context)!.expelFromReportsConfirmation(report['reported_user_name']),
           style: TextStyle(
             fontSize: 15,
             color: Colors.grey[700],
@@ -152,7 +153,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
@@ -161,9 +162,9 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Expulsar',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context)!.expel,
+              style: const TextStyle(
                 color: Color(0xFFFF3B30),
                 fontWeight: FontWeight.w600,
               ),
@@ -197,7 +198,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
       );
       _loadReports();
     } else {
-      _showSnackBar('No se pudo expulsar al miembro', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.couldNotExpel, isSuccess: false);
     }
   }
 
@@ -270,10 +271,10 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
     final now = DateTime.now();
     final diff = now.difference(dateTime);
 
-    if (diff.inMinutes < 1) return 'Ahora';
-    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Hace ${diff.inHours}h';
-    if (diff.inDays < 7) return 'Hace ${diff.inDays}d';
+    if (diff.inMinutes < 1) return AppLocalizations.of(context)!.timeNow;
+    if (diff.inMinutes < 60) return AppLocalizations.of(context)!.timeMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return AppLocalizations.of(context)!.timeHoursAgo(diff.inHours);
+    if (diff.inDays < 7) return AppLocalizations.of(context)!.timeDaysAgo(diff.inDays);
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 
@@ -299,7 +300,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
             ),
             if (!_isLoading)
               Text(
-                '${_reports.length} pendiente${_reports.length == 1 ? '' : 's'}',
+                AppLocalizations.of(context)!.pendingLabel(_reports.length, _reports.length == 1 ? '' : 's'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
@@ -413,7 +414,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                         ),
                       ),
                       Text(
-                        'Reportado por $reportedBy',
+                        AppLocalizations.of(context)!.reportedByLabel(reportedBy),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[500],
@@ -455,7 +456,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Motivo',
+                    AppLocalizations.of(context)!.reason,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -485,7 +486,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                   child: TextButton.icon(
                     onPressed: () => _dismissReport(report),
                     icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Descartar'),
+                    label: Text(AppLocalizations.of(context)!.dismiss),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.grey[600],
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -500,7 +501,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                   child: TextButton.icon(
                     onPressed: () => _removeReportedUser(report),
                     icon: const Icon(Icons.person_remove_rounded, size: 18),
-                    label: const Text('Expulsar'),
+                    label: Text(AppLocalizations.of(context)!.expel),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFFFF3B30),
                       backgroundColor:
@@ -550,7 +551,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           ),
           const SizedBox(height: 6),
           Text(
-            'No hay reportes pendientes',
+            AppLocalizations.of(context)!.noPendingReportsEmpty,
             style: TextStyle(
               fontSize: 15,
               color: Colors.grey[500],

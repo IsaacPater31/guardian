@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:guardian/services/community_service.dart';
 
@@ -81,10 +82,10 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
 
   Future<void> _promoteToAdmin(Map<String, dynamic> member) async {
     final confirmed = await _showConfirmDialog(
-      title: 'Promover a Administrador',
+      title: AppLocalizations.of(context)!.promoteToAdmin,
       message:
-          '¿Quieres hacer administrador a ${member['user_name']}? Podrá gestionar miembros y la configuración de la comunidad.',
-      confirmText: 'Promover',
+          AppLocalizations.of(context)!.promoteQuestion(member['user_name']),
+      confirmText: AppLocalizations.of(context)!.promote,
       confirmColor: const Color(0xFF007AFF),
     );
 
@@ -98,20 +99,20 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
     if (mounted) Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar('${member['user_name']} ahora es administrador',
+      _showSnackBar(AppLocalizations.of(context)!.nowAdmin(member['user_name']),
           isSuccess: true);
       _loadMembers();
     } else {
-      _showSnackBar('Error al promover miembro', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.errorPromoting, isSuccess: false);
     }
   }
 
   Future<void> _removeMember(Map<String, dynamic> member) async {
     final confirmed = await _showConfirmDialog(
-      title: 'Expulsar Miembro',
+      title: AppLocalizations.of(context)!.expelMember,
       message:
-          '¿Estás seguro de que quieres expulsar a ${member['user_name']}? No podrá ver alertas de esta comunidad.',
-      confirmText: 'Expulsar',
+          AppLocalizations.of(context)!.expelConfirmation(member['user_name']),
+      confirmText: AppLocalizations.of(context)!.expel,
       confirmColor: Colors.red,
       isDestructive: true,
     );
@@ -126,11 +127,11 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
     if (mounted) Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar('${member['user_name']} ha sido expulsado',
+      _showSnackBar(AppLocalizations.of(context)!.userExpelled(member['user_name']),
           isSuccess: true);
       _loadMembers();
     } else {
-      _showSnackBar('No se pudo expulsar al miembro', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.couldNotExpel, isSuccess: false);
     }
   }
 
@@ -147,9 +148,9 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
     if (mounted) Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar('Reporte enviado a los administradores', isSuccess: true);
+      _showSnackBar(AppLocalizations.of(context)!.reportSentToAdmins, isSuccess: true);
     } else {
-      _showSnackBar('Error al enviar el reporte', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.errorSendingReport, isSuccess: false);
     }
   }
 
@@ -186,7 +187,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
@@ -227,7 +228,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Describe el motivo del reporte. Un administrador revisará tu solicitud.',
+               AppLocalizations.of(context)!.reportDescription,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -240,7 +241,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
               maxLines: 4,
               maxLength: 500,
               decoration: InputDecoration(
-                hintText: 'Escribe el motivo del reporte...',
+                hintText: AppLocalizations.of(context)!.reportReasonHint,
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -269,7 +270,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
@@ -282,9 +283,9 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                 Navigator.pop(context, controller.text);
               }
             },
-            child: const Text(
-              'Enviar Reporte',
-              style: TextStyle(
+             child: Text(
+              AppLocalizations.of(context)!.sendReport,
+               style: const TextStyle(
                 color: Color(0xFFFF3B30),
                 fontWeight: FontWeight.w600,
               ),
@@ -431,7 +432,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                   _buildActionTile(
                     icon: Icons.shield_outlined,
                     iconColor: const Color(0xFF007AFF),
-                    title: 'Hacer Administrador',
+                    title: AppLocalizations.of(context)!.makeAdmin,
                     subtitle: 'Dar permisos de gestión',
                     onTap: () {
                       Navigator.pop(context);
@@ -442,7 +443,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                     icon: Icons.person_remove_outlined,
                     iconColor: const Color(0xFFFF3B30),
                     title: 'Expulsar',
-                    subtitle: 'Remover de la comunidad',
+                    subtitle: AppLocalizations.of(context)!.removeFromCommunity,
                     onTap: () {
                       Navigator.pop(context);
                       _removeMember(member);
@@ -454,7 +455,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                   icon: Icons.flag_outlined,
                   iconColor: const Color(0xFFFF9500),
                   title: 'Reportar',
-                  subtitle: 'Enviar reporte a los administradores',
+                  subtitle: AppLocalizations.of(context)!.sendReportToAdmins,
                   onTap: () {
                     Navigator.pop(context);
                     _reportMember(member);
@@ -674,7 +675,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
               setSheetState(() => statusMessage = null);
               if (mounted) {
                 _showSnackBar(
-                  result.message ?? 'No se pudo agregar',
+                  result.message ?? AppLocalizations.of(context)!.couldNotAdd,
                   isSuccess: result.alreadyMember,
                 );
               }
@@ -754,7 +755,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                       onChanged: performSearch,
                       style: const TextStyle(fontSize: 16),
                       decoration: InputDecoration(
-                        hintText: 'Buscar por email o nombre...',
+                        hintText: AppLocalizations.of(context)!.searchByEmailOrName,
                         hintStyle: TextStyle(
                           color: Colors.grey[400],
                           fontSize: 16,
@@ -938,7 +939,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'No se encontraron usuarios',
+                                    AppLocalizations.of(context)!.noUsersFound,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -947,7 +948,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Verifica el email o nombre e intenta de nuevo',
+                                    AppLocalizations.of(context)!.verifyAndRetry,
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey[400],
@@ -960,7 +961,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                           : Padding(
                               padding: const EdgeInsets.all(32),
                               child: Text(
-                                'Escribe al menos 2 caracteres para buscar',
+                                AppLocalizations.of(context)!.minCharsToSearch,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[400],
@@ -990,9 +991,9 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
         centerTitle: true,
         title: Column(
           children: [
-            const Text(
-              'Miembros',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.membersTitle,
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1C1C1E),
@@ -1001,7 +1002,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
             ),
             if (!_isLoading)
               Text(
-                '${_members.length} ${_members.length == 1 ? 'miembro' : 'miembros'}',
+                'AppLocalizations.of(context)!.memberCount(_members.length, _members.length == 1 ? AppLocalizations.of(context)!.memberSingular : AppLocalizations.of(context)!.memberPlural)',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
@@ -1213,9 +1214,9 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Sin miembros',
-            style: TextStyle(
+           Text(
+            AppLocalizations.of(context)!.noMembers,
+             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1C1C1E),
@@ -1224,7 +1225,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           ),
           const SizedBox(height: 6),
           Text(
-            'No se encontraron miembros en esta comunidad',
+            AppLocalizations.of(context)!.noMembersFound,
             style: TextStyle(
               fontSize: 15,
               color: Colors.grey[500],

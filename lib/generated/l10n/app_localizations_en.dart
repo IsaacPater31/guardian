@@ -466,4 +466,551 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeYesterdayEn => 'Yesterday';
+
+  @override
+  String get safetyPriority => 'Your safety is our priority';
+
+  @override
+  String get everythingQuiet => 'Everything is quiet in your area';
+
+  @override
+  String get locationTag => '📍 Location';
+
+  @override
+  String get anonymousTag => '👤 Anonymous';
+
+  @override
+  String get viewAction => 'View';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get editCommunity => 'Edit Community';
+
+  @override
+  String get communityNameLabel => 'Community name';
+
+  @override
+  String get minChars => 'Minimum 3 characters';
+
+  @override
+  String get describeYourCommunity => 'Describe your community';
+
+  @override
+  String get communityIcon => 'Community icon';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get communityUpdated => 'Community updated';
+
+  @override
+  String get errorUpdatingCommunity => 'Error updating community';
+
+  @override
+  String get inviteLink => 'Invite Link';
+
+  @override
+  String get shareInviteLinkText => 'Share this link to invite others:';
+
+  @override
+  String get linkExpiresHours => 'The link expires in 12 hours';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get share => 'Share';
+
+  @override
+  String joinCommunityShareText(String name) {
+    return 'Join $name on Guardian!';
+  }
+
+  @override
+  String invitationTo(String name) {
+    return 'Invitation to $name - Guardian';
+  }
+
+  @override
+  String get linkCopied => 'Link copied to clipboard';
+
+  @override
+  String get errorGeneratingLink => 'Error generating invite link';
+
+  @override
+  String get communitySection => 'COMMUNITY';
+
+  @override
+  String get viewMembers => 'View Members';
+
+  @override
+  String get allMembers => 'All members';
+
+  @override
+  String get reports => 'Reports';
+
+  @override
+  String pendingCount(int n, String plural) {
+    return '$n pending';
+  }
+
+  @override
+  String get noPendingReports => 'No pending reports';
+
+  @override
+  String get addMembersSection => 'ADD MEMBERS';
+
+  @override
+  String get searchAndAdd => 'Search and add';
+
+  @override
+  String get addByEmailOrName => 'Add members by email or name';
+
+  @override
+  String get generateInviteLink => 'Generate invite link';
+
+  @override
+  String get generating => 'Generating...';
+
+  @override
+  String get shareToInvite => 'Share to invite others';
+
+  @override
+  String get administrationSection => 'ADMINISTRATION';
+
+  @override
+  String get forwardToEntities => 'Forward to entities';
+
+  @override
+  String get alertsCanBeForwarded =>
+      'Alerts can be forwarded to official entities';
+
+  @override
+  String get forwardEnabled => 'Forward to entities enabled';
+
+  @override
+  String get forwardDisabled => 'Forward to entities disabled';
+
+  @override
+  String get onlyCreatorCanModify => 'Only the creator can modify the settings';
+
+  @override
+  String get errorUpdatingConfig => 'Error updating configuration';
+
+  @override
+  String get dangerZone => 'DANGER ZONE';
+
+  @override
+  String get deleteCommunityAction => 'Delete community';
+
+  @override
+  String get deletePermanently => 'Delete permanently';
+
+  @override
+  String get leaveCommunity => 'Leave community';
+
+  @override
+  String get stopReceivingAlerts => 'You will stop receiving alerts';
+
+  @override
+  String get deleteCommunityTitle => 'Delete Community';
+
+  @override
+  String get irreversibleAction =>
+      'This action is irreversible and will delete:';
+
+  @override
+  String get allMembersBullet => 'All members';
+
+  @override
+  String get allInvitationsBullet => 'All invitations';
+
+  @override
+  String get entireCommunityBullet => 'The entire community';
+
+  @override
+  String get alertsRemainHistory => 'Sent alerts will remain in the history.';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get leaveCommunityTitle => 'Leave Community';
+
+  @override
+  String get leaveConfirmation =>
+      'Are you sure? You won\'t be able to see alerts or participate in it.';
+
+  @override
+  String get leave => 'Leave';
+
+  @override
+  String get communityDeleted => 'Community deleted';
+
+  @override
+  String get errorDeletingCommunity => 'Error deleting community';
+
+  @override
+  String get leftCommunity => 'You have left the community';
+
+  @override
+  String get errorLoadingCommunity => 'Error loading community';
+
+  @override
+  String get configurationTitle => 'Settings';
+
+  @override
+  String get membersTitle => 'Members';
+
+  @override
+  String memberCount(int n, String label) {
+    return '$n $label';
+  }
+
+  @override
+  String get memberSingular => 'member';
+
+  @override
+  String get memberPlural => 'members';
+
+  @override
+  String get adminLabel => 'Admin';
+
+  @override
+  String get officialLabel => 'Official';
+
+  @override
+  String get memberLabel => 'Member';
+
+  @override
+  String get promoteToAdmin => 'Promote to Admin';
+
+  @override
+  String promoteQuestion(String name) {
+    return 'Do you want to make $name an admin? They will be able to manage members and community settings.';
+  }
+
+  @override
+  String get promote => 'Promote';
+
+  @override
+  String get expelMember => 'Expel Member';
+
+  @override
+  String expelConfirmation(String name) {
+    return 'Are you sure you want to expel $name? They won\'t be able to see alerts from this community.';
+  }
+
+  @override
+  String get expel => 'Expel';
+
+  @override
+  String reportUser(String name) {
+    return 'Report $name';
+  }
+
+  @override
+  String get reportDescription =>
+      'Describe the reason for the report. An administrator will review your request.';
+
+  @override
+  String get reportReasonHint => 'Write the reason for the report...';
+
+  @override
+  String get sendReport => 'Send Report';
+
+  @override
+  String nowAdmin(String name) {
+    return '$name is now an admin';
+  }
+
+  @override
+  String get errorPromoting => 'Error promoting member';
+
+  @override
+  String userExpelled(String name) {
+    return '$name has been expelled';
+  }
+
+  @override
+  String get couldNotExpel => 'Could not expel member';
+
+  @override
+  String get reportSentToAdmins => 'Report sent to administrators';
+
+  @override
+  String get errorSendingReport => 'Error sending report';
+
+  @override
+  String get addMember => 'Add Member';
+
+  @override
+  String get searchByEmailOrName => 'Search by email or name...';
+
+  @override
+  String addingUser(String name) {
+    return 'Adding $name...';
+  }
+
+  @override
+  String get memberAdded => 'Member added!';
+
+  @override
+  String get couldNotAdd => 'Could not add';
+
+  @override
+  String get noUsersFound => 'No users found';
+
+  @override
+  String get verifyAndRetry => 'Verify the email or name and try again';
+
+  @override
+  String get minCharsToSearch => 'Type at least 2 characters to search';
+
+  @override
+  String get noMembers => 'No members';
+
+  @override
+  String get noMembersFound => 'No members found in this community';
+
+  @override
+  String get thisIsYou => 'This is you';
+
+  @override
+  String get you => '(you)';
+
+  @override
+  String get makeAdmin => 'Make Admin';
+
+  @override
+  String get giveManagementPerms => 'Give management permissions';
+
+  @override
+  String get removeFromCommunity => 'Remove from community';
+
+  @override
+  String get report => 'Report';
+
+  @override
+  String get sendReportToAdmins => 'Send report to administrators';
+
+  @override
+  String adminCount(int n, String plural) {
+    return '$n admin$plural';
+  }
+
+  @override
+  String get communityLabel => 'Community';
+
+  @override
+  String get noAlerts => 'No alerts';
+
+  @override
+  String get alertsAppearHere =>
+      'Alerts will appear here when sent to this community';
+
+  @override
+  String get officialEntities => 'Official Entities';
+
+  @override
+  String get myCommunities => 'My Communities';
+
+  @override
+  String get noResults => 'No results';
+
+  @override
+  String communityCount(int n, String plural) {
+    return '$n communit$plural';
+  }
+
+  @override
+  String get official => 'Official';
+
+  @override
+  String get reportsTitle => 'Reports';
+
+  @override
+  String pendingLabel(int n, String plural) {
+    return '$n pending';
+  }
+
+  @override
+  String get allGood => 'All good';
+
+  @override
+  String get noPendingReportsEmpty => 'No pending reports';
+
+  @override
+  String get dismissReport => 'Dismiss Report';
+
+  @override
+  String dismissQuestion(String name) {
+    return 'Dismiss the report against $name? The report will be archived.';
+  }
+
+  @override
+  String get dismiss => 'Dismiss';
+
+  @override
+  String get reportDismissed => 'Report dismissed';
+
+  @override
+  String get errorDismissingReport => 'Error dismissing report';
+
+  @override
+  String get expelFromReports => 'Expel Member';
+
+  @override
+  String expelFromReportsConfirmation(String name) {
+    return 'Expel $name from the community? This action cannot be undone.';
+  }
+
+  @override
+  String reportedByLabel(String name) {
+    return 'Reported by $name';
+  }
+
+  @override
+  String get reason => 'Reason';
+
+  @override
+  String get settingsTitle => 'Settings';
+
+  @override
+  String get alertsSection => 'Alerts';
+
+  @override
+  String get quickAlerts => 'Quick Alerts';
+
+  @override
+  String get configQuickAlerts => 'Configure quick alert destinations';
+
+  @override
+  String get generalSection => 'General';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get appInfo => 'Application information';
+
+  @override
+  String get quickAlertsTitle => 'Quick Alerts';
+
+  @override
+  String get quickAlertsConfig => 'Quick Alerts Configuration';
+
+  @override
+  String get selectCommunitiesForQuickAlerts =>
+      'Select which communities will receive quick alerts when you press the emergency button.';
+
+  @override
+  String get defaultAllEntities => 'Default: all entities';
+
+  @override
+  String get saveConfig => 'Save Configuration';
+
+  @override
+  String get configSaved => '✅ Configuration saved';
+
+  @override
+  String get errorSavingConfig => '❌ Error saving configuration';
+
+  @override
+  String get joinCommunityTitle => 'Join Community';
+
+  @override
+  String get joinACommunity => 'Join a community';
+
+  @override
+  String get enterInviteLinkOrCode =>
+      'Enter the invitation link or code that was shared with you';
+
+  @override
+  String get inviteLinkOrCode => 'Invitation link or code';
+
+  @override
+  String get inviteLinkHint => 'guardian.app/join/xxx or code';
+
+  @override
+  String get invalidToken => 'Invalid token or link';
+
+  @override
+  String get inviteExpiredOrInvalid => 'Invitation not valid or expired';
+
+  @override
+  String get invalidInviteData => 'Invalid invitation data';
+
+  @override
+  String get communityNotFound => 'Community not found';
+
+  @override
+  String get errorValidatingInvite => 'Error validating invitation';
+
+  @override
+  String get validateInvitation => 'Validate invitation';
+
+  @override
+  String get joining => 'Joining...';
+
+  @override
+  String get joinCommunityAction => 'Join the community';
+
+  @override
+  String joinedCommunityName(String name) {
+    return 'You\'ve joined $name!';
+  }
+
+  @override
+  String get joinedCommunity => 'You\'ve joined the community!';
+
+  @override
+  String get couldNotJoinExpired =>
+      'Could not join the community. The link may have expired.';
+
+  @override
+  String get errorJoining => 'Error joining the community';
+
+  @override
+  String get howItWorks => 'How does it work?';
+
+  @override
+  String get howItWorksDetails =>
+      '• Invitation links expire in 12 hours\n• You can paste the full link or just the code\n• Once joined, you will receive the community\'s alerts';
+
+  @override
+  String get validInvitation => 'Valid invitation';
+
+  @override
+  String get enterLinkOrCode => 'Enter a link or code';
+
+  @override
+  String get anonymousReportMap => 'Anonymous Report';
+
+  @override
+  String get reportedByMap => 'Reported by:';
+
+  @override
+  String get unknownUser => 'Unknown User';
+
+  @override
+  String get justNowMap => 'Just now';
+
+  @override
+  String minutesAgoMap(int n) {
+    return '$n minutes ago';
+  }
+
+  @override
+  String hoursAgoMap(int n) {
+    return '$n hours ago';
+  }
+
+  @override
+  String daysAgoMap(int n) {
+    return '$n days ago';
+  }
 }

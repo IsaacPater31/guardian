@@ -356,13 +356,13 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     final difference = now.difference(timestamp);
 
     if (difference.inMinutes < 1) {
-      return 'Just now';
+      return AppLocalizations.of(context)!.justNowMap;
     } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} minutes ago';
+      return AppLocalizations.of(context)!.minutesAgoMap(difference.inMinutes);
     } else if (difference.inHours < 24) {
-      return '${difference.inHours} hours ago';
+      return AppLocalizations.of(context)!.hoursAgoMap(difference.inHours);
     } else {
-      return '${difference.inDays} days ago';
+      return AppLocalizations.of(context)!.daysAgoMap(difference.inDays);
     }
   }
 
@@ -760,8 +760,8 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                            children: [
                              Text(
                                alert.isAnonymous 
-                                   ? 'Anonymous Report'
-                                   : 'Reported by:',
+                                   ? AppLocalizations.of(context)!.anonymousReportMap
+                                   : AppLocalizations.of(context)!.reportedByMap,
                                style: TextStyle(
                                  fontSize: 12,
                                  color: Colors.grey[600],
@@ -770,7 +770,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                              ),
                              if (!alert.isAnonymous)
                                Text(
-                                 alert.userName ?? 'Unknown User',
+                                 alert.userName ?? AppLocalizations.of(context)!.unknownUser,
                                  style: TextStyle(
                                    fontSize: 14,
                                    color: Colors.grey[800],

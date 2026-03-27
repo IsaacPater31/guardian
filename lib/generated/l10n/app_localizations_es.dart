@@ -472,4 +472,552 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get timeYesterdayEn => 'Yesterday';
+
+  @override
+  String get safetyPriority => 'Tu seguridad es nuestra prioridad';
+
+  @override
+  String get everythingQuiet => 'Todo está tranquilo en tu zona';
+
+  @override
+  String get locationTag => '📍 Ubicación';
+
+  @override
+  String get anonymousTag => '👤 Anónimo';
+
+  @override
+  String get viewAction => 'Ver';
+
+  @override
+  String get comingSoon => 'Funcionalidad próximamente';
+
+  @override
+  String get editCommunity => 'Editar Comunidad';
+
+  @override
+  String get communityNameLabel => 'Nombre de la comunidad';
+
+  @override
+  String get minChars => 'Mínimo 3 caracteres';
+
+  @override
+  String get describeYourCommunity => 'Describe tu comunidad';
+
+  @override
+  String get communityIcon => 'Icono de la comunidad';
+
+  @override
+  String get save => 'Guardar';
+
+  @override
+  String get communityUpdated => 'Comunidad actualizada';
+
+  @override
+  String get errorUpdatingCommunity => 'Error actualizando la comunidad';
+
+  @override
+  String get inviteLink => 'Link de Invitación';
+
+  @override
+  String get shareInviteLinkText => 'Comparte este link para invitar a otros:';
+
+  @override
+  String get linkExpiresHours => 'El link expira en 12 horas';
+
+  @override
+  String get copy => 'Copiar';
+
+  @override
+  String get share => 'Compartir';
+
+  @override
+  String joinCommunityShareText(String name) {
+    return '¡Únete a $name en Guardian!';
+  }
+
+  @override
+  String invitationTo(String name) {
+    return 'Invitación a $name - Guardian';
+  }
+
+  @override
+  String get linkCopied => 'Link copiado al portapapeles';
+
+  @override
+  String get errorGeneratingLink => 'Error generando link de invitación';
+
+  @override
+  String get communitySection => 'COMUNIDAD';
+
+  @override
+  String get viewMembers => 'Ver Miembros';
+
+  @override
+  String get allMembers => 'Todos los integrantes';
+
+  @override
+  String get reports => 'Reportes';
+
+  @override
+  String pendingCount(int n, String plural) {
+    return '$n pendiente$plural';
+  }
+
+  @override
+  String get noPendingReports => 'Sin reportes pendientes';
+
+  @override
+  String get addMembersSection => 'AGREGAR MIEMBROS';
+
+  @override
+  String get searchAndAdd => 'Buscar y agregar';
+
+  @override
+  String get addByEmailOrName => 'Agrega miembros por email o nombre';
+
+  @override
+  String get generateInviteLink => 'Generar link de invitación';
+
+  @override
+  String get generating => 'Generando...';
+
+  @override
+  String get shareToInvite => 'Comparte para invitar a otros';
+
+  @override
+  String get administrationSection => 'ADMINISTRACIÓN';
+
+  @override
+  String get forwardToEntities => 'Reenvío a entidades';
+
+  @override
+  String get alertsCanBeForwarded =>
+      'Alertas pueden reenviarse a entidades oficiales';
+
+  @override
+  String get forwardEnabled => 'Reenvío a entidades habilitado';
+
+  @override
+  String get forwardDisabled => 'Reenvío a entidades deshabilitado';
+
+  @override
+  String get onlyCreatorCanModify =>
+      'Solo el creador puede modificar la configuración';
+
+  @override
+  String get errorUpdatingConfig => 'Error actualizando configuración';
+
+  @override
+  String get dangerZone => 'ZONA DE PELIGRO';
+
+  @override
+  String get deleteCommunityAction => 'Eliminar comunidad';
+
+  @override
+  String get deletePermanently => 'Elimina permanentemente';
+
+  @override
+  String get leaveCommunity => 'Abandonar comunidad';
+
+  @override
+  String get stopReceivingAlerts => 'Dejarás de recibir alertas';
+
+  @override
+  String get deleteCommunityTitle => 'Eliminar Comunidad';
+
+  @override
+  String get irreversibleAction => 'Esta acción es irreversible y eliminará:';
+
+  @override
+  String get allMembersBullet => 'Todos los miembros';
+
+  @override
+  String get allInvitationsBullet => 'Todas las invitaciones';
+
+  @override
+  String get entireCommunityBullet => 'La comunidad por completo';
+
+  @override
+  String get alertsRemainHistory =>
+      'Las alertas enviadas permanecerán en el historial.';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get leaveCommunityTitle => 'Abandonar Comunidad';
+
+  @override
+  String get leaveConfirmation =>
+      '¿Estás seguro? No podrás ver las alertas ni participar en ella.';
+
+  @override
+  String get leave => 'Abandonar';
+
+  @override
+  String get communityDeleted => 'Comunidad eliminada';
+
+  @override
+  String get errorDeletingCommunity => 'Error al eliminar la comunidad';
+
+  @override
+  String get leftCommunity => 'Has abandonado la comunidad';
+
+  @override
+  String get errorLoadingCommunity => 'Error cargando comunidad';
+
+  @override
+  String get configurationTitle => 'Configuración';
+
+  @override
+  String get membersTitle => 'Miembros';
+
+  @override
+  String memberCount(int n, String label) {
+    return '$n $label';
+  }
+
+  @override
+  String get memberSingular => 'miembro';
+
+  @override
+  String get memberPlural => 'miembros';
+
+  @override
+  String get adminLabel => 'Admin';
+
+  @override
+  String get officialLabel => 'Oficial';
+
+  @override
+  String get memberLabel => 'Miembro';
+
+  @override
+  String get promoteToAdmin => 'Promover a Administrador';
+
+  @override
+  String promoteQuestion(String name) {
+    return '¿Quieres hacer administrador a $name? Podrá gestionar miembros y la configuración de la comunidad.';
+  }
+
+  @override
+  String get promote => 'Promover';
+
+  @override
+  String get expelMember => 'Expulsar Miembro';
+
+  @override
+  String expelConfirmation(String name) {
+    return '¿Estás seguro de que quieres expulsar a $name? No podrá ver alertas de esta comunidad.';
+  }
+
+  @override
+  String get expel => 'Expulsar';
+
+  @override
+  String reportUser(String name) {
+    return 'Reportar a $name';
+  }
+
+  @override
+  String get reportDescription =>
+      'Describe el motivo del reporte. Un administrador revisará tu solicitud.';
+
+  @override
+  String get reportReasonHint => 'Escribe el motivo del reporte...';
+
+  @override
+  String get sendReport => 'Enviar Reporte';
+
+  @override
+  String nowAdmin(String name) {
+    return '$name ahora es administrador';
+  }
+
+  @override
+  String get errorPromoting => 'Error al promover miembro';
+
+  @override
+  String userExpelled(String name) {
+    return '$name ha sido expulsado';
+  }
+
+  @override
+  String get couldNotExpel => 'No se pudo expulsar al miembro';
+
+  @override
+  String get reportSentToAdmins => 'Reporte enviado a los administradores';
+
+  @override
+  String get errorSendingReport => 'Error al enviar el reporte';
+
+  @override
+  String get addMember => 'Agregar Miembro';
+
+  @override
+  String get searchByEmailOrName => 'Buscar por email o nombre...';
+
+  @override
+  String addingUser(String name) {
+    return 'Agregando $name...';
+  }
+
+  @override
+  String get memberAdded => '¡Miembro agregado!';
+
+  @override
+  String get couldNotAdd => 'No se pudo agregar';
+
+  @override
+  String get noUsersFound => 'No se encontraron usuarios';
+
+  @override
+  String get verifyAndRetry => 'Verifica el email o nombre e intenta de nuevo';
+
+  @override
+  String get minCharsToSearch => 'Escribe al menos 2 caracteres para buscar';
+
+  @override
+  String get noMembers => 'Sin miembros';
+
+  @override
+  String get noMembersFound => 'No se encontraron miembros en esta comunidad';
+
+  @override
+  String get thisIsYou => 'Este eres tú';
+
+  @override
+  String get you => '(tú)';
+
+  @override
+  String get makeAdmin => 'Hacer Administrador';
+
+  @override
+  String get giveManagementPerms => 'Dar permisos de gestión';
+
+  @override
+  String get removeFromCommunity => 'Remover de la comunidad';
+
+  @override
+  String get report => 'Reportar';
+
+  @override
+  String get sendReportToAdmins => 'Enviar reporte a los administradores';
+
+  @override
+  String adminCount(int n, String plural) {
+    return '$n admin$plural';
+  }
+
+  @override
+  String get communityLabel => 'Comunidad';
+
+  @override
+  String get noAlerts => 'No hay alertas';
+
+  @override
+  String get alertsAppearHere =>
+      'Las alertas aparecerán aquí cuando se envíen a esta comunidad';
+
+  @override
+  String get officialEntities => 'Entidades Oficiales';
+
+  @override
+  String get myCommunities => 'Mis Comunidades';
+
+  @override
+  String get noResults => 'Sin resultados';
+
+  @override
+  String communityCount(int n, String plural) {
+    return '$n comunidad$plural';
+  }
+
+  @override
+  String get official => 'Oficial';
+
+  @override
+  String get reportsTitle => 'Reportes';
+
+  @override
+  String pendingLabel(int n, String plural) {
+    return '$n pendiente$plural';
+  }
+
+  @override
+  String get allGood => 'Todo en orden';
+
+  @override
+  String get noPendingReportsEmpty => 'No hay reportes pendientes';
+
+  @override
+  String get dismissReport => 'Descartar Reporte';
+
+  @override
+  String dismissQuestion(String name) {
+    return '¿Descartar el reporte contra $name? El reporte será archivado.';
+  }
+
+  @override
+  String get dismiss => 'Descartar';
+
+  @override
+  String get reportDismissed => 'Reporte descartado';
+
+  @override
+  String get errorDismissingReport => 'Error al descartar el reporte';
+
+  @override
+  String get expelFromReports => 'Expulsar Miembro';
+
+  @override
+  String expelFromReportsConfirmation(String name) {
+    return '¿Expulsar a $name de la comunidad? Esta acción no se puede deshacer.';
+  }
+
+  @override
+  String reportedByLabel(String name) {
+    return 'Reportado por $name';
+  }
+
+  @override
+  String get reason => 'Motivo';
+
+  @override
+  String get settingsTitle => 'Configuración';
+
+  @override
+  String get alertsSection => 'Alertas';
+
+  @override
+  String get quickAlerts => 'Alertas Rápidas';
+
+  @override
+  String get configQuickAlerts => 'Configurar destinos de alertas rápidas';
+
+  @override
+  String get generalSection => 'General';
+
+  @override
+  String get about => 'Acerca de';
+
+  @override
+  String get appInfo => 'Información de la aplicación';
+
+  @override
+  String get quickAlertsTitle => 'Alertas Rápidas';
+
+  @override
+  String get quickAlertsConfig => 'Configuración de Alertas Rápidas';
+
+  @override
+  String get selectCommunitiesForQuickAlerts =>
+      'Selecciona a qué comunidades se enviarán las alertas rápidas cuando presiones el botón de emergencia.';
+
+  @override
+  String get defaultAllEntities => 'Por defecto: todas las entidades';
+
+  @override
+  String get saveConfig => 'Guardar Configuración';
+
+  @override
+  String get configSaved => '✅ Configuración guardada';
+
+  @override
+  String get errorSavingConfig => '❌ Error guardando configuración';
+
+  @override
+  String get joinCommunityTitle => 'Unirse a Comunidad';
+
+  @override
+  String get joinACommunity => 'Únete a una comunidad';
+
+  @override
+  String get enterInviteLinkOrCode =>
+      'Ingresa el link o código de invitación que te compartieron';
+
+  @override
+  String get inviteLinkOrCode => 'Link o código de invitación';
+
+  @override
+  String get inviteLinkHint => 'guardian.app/join/xxx o código';
+
+  @override
+  String get invalidToken => 'Token o link inválido';
+
+  @override
+  String get inviteExpiredOrInvalid => 'Invitación no válida o expirada';
+
+  @override
+  String get invalidInviteData => 'Datos de invitación inválidos';
+
+  @override
+  String get communityNotFound => 'Comunidad no encontrada';
+
+  @override
+  String get errorValidatingInvite => 'Error validando invitación';
+
+  @override
+  String get validateInvitation => 'Validar invitación';
+
+  @override
+  String get joining => 'Uniéndose...';
+
+  @override
+  String get joinCommunityAction => 'Unirse a la comunidad';
+
+  @override
+  String joinedCommunityName(String name) {
+    return '¡Te has unido a $name!';
+  }
+
+  @override
+  String get joinedCommunity => '¡Te has unido a la comunidad!';
+
+  @override
+  String get couldNotJoinExpired =>
+      'No se pudo unir a la comunidad. El link puede haber expirado.';
+
+  @override
+  String get errorJoining => 'Error al unirse a la comunidad';
+
+  @override
+  String get howItWorks => '¿Cómo funciona?';
+
+  @override
+  String get howItWorksDetails =>
+      '• Los links de invitación expiran en 12 horas\n• Puedes pegar el link completo o solo el código\n• Una vez unido, recibirás las alertas de la comunidad';
+
+  @override
+  String get validInvitation => 'Invitación válida';
+
+  @override
+  String get enterLinkOrCode => 'Ingresa un link o código';
+
+  @override
+  String get anonymousReportMap => 'Reporte Anónimo';
+
+  @override
+  String get reportedByMap => 'Reportado por:';
+
+  @override
+  String get unknownUser => 'Usuario Desconocido';
+
+  @override
+  String get justNowMap => 'Justo ahora';
+
+  @override
+  String minutesAgoMap(int n) {
+    return 'Hace $n minutos';
+  }
+
+  @override
+  String hoursAgoMap(int n) {
+    return 'Hace $n horas';
+  }
+
+  @override
+  String daysAgoMap(int n) {
+    return 'Hace $n días';
+  }
 }

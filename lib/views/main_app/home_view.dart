@@ -70,7 +70,7 @@ class _HomeViewState extends State<HomeView> {
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
-              label: 'Ver',
+              label: AppLocalizations.of(context)!.viewAction,
               textColor: Colors.white,
               onPressed: () {
                 _showAlertDetail(alert);
@@ -177,7 +177,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Your safety is our priority',
+                  AppLocalizations.of(context)!.safetyPriority,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -195,7 +195,7 @@ class _HomeViewState extends State<HomeView> {
               // Sin funcionalidad - se implementará más adelante
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(AppLocalizations.of(context)!.notifications + ' - Funcionalidad próximamente'),
+                  content: Text('${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}'),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -377,7 +377,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Everything is quiet in your area',
+            AppLocalizations.of(context)!.everythingQuiet,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey[500],
@@ -528,8 +528,8 @@ class _HomeViewState extends State<HomeView> {
                             color: Colors.green.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            '📍 Location',
+                          child: Text(
+                            AppLocalizations.of(context)!.locationTag,
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.green,
@@ -547,8 +547,8 @@ class _HomeViewState extends State<HomeView> {
                             color: Colors.orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            '👤 Anonymous',
+                          child: Text(
+                            AppLocalizations.of(context)!.anonymousTag,
                             style: TextStyle(
                               fontSize: 10,
                               color: Colors.orange,

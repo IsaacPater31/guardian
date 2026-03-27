@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/services/deep_link_service.dart';
@@ -96,7 +97,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
         _communityPreview = community;
         _isValidating = false;
         if (community == null) {
-          _errorMessage = 'Comunidad no encontrada';
+          _errorMessage = AppLocalizations.of(context)!.communityNotFound;
         }
       });
     } catch (e) {
@@ -152,13 +153,13 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
         }
       } else {
         setState(() {
-          _errorMessage = result.message ?? 'No se pudo unir a la comunidad. El link puede haber expirado.';
+          _errorMessage = result.message ?? AppLocalizations.of(context)!.couldNotJoinExpired;
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al unirse a la comunidad';
+        _errorMessage = AppLocalizations.of(context)!.errorJoining;
         _isLoading = false;
       });
     }
@@ -168,7 +169,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Unirse a Comunidad'),
+        title: Text(AppLocalizations.of(context)!.joinCommunityTitle),
         backgroundColor: const Color(0xFF1F2937),
         foregroundColor: Colors.white,
         elevation: 0,

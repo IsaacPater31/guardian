@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/quick_alert_config_service.dart';
 
 /// Pantalla de configuración principal
@@ -18,7 +19,7 @@ class SettingsView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Sección: Alertas
-          _buildSectionHeader('Alertas'),
+          _buildSectionHeader(AppLocalizations.of(context)!.alertsSection),
           const SizedBox(height: 12),
           Card(
             elevation: 2,
@@ -47,7 +48,7 @@ class SettingsView extends StatelessWidget {
           const SizedBox(height: 24),
           
           // Sección: General (placeholder para futuras configuraciones)
-          _buildSectionHeader('General'),
+          _buildSectionHeader(AppLocalizations.of(context)!.generalSection),
           const SizedBox(height: 12),
           Card(
             elevation: 2,
@@ -58,7 +59,7 @@ class SettingsView extends StatelessWidget {
               children: [
                 ListTile(
                   leading: const Icon(Icons.info_outline, color: Color(0xFF1F2937)),
-                  title: const Text('Acerca de'),
+                  title: Text(AppLocalizations.of(context)!.about),
                   subtitle: const Text('Información de la aplicación'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
@@ -203,7 +204,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Por defecto: todas las entidades',
+                        AppLocalizations.of(context)!.defaultAllEntities,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

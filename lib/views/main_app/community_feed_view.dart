@@ -100,7 +100,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               ),
             ),
             Text(
-              widget.isEntity ? 'Entidad Oficial' : 'Comunidad',
+              widget.isEntity ? AppLocalizations.of(context)!.officialEntity : AppLocalizations.of(context)!.communityLabel,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,

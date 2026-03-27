@@ -135,7 +135,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
             ),
             if (!_isLoading && _communities.isNotEmpty)
               Text(
-                '${_communities.length} comunidad${_communities.length == 1 ? '' : 'es'}',
+                AppLocalizations.of(context)!.communityCount(_communities.length, _communities.length == 1 ? '' : 'es'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
@@ -318,14 +318,14 @@ class _ComunidadesViewState extends State<ComunidadesView>
               children: [
                 // Entities section
                 if (entities.isNotEmpty) ...[
-                  _buildSectionHeader('Entidades Oficiales'),
+                  _buildSectionHeader(AppLocalizations.of(context)!.officialEntities),
                   const SizedBox(height: 8),
                   _buildGroupedCards(entities),
                   const SizedBox(height: 20),
                 ],
                 // Communities section
                 if (communities.isNotEmpty) ...[
-                  _buildSectionHeader('Mis Comunidades'),
+                  _buildSectionHeader(AppLocalizations.of(context)!.myCommunities),
                   const SizedBox(height: 8),
                   _buildGroupedCards(communities),
                 ],
@@ -334,7 +334,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
                     padding: const EdgeInsets.only(top: 40),
                     child: Center(
                       child: Text(
-                        'Sin resultados',
+                        AppLocalizations.of(context)!.noResults,
                         style: TextStyle(
                           fontSize: 15,
                           color: Colors.grey[500],

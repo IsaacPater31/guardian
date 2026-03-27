@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
@@ -181,8 +182,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
-                          'Editar Comunidad',
+                        Text(
+                          AppLocalizations.of(context)!.editCommunity,
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -199,26 +200,26 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildInputLabel('Nombre de la comunidad'),
+                        _buildInputLabel(AppLocalizations.of(context)!.communityNameLabel),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: nameController,
                           enabled: !isUpdating,
                           style: const TextStyle(fontSize: 15),
                           decoration: _inputDecoration(
-                              hint: 'Nombre de la comunidad'),
+                              hint: AppLocalizations.of(context)!.communityNameLabel),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'El nombre es requerido';
+                              return AppLocalizations.of(context)!.nameRequired;
                             }
                             if (value.trim().length < 3) {
-                              return 'Mínimo 3 caracteres';
+                              return AppLocalizations.of(context)!.minChars;
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 18),
-                        _buildInputLabel('Descripción (opcional)'),
+                        _buildInputLabel(AppLocalizations.of(context)!.descriptionOptional),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: descriptionController,
@@ -226,10 +227,10 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                           maxLines: 3,
                           style: const TextStyle(fontSize: 15),
                           decoration:
-                              _inputDecoration(hint: 'Describe tu comunidad'),
+                              _inputDecoration(hint: AppLocalizations.of(context)!.describeYourCommunity),
                         ),
                         const SizedBox(height: 18),
-                        _buildInputLabel('Icono de la comunidad'),
+                        _buildInputLabel(AppLocalizations.of(context)!.communityIcon),
                         const SizedBox(height: 6),
                         CommunityIconPickerGrid(
                           selectedCodePoint: selectedIconCodePoint,
@@ -264,8 +265,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Text('Cancelar',
-                                style: TextStyle(
+                            child: Text(AppLocalizations.of(context)!.cancel,
+                                style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500)),
                           ),
@@ -312,11 +313,11 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                                           );
                                         });
                                         _showSnackBar(
-                                            'Comunidad actualizada',
+                                            AppLocalizations.of(context)!.communityUpdated,
                                             isSuccess: true);
                                       } else {
                                         _showSnackBar(
-                                            'Error actualizando la comunidad',
+                                            AppLocalizations.of(context)!.errorUpdatingCommunity,
                                             isSuccess: false);
                                       }
                                     }
@@ -344,7 +345,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                                               Colors.white),
                                     ),
                                   )
-                                : const Text('Guardar',
+                                : Text(AppLocalizations.of(context)!.save,
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -375,7 +376,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         _showInviteLinkSheet(link);
       } else {
         setState(() => _isGeneratingLink = false);
-        _showSnackBar('Error generando link de invitación', isSuccess: false);
+        _showSnackBar(AppLocalizations.of(context)!.errorGeneratingLink, isSuccess: false);
       }
     } catch (e) {
       setState(() => _isGeneratingLink = false);
@@ -443,7 +444,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Comparte este link para invitar a otros:',
+                    AppLocalizations.of(context)!.shareInviteLinkText,
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey[600],
@@ -474,7 +475,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                           size: 14, color: Colors.grey[500]),
                       const SizedBox(width: 4),
                       Text(
-                        'El link expira en 12 horas',
+                        AppLocalizations.of(context)!.linkExpiresHours,
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey[500],
@@ -497,7 +498,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                         Clipboard.setData(
                             ClipboardData(text: 'https://$link'));
                         Navigator.pop(context);
-                        _showSnackBar('Link copiado al portapapeles',
+                        _showSnackBar(AppLocalizations.of(context)!.linkCopied,
                             isSuccess: true, icon: Icons.copy_rounded);
                       },
                       icon: const Icon(Icons.copy_rounded, size: 18),
@@ -519,9 +520,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                       onPressed: () {
                         Navigator.pop(context);
                         Share.share(
-                          '¡Únete a $communityName en Guardian!\n\nhttps://$link',
+                          '${AppLocalizations.of(context)!.joinCommunityShareText(communityName)}\n\nhttps://$link',
                           subject:
-                              'Invitación a $communityName - Guardian',
+                              AppLocalizations.of(context)!.invitationTo(communityName),
                         );
                       },
                       icon: const Icon(Icons.share_rounded, size: 18),
@@ -620,7 +621,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                   color: Colors.grey[600], fontWeight: FontWeight.w500),
             ),
@@ -646,9 +647,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         if (success) {
           Navigator.pop(context);
           Navigator.pop(context);
-          _showSnackBar('Comunidad eliminada', isSuccess: true);
+          _showSnackBar(AppLocalizations.of(context)!.communityDeleted, isSuccess: true);
         } else {
-          _showSnackBar('Error al eliminar la comunidad', isSuccess: false);
+          _showSnackBar(AppLocalizations.of(context)!.errorDeletingCommunity, isSuccess: false);
         }
       }
     }
@@ -679,7 +680,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancelar',
+              AppLocalizations.of(context)!.cancel,
               style: TextStyle(
                   color: Colors.grey[600], fontWeight: FontWeight.w500),
             ),
@@ -702,7 +703,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             await _communityService.leaveCommunity(widget.communityId);
         if (mounted && success) {
           Navigator.pop(context);
-          _showSnackBar('Has abandonado la comunidad',
+          _showSnackBar(AppLocalizations.of(context)!.leftCommunity,
               isSuccess: true, icon: Icons.exit_to_app_rounded);
         }
       } catch (e) {
@@ -776,13 +777,13 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           const SizedBox(height: 24),
 
           // ─── Community Section ────────────────────────
-          _buildSectionHeader('COMUNIDAD'),
+          _buildSectionHeader(AppLocalizations.of(context)!.communitySection),
           const SizedBox(height: 8),
           _buildGroupedCard([
             _buildSettingsTile(
               icon: Icons.people_outline_rounded,
               iconColor: const Color(0xFF007AFF),
-              title: 'Ver Miembros',
+              title: AppLocalizations.of(context)!.viewMembers,
               subtitle: 'Todos los integrantes',
               onTap: () {
                 Navigator.push(
@@ -803,10 +804,10 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                 iconColor: _pendingReportsCount > 0
                     ? const Color(0xFFFF9500)
                     : const Color(0xFF8E8E93),
-                title: 'Reportes',
+                title: AppLocalizations.of(context)!.reports,
                 subtitle: _pendingReportsCount > 0
-                    ? '$_pendingReportsCount pendiente${_pendingReportsCount > 1 ? 's' : ''}'
-                    : 'Sin reportes pendientes',
+                    ? AppLocalizations.of(context)!.pendingCount(_pendingReportsCount, _pendingReportsCount > 1 ? 's' : '')
+                    : AppLocalizations.of(context)!.noPendingReports,
                 badge: _pendingReportsCount > 0 ? _pendingReportsCount : null,
                 onTap: () async {
                   await Navigator.push(
@@ -825,7 +826,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           const SizedBox(height: 24),
 
           // ─── Invite Section ───────────────────────────
-          _buildSectionHeader('AGREGAR MIEMBROS'),
+          _buildSectionHeader(AppLocalizations.of(context)!.addMembersSection),
           const SizedBox(height: 8),
           _buildGroupedCard([
             if (isAdmin)
@@ -853,8 +854,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               iconColor: const Color(0xFF007AFF),
               title: 'Generar link de invitación',
               subtitle: _isGeneratingLink
-                  ? 'Generando...'
-                  : 'Comparte para invitar a otros',
+                  ? AppLocalizations.of(context)!.generating
+                  : AppLocalizations.of(context)!.shareToInvite,
               trailing: _isGeneratingLink
                   ? const SizedBox(
                       width: 20,
@@ -888,7 +889,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           ],
 
           // ─── Danger Zone ──────────────────────────────
-          _buildSectionHeader('ZONA DE PELIGRO'),
+          _buildSectionHeader(AppLocalizations.of(context)!.dangerZone),
           const SizedBox(height: 8),
           _buildGroupedCard([
             if (isAdmin)

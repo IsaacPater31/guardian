@@ -973,6 +973,1002 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Yesterday'**
   String get timeYesterdayEn;
+
+  /// No description provided for @safetyPriority.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu seguridad es nuestra prioridad'**
+  String get safetyPriority;
+
+  /// No description provided for @everythingQuiet.
+  ///
+  /// In es, this message translates to:
+  /// **'Todo está tranquilo en tu zona'**
+  String get everythingQuiet;
+
+  /// No description provided for @locationTag.
+  ///
+  /// In es, this message translates to:
+  /// **'📍 Ubicación'**
+  String get locationTag;
+
+  /// No description provided for @anonymousTag.
+  ///
+  /// In es, this message translates to:
+  /// **'👤 Anónimo'**
+  String get anonymousTag;
+
+  /// No description provided for @viewAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver'**
+  String get viewAction;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In es, this message translates to:
+  /// **'Funcionalidad próximamente'**
+  String get comingSoon;
+
+  /// No description provided for @editCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar Comunidad'**
+  String get editCommunity;
+
+  /// No description provided for @communityNameLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre de la comunidad'**
+  String get communityNameLabel;
+
+  /// No description provided for @minChars.
+  ///
+  /// In es, this message translates to:
+  /// **'Mínimo 3 caracteres'**
+  String get minChars;
+
+  /// No description provided for @describeYourCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe tu comunidad'**
+  String get describeYourCommunity;
+
+  /// No description provided for @communityIcon.
+  ///
+  /// In es, this message translates to:
+  /// **'Icono de la comunidad'**
+  String get communityIcon;
+
+  /// No description provided for @save.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar'**
+  String get save;
+
+  /// No description provided for @communityUpdated.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad actualizada'**
+  String get communityUpdated;
+
+  /// No description provided for @errorUpdatingCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Error actualizando la comunidad'**
+  String get errorUpdatingCommunity;
+
+  /// No description provided for @inviteLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Link de Invitación'**
+  String get inviteLink;
+
+  /// No description provided for @shareInviteLinkText.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparte este link para invitar a otros:'**
+  String get shareInviteLinkText;
+
+  /// No description provided for @linkExpiresHours.
+  ///
+  /// In es, this message translates to:
+  /// **'El link expira en 12 horas'**
+  String get linkExpiresHours;
+
+  /// No description provided for @copy.
+  ///
+  /// In es, this message translates to:
+  /// **'Copiar'**
+  String get copy;
+
+  /// No description provided for @share.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir'**
+  String get share;
+
+  /// No description provided for @joinCommunityShareText.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Únete a {name} en Guardian!'**
+  String joinCommunityShareText(String name);
+
+  /// No description provided for @invitationTo.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación a {name} - Guardian'**
+  String invitationTo(String name);
+
+  /// No description provided for @linkCopied.
+  ///
+  /// In es, this message translates to:
+  /// **'Link copiado al portapapeles'**
+  String get linkCopied;
+
+  /// No description provided for @errorGeneratingLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Error generando link de invitación'**
+  String get errorGeneratingLink;
+
+  /// No description provided for @communitySection.
+  ///
+  /// In es, this message translates to:
+  /// **'COMUNIDAD'**
+  String get communitySection;
+
+  /// No description provided for @viewMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver Miembros'**
+  String get viewMembers;
+
+  /// No description provided for @allMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos los integrantes'**
+  String get allMembers;
+
+  /// No description provided for @reports.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes'**
+  String get reports;
+
+  /// No description provided for @pendingCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} pendiente{plural}'**
+  String pendingCount(int n, String plural);
+
+  /// No description provided for @noPendingReports.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin reportes pendientes'**
+  String get noPendingReports;
+
+  /// No description provided for @addMembersSection.
+  ///
+  /// In es, this message translates to:
+  /// **'AGREGAR MIEMBROS'**
+  String get addMembersSection;
+
+  /// No description provided for @searchAndAdd.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar y agregar'**
+  String get searchAndAdd;
+
+  /// No description provided for @addByEmailOrName.
+  ///
+  /// In es, this message translates to:
+  /// **'Agrega miembros por email o nombre'**
+  String get addByEmailOrName;
+
+  /// No description provided for @generateInviteLink.
+  ///
+  /// In es, this message translates to:
+  /// **'Generar link de invitación'**
+  String get generateInviteLink;
+
+  /// No description provided for @generating.
+  ///
+  /// In es, this message translates to:
+  /// **'Generando...'**
+  String get generating;
+
+  /// No description provided for @shareToInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparte para invitar a otros'**
+  String get shareToInvite;
+
+  /// No description provided for @administrationSection.
+  ///
+  /// In es, this message translates to:
+  /// **'ADMINISTRACIÓN'**
+  String get administrationSection;
+
+  /// No description provided for @forwardToEntities.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenvío a entidades'**
+  String get forwardToEntities;
+
+  /// No description provided for @alertsCanBeForwarded.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas pueden reenviarse a entidades oficiales'**
+  String get alertsCanBeForwarded;
+
+  /// No description provided for @forwardEnabled.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenvío a entidades habilitado'**
+  String get forwardEnabled;
+
+  /// No description provided for @forwardDisabled.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenvío a entidades deshabilitado'**
+  String get forwardDisabled;
+
+  /// No description provided for @onlyCreatorCanModify.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo el creador puede modificar la configuración'**
+  String get onlyCreatorCanModify;
+
+  /// No description provided for @errorUpdatingConfig.
+  ///
+  /// In es, this message translates to:
+  /// **'Error actualizando configuración'**
+  String get errorUpdatingConfig;
+
+  /// No description provided for @dangerZone.
+  ///
+  /// In es, this message translates to:
+  /// **'ZONA DE PELIGRO'**
+  String get dangerZone;
+
+  /// No description provided for @deleteCommunityAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar comunidad'**
+  String get deleteCommunityAction;
+
+  /// No description provided for @deletePermanently.
+  ///
+  /// In es, this message translates to:
+  /// **'Elimina permanentemente'**
+  String get deletePermanently;
+
+  /// No description provided for @leaveCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Abandonar comunidad'**
+  String get leaveCommunity;
+
+  /// No description provided for @stopReceivingAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'Dejarás de recibir alertas'**
+  String get stopReceivingAlerts;
+
+  /// No description provided for @deleteCommunityTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar Comunidad'**
+  String get deleteCommunityTitle;
+
+  /// No description provided for @irreversibleAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta acción es irreversible y eliminará:'**
+  String get irreversibleAction;
+
+  /// No description provided for @allMembersBullet.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos los miembros'**
+  String get allMembersBullet;
+
+  /// No description provided for @allInvitationsBullet.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas las invitaciones'**
+  String get allInvitationsBullet;
+
+  /// No description provided for @entireCommunityBullet.
+  ///
+  /// In es, this message translates to:
+  /// **'La comunidad por completo'**
+  String get entireCommunityBullet;
+
+  /// No description provided for @alertsRemainHistory.
+  ///
+  /// In es, this message translates to:
+  /// **'Las alertas enviadas permanecerán en el historial.'**
+  String get alertsRemainHistory;
+
+  /// No description provided for @delete.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar'**
+  String get delete;
+
+  /// No description provided for @leaveCommunityTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Abandonar Comunidad'**
+  String get leaveCommunityTitle;
+
+  /// No description provided for @leaveConfirmation.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Estás seguro? No podrás ver las alertas ni participar en ella.'**
+  String get leaveConfirmation;
+
+  /// No description provided for @leave.
+  ///
+  /// In es, this message translates to:
+  /// **'Abandonar'**
+  String get leave;
+
+  /// No description provided for @communityDeleted.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad eliminada'**
+  String get communityDeleted;
+
+  /// No description provided for @errorDeletingCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al eliminar la comunidad'**
+  String get errorDeletingCommunity;
+
+  /// No description provided for @leftCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Has abandonado la comunidad'**
+  String get leftCommunity;
+
+  /// No description provided for @errorLoadingCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Error cargando comunidad'**
+  String get errorLoadingCommunity;
+
+  /// No description provided for @configurationTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración'**
+  String get configurationTitle;
+
+  /// No description provided for @membersTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Miembros'**
+  String get membersTitle;
+
+  /// No description provided for @memberCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} {label}'**
+  String memberCount(int n, String label);
+
+  /// No description provided for @memberSingular.
+  ///
+  /// In es, this message translates to:
+  /// **'miembro'**
+  String get memberSingular;
+
+  /// No description provided for @memberPlural.
+  ///
+  /// In es, this message translates to:
+  /// **'miembros'**
+  String get memberPlural;
+
+  /// No description provided for @adminLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Admin'**
+  String get adminLabel;
+
+  /// No description provided for @officialLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Oficial'**
+  String get officialLabel;
+
+  /// No description provided for @memberLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Miembro'**
+  String get memberLabel;
+
+  /// No description provided for @promoteToAdmin.
+  ///
+  /// In es, this message translates to:
+  /// **'Promover a Administrador'**
+  String get promoteToAdmin;
+
+  /// No description provided for @promoteQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Quieres hacer administrador a {name}? Podrá gestionar miembros y la configuración de la comunidad.'**
+  String promoteQuestion(String name);
+
+  /// No description provided for @promote.
+  ///
+  /// In es, this message translates to:
+  /// **'Promover'**
+  String get promote;
+
+  /// No description provided for @expelMember.
+  ///
+  /// In es, this message translates to:
+  /// **'Expulsar Miembro'**
+  String get expelMember;
+
+  /// No description provided for @expelConfirmation.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Estás seguro de que quieres expulsar a {name}? No podrá ver alertas de esta comunidad.'**
+  String expelConfirmation(String name);
+
+  /// No description provided for @expel.
+  ///
+  /// In es, this message translates to:
+  /// **'Expulsar'**
+  String get expel;
+
+  /// No description provided for @reportUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportar a {name}'**
+  String reportUser(String name);
+
+  /// No description provided for @reportDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe el motivo del reporte. Un administrador revisará tu solicitud.'**
+  String get reportDescription;
+
+  /// No description provided for @reportReasonHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe el motivo del reporte...'**
+  String get reportReasonHint;
+
+  /// No description provided for @sendReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar Reporte'**
+  String get sendReport;
+
+  /// No description provided for @nowAdmin.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} ahora es administrador'**
+  String nowAdmin(String name);
+
+  /// No description provided for @errorPromoting.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al promover miembro'**
+  String get errorPromoting;
+
+  /// No description provided for @userExpelled.
+  ///
+  /// In es, this message translates to:
+  /// **'{name} ha sido expulsado'**
+  String userExpelled(String name);
+
+  /// No description provided for @couldNotExpel.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo expulsar al miembro'**
+  String get couldNotExpel;
+
+  /// No description provided for @reportSentToAdmins.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte enviado a los administradores'**
+  String get reportSentToAdmins;
+
+  /// No description provided for @errorSendingReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar el reporte'**
+  String get errorSendingReport;
+
+  /// No description provided for @addMember.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar Miembro'**
+  String get addMember;
+
+  /// No description provided for @searchByEmailOrName.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar por email o nombre...'**
+  String get searchByEmailOrName;
+
+  /// No description provided for @addingUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregando {name}...'**
+  String addingUser(String name);
+
+  /// No description provided for @memberAdded.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Miembro agregado!'**
+  String get memberAdded;
+
+  /// No description provided for @couldNotAdd.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo agregar'**
+  String get couldNotAdd;
+
+  /// No description provided for @noUsersFound.
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron usuarios'**
+  String get noUsersFound;
+
+  /// No description provided for @verifyAndRetry.
+  ///
+  /// In es, this message translates to:
+  /// **'Verifica el email o nombre e intenta de nuevo'**
+  String get verifyAndRetry;
+
+  /// No description provided for @minCharsToSearch.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe al menos 2 caracteres para buscar'**
+  String get minCharsToSearch;
+
+  /// No description provided for @noMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin miembros'**
+  String get noMembers;
+
+  /// No description provided for @noMembersFound.
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontraron miembros en esta comunidad'**
+  String get noMembersFound;
+
+  /// No description provided for @thisIsYou.
+  ///
+  /// In es, this message translates to:
+  /// **'Este eres tú'**
+  String get thisIsYou;
+
+  /// No description provided for @you.
+  ///
+  /// In es, this message translates to:
+  /// **'(tú)'**
+  String get you;
+
+  /// No description provided for @makeAdmin.
+  ///
+  /// In es, this message translates to:
+  /// **'Hacer Administrador'**
+  String get makeAdmin;
+
+  /// No description provided for @giveManagementPerms.
+  ///
+  /// In es, this message translates to:
+  /// **'Dar permisos de gestión'**
+  String get giveManagementPerms;
+
+  /// No description provided for @removeFromCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Remover de la comunidad'**
+  String get removeFromCommunity;
+
+  /// No description provided for @report.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportar'**
+  String get report;
+
+  /// No description provided for @sendReportToAdmins.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar reporte a los administradores'**
+  String get sendReportToAdmins;
+
+  /// No description provided for @adminCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} admin{plural}'**
+  String adminCount(int n, String plural);
+
+  /// No description provided for @communityLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad'**
+  String get communityLabel;
+
+  /// No description provided for @noAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay alertas'**
+  String get noAlerts;
+
+  /// No description provided for @alertsAppearHere.
+  ///
+  /// In es, this message translates to:
+  /// **'Las alertas aparecerán aquí cuando se envíen a esta comunidad'**
+  String get alertsAppearHere;
+
+  /// No description provided for @officialEntities.
+  ///
+  /// In es, this message translates to:
+  /// **'Entidades Oficiales'**
+  String get officialEntities;
+
+  /// No description provided for @myCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis Comunidades'**
+  String get myCommunities;
+
+  /// No description provided for @noResults.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin resultados'**
+  String get noResults;
+
+  /// No description provided for @communityCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} comunidad{plural}'**
+  String communityCount(int n, String plural);
+
+  /// No description provided for @official.
+  ///
+  /// In es, this message translates to:
+  /// **'Oficial'**
+  String get official;
+
+  /// No description provided for @reportsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes'**
+  String get reportsTitle;
+
+  /// No description provided for @pendingLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'{n} pendiente{plural}'**
+  String pendingLabel(int n, String plural);
+
+  /// No description provided for @allGood.
+  ///
+  /// In es, this message translates to:
+  /// **'Todo en orden'**
+  String get allGood;
+
+  /// No description provided for @noPendingReportsEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay reportes pendientes'**
+  String get noPendingReportsEmpty;
+
+  /// No description provided for @dismissReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Descartar Reporte'**
+  String get dismissReport;
+
+  /// No description provided for @dismissQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Descartar el reporte contra {name}? El reporte será archivado.'**
+  String dismissQuestion(String name);
+
+  /// No description provided for @dismiss.
+  ///
+  /// In es, this message translates to:
+  /// **'Descartar'**
+  String get dismiss;
+
+  /// No description provided for @reportDismissed.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte descartado'**
+  String get reportDismissed;
+
+  /// No description provided for @errorDismissingReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al descartar el reporte'**
+  String get errorDismissingReport;
+
+  /// No description provided for @expelFromReports.
+  ///
+  /// In es, this message translates to:
+  /// **'Expulsar Miembro'**
+  String get expelFromReports;
+
+  /// No description provided for @expelFromReportsConfirmation.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Expulsar a {name} de la comunidad? Esta acción no se puede deshacer.'**
+  String expelFromReportsConfirmation(String name);
+
+  /// No description provided for @reportedByLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportado por {name}'**
+  String reportedByLabel(String name);
+
+  /// No description provided for @reason.
+  ///
+  /// In es, this message translates to:
+  /// **'Motivo'**
+  String get reason;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración'**
+  String get settingsTitle;
+
+  /// No description provided for @alertsSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas'**
+  String get alertsSection;
+
+  /// No description provided for @quickAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas Rápidas'**
+  String get quickAlerts;
+
+  /// No description provided for @configQuickAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar destinos de alertas rápidas'**
+  String get configQuickAlerts;
+
+  /// No description provided for @generalSection.
+  ///
+  /// In es, this message translates to:
+  /// **'General'**
+  String get generalSection;
+
+  /// No description provided for @about.
+  ///
+  /// In es, this message translates to:
+  /// **'Acerca de'**
+  String get about;
+
+  /// No description provided for @appInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Información de la aplicación'**
+  String get appInfo;
+
+  /// No description provided for @quickAlertsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas Rápidas'**
+  String get quickAlertsTitle;
+
+  /// No description provided for @quickAlertsConfig.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración de Alertas Rápidas'**
+  String get quickAlertsConfig;
+
+  /// No description provided for @selectCommunitiesForQuickAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona a qué comunidades se enviarán las alertas rápidas cuando presiones el botón de emergencia.'**
+  String get selectCommunitiesForQuickAlerts;
+
+  /// No description provided for @defaultAllEntities.
+  ///
+  /// In es, this message translates to:
+  /// **'Por defecto: todas las entidades'**
+  String get defaultAllEntities;
+
+  /// No description provided for @saveConfig.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar Configuración'**
+  String get saveConfig;
+
+  /// No description provided for @configSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Configuración guardada'**
+  String get configSaved;
+
+  /// No description provided for @errorSavingConfig.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Error guardando configuración'**
+  String get errorSavingConfig;
+
+  /// No description provided for @joinCommunityTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Unirse a Comunidad'**
+  String get joinCommunityTitle;
+
+  /// No description provided for @joinACommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Únete a una comunidad'**
+  String get joinACommunity;
+
+  /// No description provided for @enterInviteLinkOrCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa el link o código de invitación que te compartieron'**
+  String get enterInviteLinkOrCode;
+
+  /// No description provided for @inviteLinkOrCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Link o código de invitación'**
+  String get inviteLinkOrCode;
+
+  /// No description provided for @inviteLinkHint.
+  ///
+  /// In es, this message translates to:
+  /// **'guardian.app/join/xxx o código'**
+  String get inviteLinkHint;
+
+  /// No description provided for @invalidToken.
+  ///
+  /// In es, this message translates to:
+  /// **'Token o link inválido'**
+  String get invalidToken;
+
+  /// No description provided for @inviteExpiredOrInvalid.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación no válida o expirada'**
+  String get inviteExpiredOrInvalid;
+
+  /// No description provided for @invalidInviteData.
+  ///
+  /// In es, this message translates to:
+  /// **'Datos de invitación inválidos'**
+  String get invalidInviteData;
+
+  /// No description provided for @communityNotFound.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad no encontrada'**
+  String get communityNotFound;
+
+  /// No description provided for @errorValidatingInvite.
+  ///
+  /// In es, this message translates to:
+  /// **'Error validando invitación'**
+  String get errorValidatingInvite;
+
+  /// No description provided for @validateInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Validar invitación'**
+  String get validateInvitation;
+
+  /// No description provided for @joining.
+  ///
+  /// In es, this message translates to:
+  /// **'Uniéndose...'**
+  String get joining;
+
+  /// No description provided for @joinCommunityAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Unirse a la comunidad'**
+  String get joinCommunityAction;
+
+  /// No description provided for @joinedCommunityName.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Te has unido a {name}!'**
+  String joinedCommunityName(String name);
+
+  /// No description provided for @joinedCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Te has unido a la comunidad!'**
+  String get joinedCommunity;
+
+  /// No description provided for @couldNotJoinExpired.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo unir a la comunidad. El link puede haber expirado.'**
+  String get couldNotJoinExpired;
+
+  /// No description provided for @errorJoining.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al unirse a la comunidad'**
+  String get errorJoining;
+
+  /// No description provided for @howItWorks.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cómo funciona?'**
+  String get howItWorks;
+
+  /// No description provided for @howItWorksDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'• Los links de invitación expiran en 12 horas\n• Puedes pegar el link completo o solo el código\n• Una vez unido, recibirás las alertas de la comunidad'**
+  String get howItWorksDetails;
+
+  /// No description provided for @validInvitation.
+  ///
+  /// In es, this message translates to:
+  /// **'Invitación válida'**
+  String get validInvitation;
+
+  /// No description provided for @enterLinkOrCode.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa un link o código'**
+  String get enterLinkOrCode;
+
+  /// No description provided for @anonymousReportMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte Anónimo'**
+  String get anonymousReportMap;
+
+  /// No description provided for @reportedByMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportado por:'**
+  String get reportedByMap;
+
+  /// No description provided for @unknownUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Usuario Desconocido'**
+  String get unknownUser;
+
+  /// No description provided for @justNowMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Justo ahora'**
+  String get justNowMap;
+
+  /// No description provided for @minutesAgoMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n} minutos'**
+  String minutesAgoMap(int n);
+
+  /// No description provided for @hoursAgoMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n} horas'**
+  String hoursAgoMap(int n);
+
+  /// No description provided for @daysAgoMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n} días'**
+  String daysAgoMap(int n);
 }
 
 class _AppLocalizationsDelegate
