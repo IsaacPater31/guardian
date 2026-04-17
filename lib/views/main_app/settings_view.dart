@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/quick_alert_config_service.dart';
+import 'package:guardian/services/swipe_alert_config_service.dart';
+import 'package:guardian/models/emergency_types.dart';
 
 /// Pantalla de configuración principal
 class SettingsView extends StatelessWidget {
@@ -38,6 +40,21 @@ class SettingsView extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const QuickAlertConfigView(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1, indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.swipe, color: Color(0xFF1F2937)),
+                  title: const Text('Alertas por Tipo'),
+                  subtitle: const Text('Configurar comunidades por tipo de alerta'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SwipeAlertConfigView(),
                       ),
                     );
                   },
@@ -99,6 +116,9 @@ class QuickAlertConfigView extends StatefulWidget {
   State<QuickAlertConfigView> createState() => _QuickAlertConfigViewState();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// QuickAlertConfigViewState  (sin cambios relevantes)
+// ─────────────────────────────────────────────────────────────────────────────
 class _QuickAlertConfigViewState extends State<QuickAlertConfigView> {
   final QuickAlertConfigService _configService = QuickAlertConfigService();
   List<Map<String, dynamic>> _availableDestinations = [];
@@ -326,6 +346,288 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+// =============================================================================
+// SwipeAlertConfigView — Configuración de comunidades por tipo de alerta
+// =============================================================================
+
+class SwipeAlertConfigView extends StatefulWidget {
+  final String? initialAlertType;
+  const SwipeAlertConfigView({super.key, this.initialAlertType});
+
+  @override
+  State<SwipeAlertConfigView> createState() => _SwipeAlertConfigViewState();
+}
+
+class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
+  final SwipeAlertConfigService _configService = SwipeAlertConfigService();
+  List<Map<String, dynamic>> _communities = [];
+  final Map<String, Set<String>> _selectedByType = {};
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _isLoading = true);
+    try {
+      final communities = await _configService.getAvailableCommunities();
+      final Map<String, Set<String>> byType = {};
+      for (final alertType in EmergencyTypes.allTypes) {
+        final saved = await _configService.getCommunitiesForType(alertType);
+        byType[alertType] = saved != null ? saved.toSet() : {};
+      }
+      if (mounted) {
+        setState(() {
+          _communities = communities;
+          _selectedByType.addAll(byType);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveAll() async {
+    setState(() => _isSaving = true);
+    int saved = 0;
+    for (final entry in _selectedByType.entries) {
+      final ok = await _configService.setCommunitiesForType(
+          entry.key, entry.value.toList());
+      if (ok) saved++;
+    }
+    if (mounted) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(saved == _selectedByType.length
+              ? '✅ Configuración guardada'
+              : '⚠️ Algunos tipos no se guardaron'),
+          backgroundColor:
+              saved == _selectedByType.length ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Alertas por Tipo'),
+        backgroundColor: const Color(0xFF1F2937),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.05),
+                    border: Border(
+                      bottom: BorderSide(
+                          color: Colors.blue.withValues(alpha: 0.2)),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.blue[700], size: 18),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Define a qué comunidades se enviará cada tipo de alerta al arrastrar el botón. Si no configuras un tipo, se te pedirá al momento de enviar.',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: EmergencyTypes.types.length,
+                    itemBuilder: (context, index) {
+                      final entry =
+                          EmergencyTypes.types.entries.toList()[index];
+                      final typeData = entry.value;
+                      final typeName = typeData['type'] as String;
+                      final color = typeData['color'] as Color;
+                      final icon = typeData['icon'] as IconData;
+                      final label =
+                          EmergencyTypes.getTranslatedType(typeName, context);
+                      final selected = _selectedByType[typeName] ?? {};
+                      final isHighlighted =
+                          widget.initialAlertType == typeName;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        elevation: isHighlighted ? 4 : 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: isHighlighted
+                              ? BorderSide(
+                                  color: color.withValues(alpha: 0.7),
+                                  width: 2)
+                              : BorderSide.none,
+                        ),
+                        child: Theme(
+                          data: Theme.of(context)
+                              .copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(icon, color: color, size: 22),
+                            ),
+                            title: Text(label,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15)),
+                            subtitle: selected.isEmpty
+                                ? Text(
+                                    'Sin comunidad por defecto — se pedirá al enviar',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.orange[700]),
+                                  )
+                                : Text(
+                                    '${selected.length} comunidad${selected.length != 1 ? 'es' : ''} configurada${selected.length != 1 ? 's' : ''}',
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.green),
+                                  ),
+                            initiallyExpanded: isHighlighted,
+                            children: _communities.isEmpty
+                                ? [
+                                    const Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: Text(
+                                          'No tienes comunidades disponibles',
+                                          style:
+                                              TextStyle(color: Colors.grey)),
+                                    )
+                                  ]
+                                : _communities.map((community) {
+                                    final id = community['id'] as String;
+                                    final isEntity =
+                                        community['is_entity'] as bool;
+                                    final isSelected = selected.contains(id);
+                                    return CheckboxListTile(
+                                      value: isSelected,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          final set = Set<String>.from(
+                                              _selectedByType[typeName] ?? {});
+                                          val == true
+                                              ? set.add(id)
+                                              : set.remove(id);
+                                          _selectedByType[typeName] = set;
+                                        });
+                                      },
+                                      activeColor: color,
+                                      title: Text(
+                                          community['name'] as String? ?? '',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500)),
+                                      secondary: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: isEntity
+                                              ? Colors.blue
+                                                  .withValues(alpha: 0.1)
+                                              : Colors.green
+                                                  .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          isEntity
+                                              ? Icons.shield
+                                              : Icons.people,
+                                          color: isEntity
+                                              ? Colors.blue
+                                              : Colors.green,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      subtitle: isEntity
+                                          ? const Text('Entidad Oficial',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.blue))
+                                          : null,
+                                    );
+                                  }).toList(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveAll,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1F2937),
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white),
+                              )
+                            : const Text('Guardar Configuración',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ),

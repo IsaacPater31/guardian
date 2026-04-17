@@ -314,6 +314,48 @@ abstract class AppLocalizations {
   /// **'Reportar como Inapropiado'**
   String get reportInappropriate;
 
+  /// No description provided for @emergencyHealth.
+  ///
+  /// In es, this message translates to:
+  /// **'Sanitaria'**
+  String get emergencyHealth;
+
+  /// No description provided for @emergencyHomeHelp.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayuda en Casa'**
+  String get emergencyHomeHelp;
+
+  /// No description provided for @emergencyPolice.
+  ///
+  /// In es, this message translates to:
+  /// **'Policía'**
+  String get emergencyPolice;
+
+  /// No description provided for @emergencyFireNew.
+  ///
+  /// In es, this message translates to:
+  /// **'Bomberos'**
+  String get emergencyFireNew;
+
+  /// No description provided for @emergencyAccompaniment.
+  ///
+  /// In es, this message translates to:
+  /// **'Acompañamiento'**
+  String get emergencyAccompaniment;
+
+  /// No description provided for @emergencyEnvironmental.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambiental'**
+  String get emergencyEnvironmental;
+
+  /// No description provided for @emergencyRoadEmergency.
+  ///
+  /// In es, this message translates to:
+  /// **'Emergencia Vial'**
+  String get emergencyRoadEmergency;
+
   /// No description provided for @emergencyRobbery.
   ///
   /// In es, this message translates to:
@@ -1741,6 +1783,48 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Configurar destinos de alertas rápidas'**
   String get configQuickAlerts;
+
+  /// No description provided for @swipeAlertsConfig.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas por Tipo'**
+  String get swipeAlertsConfig;
+
+  /// No description provided for @configSwipeAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar comunidades por tipo de alerta'**
+  String get configSwipeAlerts;
+
+  /// No description provided for @swipeAlertsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas por Tipo'**
+  String get swipeAlertsTitle;
+
+  /// No description provided for @swipeAlertsSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Define a qué comunidades se enviará cada tipo de alerta al arrastrar el botón. Si no hay ninguna configurada, se te pedirá al momento de enviar.'**
+  String get swipeAlertsSubtitle;
+
+  /// No description provided for @noDefaultCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin comunidad por defecto'**
+  String get noDefaultCommunity;
+
+  /// No description provided for @tapToConfigureType.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca para configurar'**
+  String get tapToConfigureType;
+
+  /// No description provided for @defaultCommunitiesFor.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidades para {type}'**
+  String defaultCommunitiesFor(String type);
 
   /// No description provided for @generalSection.
   ///

@@ -8,6 +8,25 @@ class MapController {
     return _alertRepository.getMapAlertsStream();
   }
 
+  /// Stream de alertas con filtros activos.
+  ///
+  /// Delega a [AlertRepository.getMapAlertsStreamFiltered].
+  Stream<List<AlertModel>> getAlertsStreamFiltered({
+    List<String> selectedTypes = const [],
+    String filterStatus = 'all',
+    String filterDateRange = 'all',
+    DateTime? customStart,
+    DateTime? customEnd,
+  }) {
+    return _alertRepository.getMapAlertsStreamFiltered(
+      selectedTypes: selectedTypes,
+      filterStatus: filterStatus,
+      filterDateRange: filterDateRange,
+      customStart: customStart,
+      customEnd: customEnd,
+    );
+  }
+
   Future<List<AlertModel>> getAlertsOnce() async {
     try {
       return await _alertRepository.getMapAlerts();
@@ -16,4 +35,4 @@ class MapController {
       return [];
     }
   }
-} 
+}
