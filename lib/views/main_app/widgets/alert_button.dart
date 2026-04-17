@@ -51,6 +51,22 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    // Pre-configurar comunidades por defecto basado en keywords
+    // (p.ej. POLICE → POLICIA, FIRE → BOMBEROS, etc.)
+    _initDefaultCommunities();
+  }
+
+  /// Carga las comunidades del usuario e inicializa la configuración por defecto
+  /// de cada tipo de alerta si aún no está configurada.
+  Future<void> _initDefaultCommunities() async {
+    try {
+      final communities = await _swipeConfig.getAvailableCommunities();
+      if (communities.isNotEmpty) {
+        await _swipeConfig.initDefaults(communities);
+      }
+    } catch (e) {
+      // No bloquear la UI si falla la inicialización
+    }
   }
 
   @override
@@ -1099,6 +1115,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         communityId: community['id'] as String,
       );
       if (success) successCount++;
+    }
+
+    // Guardar la selección confirmada como configuración permanente para
+    // este tipo de alerta. La próxima vez quedará pre-seleccionada automáticamente.
+    if (successCount > 0) {
+      final ids = selectedCommunities.map((c) => c['id'] as String).toList();
+      _swipeConfig.setCommunitiesForType(alertType, ids);
     }
 
     ScaffoldMessenger.of(context).clearSnackBars();
