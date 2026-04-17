@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/alert_repository.dart';
@@ -58,7 +59,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
       });
       _fadeController.forward(from: 0);
     } catch (e) {
-      print('Error cargando comunidades: $e');
+      AppLogger.e('ComunidadesView._loadCommunities', e);
       if (!mounted) return;
       setState(() => _isLoading = false);
       if (mounted) {

@@ -1,14 +1,18 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../core/app_constants.dart';
+import '../core/app_logger.dart';
+import '../core/entity_definitions.dart';
+import '../core/mixins/community_fetch_mixin.dart';
 import 'alert_repository.dart';
 import '../models/member_report_model.dart';
 
-/// Resultado de unirse a una comunidad mediante token
+/// Result returned by operations that join a community.
 class JoinResult {
   final bool success;
   final bool alreadyMember;
-  final String? role; // 'admin', 'member', 'official'
+  final String? role;
   final String? message;
 
   JoinResult({
@@ -19,368 +23,247 @@ class JoinResult {
   });
 }
 
-/// Servicio para gestionar comunidades y entidades
-/// Optimizado para plan gratuito de Firebase (minimiza reads/writes)
-class CommunityService {
+/// Service responsible for all community-related business logic.
+///
+/// Optimised for Firebase Spark (free) plan: minimises read/write operations
+/// through batching and selective queries.
+class CommunityService with CommunityFetchMixin {
   static final CommunityService _instance = CommunityService._internal();
   factory CommunityService() => _instance;
   CommunityService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  @override
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Inicializa las 4 entidades por defecto (ejecutar una sola vez)
-  /// Retorna true si se crearon nuevas, false si ya existían todas
-  /// Optimizado: solo hace writes si es necesario
+  // ─── Entity Bootstrapping ────────────────────────────────────────────────
+
+  /// Seeds the four built-in entity communities if they do not yet exist.
+  ///
+  /// Safe to call multiple times (idempotent). Returns [true] if any new
+  /// entities were created.
   Future<bool> initializeEntityCommunities() async {
     try {
-      final entities = [
-        {'name': 'AMBIENTAL', 'description': 'Entidad Ambiental', 'icon_code_point': 0xe217, 'icon_color': '#4CAF50'},
-        {'name': 'POLICIA', 'description': 'Policía Nacional', 'icon_code_point': 0xe3a2, 'icon_color': '#1565C0'},
-        {'name': 'BOMBEROS', 'description': 'Cuerpo de Bomberos', 'icon_code_point': 0xe392, 'icon_color': '#E53935'},
-        {'name': 'TRANSITO', 'description': 'Tránsito y Transporte', 'icon_code_point': 0xe674, 'icon_color': '#FF9800'},
-      ];
-
       bool createdAny = false;
 
-      for (final entity in entities) {
-        // Verificar si ya existe (1 read por entidad)
-        final existing = await _firestore
-            .collection('communities')
-            .where('name', isEqualTo: entity['name'])
-            .where('is_entity', isEqualTo: true)
+      for (final entity in EntityDefinitions.defaultEntities) {
+        final existing = await firestore
+            .collection(FirestoreCollections.communities)
+            .where(CommunityFields.name, isEqualTo: entity[CommunityFields.name])
+            .where(CommunityFields.isEntity, isEqualTo: true)
             .limit(1)
             .get();
 
         if (existing.docs.isEmpty) {
-          // Crear la entidad (1 write)
-          await _firestore.collection('communities').add({
-            'name': entity['name'],
-            'description': entity['description'],
-            'is_entity': true,
-            'created_by': null,
-            'allow_forward_to_entities': false,
-            'created_at': Timestamp.now(),
-            'icon_code_point': entity['icon_code_point'],
-            'icon_color': entity['icon_color'],
-          });
-          print('✅ Entidad creada: ${entity['name']}');
+          await firestore
+              .collection(FirestoreCollections.communities)
+              .add(EntityDefinitions.toFirestore(entity));
+          AppLogger.d('Entity created: ${entity[CommunityFields.name]}');
           createdAny = true;
         } else {
-          print('ℹ️ Entidad ya existe: ${entity['name']}');
+          AppLogger.d('Entity already exists: ${entity[CommunityFields.name]}');
         }
       }
 
       return createdAny;
     } catch (e) {
-      print('❌ Error inicializando entidades: $e');
+      AppLogger.e('initializeEntityCommunities', e);
       return false;
     }
   }
 
-  /// Agrega usuario a todas las entidades cuando entra (idempotente)
-  /// Se debe llamar cuando el usuario inicia sesión
-  /// Optimizado: usa batch para minimizar writes
+  /// Ensures the current user is a member of every entity community.
+  ///
+  /// Called after login/registration to provide automatic entity membership.
+  /// Uses a Firestore batch to minimise write operations.
   Future<void> ensureUserInEntities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('⚠️ No hay usuario autenticado');
+        AppLogger.w('ensureUserInEntities: no authenticated user');
         return;
       }
 
-      // Obtener todas las entidades (1 read)
-      final entitiesSnapshot = await _firestore
-          .collection('communities')
-          .where('is_entity', isEqualTo: true)
+      var entitiesSnap = await firestore
+          .collection(FirestoreCollections.communities)
+          .where(CommunityFields.isEntity, isEqualTo: true)
           .get();
 
-      if (entitiesSnapshot.docs.isEmpty) {
-        print('⚠️ No hay entidades disponibles. Inicializando...');
-        // Si no hay entidades, crearlas primero
+      if (entitiesSnap.docs.isEmpty) {
+        AppLogger.w('No entities found — seeding now');
         await initializeEntityCommunities();
-        // Volver a obtener (1 read)
-        final newSnapshot = await _firestore
-            .collection('communities')
-            .where('is_entity', isEqualTo: true)
+        entitiesSnap = await firestore
+            .collection(FirestoreCollections.communities)
+            .where(CommunityFields.isEntity, isEqualTo: true)
             .get();
-        
-        if (newSnapshot.docs.isEmpty) {
-          print('❌ No se pudieron crear las entidades');
+
+        if (entitiesSnap.docs.isEmpty) {
+          AppLogger.e('Could not seed entities');
           return;
         }
-        
-        // Continuar con el proceso
-        await _addUserToEntities(userId, newSnapshot.docs);
-        return;
       }
 
-      await _addUserToEntities(userId, entitiesSnapshot.docs);
+      await _addUserToEntities(userId, entitiesSnap.docs);
     } catch (e) {
-      print('❌ Error agregando usuario a entidades: $e');
+      AppLogger.e('ensureUserInEntities', e);
     }
   }
 
-  /// Método privado para agregar usuario a entidades
-  /// Usa batch para minimizar writes (plan gratuito)
-  Future<void> _addUserToEntities(String userId, List<QueryDocumentSnapshot> entities) async {
-    final batch = _firestore.batch();
+  Future<void> _addUserToEntities(
+    String userId,
+    List<QueryDocumentSnapshot> entities,
+  ) async {
+    final batch = firestore.batch();
     int added = 0;
 
     for (final entityDoc in entities) {
       final communityId = entityDoc.id;
 
-      // Verificar si ya es miembro (1 read por entidad)
-      final existingMember = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .where('community_id', isEqualTo: communityId)
+      final existingMember = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: userId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
       if (existingMember.docs.isEmpty) {
-        // Agregar como miembro normal (role: 'member')
-        // Los usuarios normales NO reciben alertas de entidades
-        // Solo los miembros oficiales (role: 'official') reciben alertas
-        final memberRef = _firestore.collection('community_members').doc();
-        batch.set(memberRef, {
-          'user_id': userId,
-          'community_id': communityId,
-          'joined_at': Timestamp.now(),
-          'role': 'member', // Usuario normal - no recibe alertas de entidades
+        final ref = firestore.collection(FirestoreCollections.communityMembers).doc();
+        batch.set(ref, {
+          MemberFields.userId: userId,
+          MemberFields.communityId: communityId,
+          MemberFields.joinedAt: Timestamp.now(),
+          MemberFields.role: MemberFields.roleMember,
         });
         added++;
       }
     }
 
     if (added > 0) {
-      // Ejecutar batch (1 write operation para todas las entidades)
       await batch.commit();
-      
-      // Invalidar cache de alertas (Iteración 2.5)
       AlertRepository().invalidateCommunityCache();
-      
-      print('✅ Usuario agregado a $added entidades');
+      AppLogger.d('User added to $added entities');
     } else {
-      print('ℹ️ Usuario ya estaba en todas las entidades');
+      AppLogger.d('User already belongs to all entities');
     }
   }
 
-  /// Obtiene las comunidades del usuario (incluye entidades y comunidades normales)
-  /// Optimizado: usa queries eficientes para plan gratuito
+  // ─── Community Queries ───────────────────────────────────────────────────
+
+  /// Returns all communities the current user belongs to.
   Future<List<Map<String, dynamic>>> getMyCommunities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-
-      // Obtener todos los memberships del usuario (1 read)
-      final membersSnapshot = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .get();
-
-      if (membersSnapshot.docs.isEmpty) return [];
-
-      final communityIds = membersSnapshot.docs
-          .map((doc) => doc.data()['community_id'] as String)
-          .toList();
-
-      if (communityIds.isEmpty) return [];
-
-      // Firestore limita whereIn a 10 items, así que hacemos queries separadas si es necesario
-      final List<Map<String, dynamic>> communities = [];
-
-      for (int i = 0; i < communityIds.length; i += 10) {
-        final batch = communityIds.skip(i).take(10).toList();
-        final communitiesSnapshot = await _firestore
-            .collection('communities')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get();
-
-        communities.addAll(
-          communitiesSnapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'id': doc.id,
-              'name': data['name'],
-              'description': data['description'],
-              'is_entity': data['is_entity'] ?? false,
-              'allow_forward_to_entities': data['allow_forward_to_entities'] ?? true,
-              'icon_code_point': data['icon_code_point'],
-              'icon_color': data['icon_color'],
-            };
-          }),
-        );
-      }
-
-      // Ordenar: entidades primero, luego comunidades normales
-      communities.sort((a, b) {
-        if (a['is_entity'] == b['is_entity']) {
-          return (a['name'] as String).compareTo(b['name'] as String);
-        }
-        return (b['is_entity'] as bool) ? 1 : -1;
-      });
-
-      return communities;
+      return fetchUserCommunities(userId);
     } catch (e) {
-      print('❌ Error obteniendo comunidades: $e');
+      AppLogger.e('getMyCommunities', e);
       return [];
     }
   }
 
-  /// Stream reactivo de comunidades del usuario
-  /// Útil para actualizaciones en tiempo real
+  /// Reactive stream of the current user's communities.
   Stream<List<Map<String, dynamic>>> getMyCommunitiesStream() {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return Stream.value([]);
 
-    return _firestore
-        .collection('community_members')
-        .where('user_id', isEqualTo: userId)
+    return firestore
+        .collection(FirestoreCollections.communityMembers)
+        .where(MemberFields.userId, isEqualTo: userId)
         .snapshots()
-        .asyncMap((membersSnapshot) async {
-      if (membersSnapshot.docs.isEmpty) return <Map<String, dynamic>>[];
-
-      final communityIds = membersSnapshot.docs
-          .map((doc) => doc.data()['community_id'] as String)
-          .toList();
-
-      if (communityIds.isEmpty) return <Map<String, dynamic>>[];
-
-      final List<Map<String, dynamic>> communities = [];
-
-      for (int i = 0; i < communityIds.length; i += 10) {
-        final batch = communityIds.skip(i).take(10).toList();
-        final communitiesSnapshot = await _firestore
-            .collection('communities')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get();
-
-        communities.addAll(
-          communitiesSnapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'id': doc.id,
-              'name': data['name'],
-              'description': data['description'],
-              'is_entity': data['is_entity'] ?? false,
-              'allow_forward_to_entities': data['allow_forward_to_entities'] ?? true,
-              'icon_code_point': data['icon_code_point'],
-              'icon_color': data['icon_color'],
-            };
-          }),
-        );
-      }
-
-      communities.sort((a, b) {
-        if (a['is_entity'] == b['is_entity']) {
-          return (a['name'] as String).compareTo(b['name'] as String);
-        }
-        return (b['is_entity'] as bool) ? 1 : -1;
-      });
-
-      return communities;
-    });
+        .asyncMap((_) => getMyCommunities());
   }
 
-  /// Obtiene los IDs de usuarios que deben recibir alertas de una comunidad
-  /// Para entidades: solo miembros oficiales (role: 'official')
-  /// Para comunidades normales: todos los miembros
+  // ─── Alert Recipients ────────────────────────────────────────────────────
+
+  /// Returns the user IDs that should receive alerts for [communityId].
+  ///
+  /// Entities → only `official` members.
+  /// Normal communities → all members.
   Future<List<String>> getAlertRecipients(String communityId) async {
     try {
-      // Obtener información de la comunidad
-      final communityDoc = await _firestore
-          .collection('communities')
+      final communityDoc = await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .get();
 
       if (!communityDoc.exists) return [];
 
-      final communityData = communityDoc.data();
-      final isEntity = communityData?['is_entity'] ?? false;
+      final isEntity = communityDoc.data()?[CommunityFields.isEntity] ?? false;
 
-      // Obtener miembros según el tipo de comunidad
-      Query query = _firestore
-          .collection('community_members')
-          .where('community_id', isEqualTo: communityId);
+      Query query = firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.communityId, isEqualTo: communityId);
 
-      // Si es entidad, solo miembros oficiales
       if (isEntity) {
-        query = query.where('role', isEqualTo: 'official');
+        query = query.where(MemberFields.role, isEqualTo: MemberFields.roleOfficial);
       }
-      // Si es comunidad normal, todos los miembros (sin filtro de role)
 
-      final membersSnapshot = await query.get();
+      final snap = await query.get();
 
-      return membersSnapshot.docs
+      return snap.docs
           .map((doc) {
             final data = doc.data() as Map<String, dynamic>?;
-            if (data == null) return '';
-            return data['user_id'] as String? ?? '';
+            return data?[MemberFields.userId] as String? ?? '';
           })
           .where((id) => id.isNotEmpty)
           .toList();
     } catch (e) {
-      print('❌ Error obteniendo destinatarios de alerta: $e');
+      AppLogger.e('getAlertRecipients', e);
       return [];
     }
   }
 
-  /// Agrega un miembro oficial a una entidad
-  /// Solo para uso administrativo - agregar policías, bomberos reales, etc.
+  // ─── Official Members ────────────────────────────────────────────────────
+
+  /// Adds or promotes [userId] as an `official` member of [communityId].
   Future<bool> addOfficialMember(String userId, String communityId) async {
     try {
-      // Verificar que la comunidad es una entidad
-      final communityDoc = await _firestore
-          .collection('communities')
+      final communityDoc = await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .get();
 
       if (!communityDoc.exists) {
-        print('❌ Comunidad no existe');
+        AppLogger.e('addOfficialMember: community not found');
         return false;
       }
 
-      final isEntity = communityDoc.data()?['is_entity'] ?? false;
-      if (!isEntity) {
-        print('❌ Solo se pueden agregar miembros oficiales a entidades');
+      if (!(communityDoc.data()?[CommunityFields.isEntity] ?? false)) {
+        AppLogger.e('addOfficialMember: target is not an entity');
         return false;
       }
 
-      // Verificar si ya existe
-      final existing = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .where('community_id', isEqualTo: communityId)
+      final existing = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: userId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
       if (existing.docs.isNotEmpty) {
-        // Actualizar role a 'official'
-        await existing.docs.first.reference.update({
-          'role': 'official',
-        });
-        print('✅ Usuario actualizado a miembro oficial');
+        await existing.docs.first.reference.update({MemberFields.role: MemberFields.roleOfficial});
+        AppLogger.d('Updated user to official member');
       } else {
-        // Crear nuevo miembro oficial
-        await _firestore.collection('community_members').add({
-          'user_id': userId,
-          'community_id': communityId,
-          'joined_at': Timestamp.now(),
-          'role': 'official',
+        await firestore.collection(FirestoreCollections.communityMembers).add({
+          MemberFields.userId: userId,
+          MemberFields.communityId: communityId,
+          MemberFields.joinedAt: Timestamp.now(),
+          MemberFields.role: MemberFields.roleOfficial,
         });
-        print('✅ Miembro oficial agregado');
+        AppLogger.d('Official member added');
       }
 
       return true;
     } catch (e) {
-      print('❌ Error agregando miembro oficial: $e');
+      AppLogger.e('addOfficialMember', e);
       return false;
     }
   }
 
-  /// Crea una nueva comunidad normal (no entidad)
-  /// El creador se agrega automáticamente como 'admin'
+  // ─── Create / Update / Delete Community ─────────────────────────────────
+
+  /// Creates a new (non-entity) community. The creator is automatically added
+  /// as `admin`.
   Future<String?> createCommunity({
     required String name,
     String? description,
@@ -391,184 +274,160 @@ class CommunityService {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('❌ No hay usuario autenticado');
+        AppLogger.e('createCommunity: no authenticated user');
         return null;
       }
 
-      // Crear la comunidad
-      final communityData = <String, dynamic>{
-        'name': name,
-        'description': description,
-        'is_entity': false,
-        'created_by': userId,
-        'allow_forward_to_entities': allowForwardToEntities,
-        'created_at': Timestamp.now(),
+      final data = <String, dynamic>{
+        CommunityFields.name: name,
+        CommunityFields.description: description,
+        CommunityFields.isEntity: false,
+        CommunityFields.createdBy: userId,
+        CommunityFields.allowForwardToEntities: allowForwardToEntities,
+        CommunityFields.createdAt: Timestamp.now(),
       };
-      if (iconCodePoint != null) communityData['icon_code_point'] = iconCodePoint;
-      if (iconColor != null) communityData['icon_color'] = iconColor;
+      if (iconCodePoint != null) data[CommunityFields.iconCodePoint] = iconCodePoint;
+      if (iconColor != null) data[CommunityFields.iconColor] = iconColor;
 
-      final communityRef = await _firestore.collection('communities').add(communityData);
+      final ref = await firestore.collection(FirestoreCollections.communities).add(data);
 
-      final communityId = communityRef.id;
-
-      // Agregar al creador como admin
-      await _firestore.collection('community_members').add({
-        'user_id': userId,
-        'community_id': communityId,
-        'joined_at': Timestamp.now(),
-        'role': 'admin', // El creador es admin
+      await firestore.collection(FirestoreCollections.communityMembers).add({
+        MemberFields.userId: userId,
+        MemberFields.communityId: ref.id,
+        MemberFields.joinedAt: Timestamp.now(),
+        MemberFields.role: MemberFields.roleAdmin,
       });
 
-      // Invalidar cache de alertas (Iteración 2.5)
       AlertRepository().invalidateCommunityCache();
-
-      print('✅ Comunidad creada: $name (ID: $communityId)');
-      return communityId;
+      AppLogger.d('Community created: $name (${ref.id})');
+      return ref.id;
     } catch (e) {
-      print('❌ Error creando comunidad: $e');
+      AppLogger.e('createCommunity', e);
       return null;
     }
   }
 
-  /// Genera un link de invitación para una comunidad
-  /// El token expira en 12 horas
+  /// Generates a time-limited invite link for [communityId].
   Future<String?> generateInviteLink(String communityId) async {
     try {
-      // Verificar que la comunidad existe y no es entidad
-      final communityDoc = await _firestore
-          .collection('communities')
+      final communityDoc = await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .get();
 
       if (!communityDoc.exists) {
-        print('❌ Comunidad no existe');
+        AppLogger.e('generateInviteLink: community not found');
         return null;
       }
 
-      final isEntity = communityDoc.data()?['is_entity'] ?? false;
-      if (isEntity) {
-        print('❌ No se pueden generar links de invitación para entidades');
+      if (communityDoc.data()?[CommunityFields.isEntity] ?? false) {
+        AppLogger.e('generateInviteLink: entities cannot have invite links');
         return null;
       }
 
-      // Generar token único
       final token = _generateToken();
+      final expiresAt = DateTime.now().add(AppDurations.inviteExpiry);
 
-      // Crear invitación (expira en 12 horas)
-      final expiresAt = DateTime.now().add(const Duration(hours: 12));
-      await _firestore.collection('invites').doc(token).set({
-        'community_id': communityId,
-        'expires_at': Timestamp.fromDate(expiresAt),
+      await firestore.collection(FirestoreCollections.invites).doc(token).set({
+        InviteFields.communityId: communityId,
+        InviteFields.expiresAt: Timestamp.fromDate(expiresAt),
       });
 
-      // Retornar el link (formato: guardian.app/join/{token})
-      return 'guardian.app/join/$token';
+      return '${AppUrls.inviteLinkBase}$token';
     } catch (e) {
-      print('❌ Error generando link de invitación: $e');
+      AppLogger.e('generateInviteLink', e);
       return null;
     }
   }
 
-  /// Valida si un usuario existe en la app (por email)
+  /// Verifies that a user with [email] exists in the `users` collection.
   Future<bool> validateUserExists(String email) async {
     try {
-      // Buscar usuario por email en Firestore users collection
-      final usersSnapshot = await _firestore
-          .collection('users')
+      final snap = await firestore
+          .collection(FirestoreCollections.users)
           .where('email', isEqualTo: email.toLowerCase().trim())
           .limit(1)
           .get();
-
-      return usersSnapshot.docs.isNotEmpty;
+      return snap.docs.isNotEmpty;
     } catch (e) {
-      print('❌ Error validando usuario: $e');
+      AppLogger.e('validateUserExists', e);
       return false;
     }
   }
 
-  /// Busca usuarios por email o nombre para agregar directamente a una comunidad
-  /// Excluye al usuario actual y a los que ya son miembros de la comunidad dada
-  /// Retorna máximo 10 resultados para minimizar reads
-  Future<List<Map<String, dynamic>>> searchUsers(String query, {String? excludeCommunityId}) async {
+  /// Searches users by email (exact) or name (substring, client-side).
+  ///
+  /// Excludes the current user and existing members of [excludeCommunityId].
+  Future<List<Map<String, dynamic>>> searchUsers(
+    String query, {
+    String? excludeCommunityId,
+  }) async {
     try {
       final userId = _auth.currentUser?.uid;
       final trimmed = query.trim().toLowerCase();
       if (trimmed.isEmpty || trimmed.length < 2) return [];
 
-      final List<Map<String, dynamic>> results = [];
-      final Set<String> addedIds = {};
+      final results = <Map<String, dynamic>>[];
+      final addedIds = <String>{};
 
-      // Obtener miembros existentes para excluirlos
       Set<String> existingMemberIds = {};
       if (excludeCommunityId != null) {
-        final membersSnapshot = await _firestore
-            .collection('community_members')
-            .where('community_id', isEqualTo: excludeCommunityId)
+        final membersSnap = await firestore
+            .collection(FirestoreCollections.communityMembers)
+            .where(MemberFields.communityId, isEqualTo: excludeCommunityId)
             .get();
-        existingMemberIds = membersSnapshot.docs
-            .map((d) => d.data()['user_id'] as String? ?? '')
+        existingMemberIds = membersSnap.docs
+            .map((d) => d.data()[MemberFields.userId] as String? ?? '')
             .where((id) => id.isNotEmpty)
             .toSet();
       }
 
-      // 1. Búsqueda por email exacto
-      final emailSnapshot = await _firestore
-          .collection('users')
+      // Exact email match.
+      final emailSnap = await firestore
+          .collection(FirestoreCollections.users)
           .where('email', isEqualTo: trimmed)
           .limit(5)
           .get();
 
-      for (final doc in emailSnapshot.docs) {
+      for (final doc in emailSnap.docs) {
         final uid = doc.id;
         if (uid == userId || existingMemberIds.contains(uid) || addedIds.contains(uid)) continue;
         addedIds.add(uid);
         final data = doc.data();
-        results.add({
-          'uid': uid,
-          'name': data['name'] as String? ?? data['displayName'] as String? ?? 'Usuario',
-          'email': data['email'] as String? ?? '',
-        });
+        results.add(_userMapFrom(uid, data));
       }
 
-      // 2. Búsqueda por nombre (obtener lote y filtrar client-side)
-      // Firestore no soporta búsqueda por substring, así que traemos un lote razonable
-      // y filtramos en el cliente. Esto es eficiente para apps pequeñas/medianas.
+      // Name/email substring — client-side filter on a bounded batch.
       if (results.length < 10) {
-        final nameSnapshot = await _firestore
-            .collection('users')
+        final nameSnap = await firestore
+            .collection(FirestoreCollections.users)
             .limit(100)
             .get();
 
-        for (final doc in nameSnapshot.docs) {
+        for (final doc in nameSnap.docs) {
           if (results.length >= 10) break;
           final uid = doc.id;
           if (uid == userId || existingMemberIds.contains(uid) || addedIds.contains(uid)) continue;
 
           final data = doc.data();
-          final name = (data['name'] as String? ?? data['displayName'] as String? ?? '').toLowerCase();
+          final name = (_displayName(data)).toLowerCase();
           final email = (data['email'] as String? ?? '').toLowerCase();
 
           if (name.contains(trimmed) || email.contains(trimmed)) {
             addedIds.add(uid);
-            results.add({
-              'uid': uid,
-              'name': data['name'] as String? ?? data['displayName'] as String? ?? 'Usuario',
-              'email': data['email'] as String? ?? '',
-            });
+            results.add(_userMapFrom(uid, data));
           }
         }
       }
 
       return results;
     } catch (e) {
-      print('❌ Error buscando usuarios: $e');
+      AppLogger.e('searchUsers', e);
       return [];
     }
   }
 
-  /// Agrega un usuario directamente a una comunidad (sin token de invitación)
-  /// Solo admins pueden ejecutar esta acción
-  /// Retorna JoinResult con información detallada
+  /// Adds [targetUserId] directly to [communityId] (admin only).
   Future<JoinResult> addMemberDirectly(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -576,28 +435,27 @@ class CommunityService {
         return JoinResult(success: false, message: 'No hay usuario autenticado');
       }
 
-      // Verificar que quien agrega es admin
-      final callerRole = await getUserRole(communityId);
-      if (callerRole != 'admin') {
+      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
         return JoinResult(success: false, message: 'Solo administradores pueden agregar miembros');
       }
 
-      // Verificar que el usuario objetivo existe
-      final targetUserDoc = await _firestore.collection('users').doc(targetUserId).get();
-      if (!targetUserDoc.exists) {
+      final targetDoc = await firestore
+          .collection(FirestoreCollections.users)
+          .doc(targetUserId)
+          .get();
+      if (!targetDoc.exists) {
         return JoinResult(success: false, message: 'Usuario no encontrado');
       }
 
-      // Verificar si ya es miembro
-      final existingMember = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: targetUserId)
-          .where('community_id', isEqualTo: communityId)
+      final existing = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: targetUserId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
-      if (existingMember.docs.isNotEmpty) {
-        final role = existingMember.docs.first.data()['role'] as String? ?? 'member';
+      if (existing.docs.isNotEmpty) {
+        final role = existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
         return JoinResult(
           success: true,
           alreadyMember: true,
@@ -606,342 +464,289 @@ class CommunityService {
         );
       }
 
-      // Agregar como miembro
-      await _firestore.collection('community_members').add({
-        'user_id': targetUserId,
-        'community_id': communityId,
-        'joined_at': Timestamp.now(),
-        'role': 'member',
+      await firestore.collection(FirestoreCollections.communityMembers).add({
+        MemberFields.userId: targetUserId,
+        MemberFields.communityId: communityId,
+        MemberFields.joinedAt: Timestamp.now(),
+        MemberFields.role: MemberFields.roleMember,
       });
 
-      // Invalidar caché si existe
-      try {
-        AlertRepository();
-      } catch (_) {}
-
-      final targetData = targetUserDoc.data();
-      final targetName = targetData?['name'] as String? ?? targetData?['displayName'] as String? ?? 'Usuario';
-      print('✅ Usuario $targetName agregado a la comunidad');
+      final targetName = _displayName(targetDoc.data() ?? {});
+      AppLogger.d('User $targetName added to community');
 
       return JoinResult(
         success: true,
-        role: 'member',
+        role: MemberFields.roleMember,
         message: '$targetName ha sido agregado a la comunidad',
       );
     } catch (e) {
-      print('❌ Error agregando miembro: $e');
+      AppLogger.e('addMemberDirectly', e);
       return JoinResult(success: false, message: 'Error al agregar miembro');
     }
   }
 
-  /// Obtiene información de una invitación sin unirse
-  /// Útil para mostrar preview antes de confirmar
+  // ─── Invite Handling ─────────────────────────────────────────────────────
+
+  /// Returns invite metadata without consuming the token.
   Future<Map<String, dynamic>?> getInviteInfo(String token) async {
     try {
-      final inviteDoc = await _firestore.collection('invites').doc(token).get();
+      final inviteDoc = await firestore
+          .collection(FirestoreCollections.invites)
+          .doc(token)
+          .get();
+
       if (!inviteDoc.exists) {
-        print('❌ Token de invitación no encontrado');
+        AppLogger.e('Invite token not found');
         return null;
       }
 
-      final inviteData = inviteDoc.data();
-      final communityId = inviteData?['community_id'] as String?;
-      final expiresAt = (inviteData?['expires_at'] as Timestamp?)?.toDate();
+      final data = inviteDoc.data();
+      final communityId = data?[InviteFields.communityId] as String?;
+      final expiresAt = (data?[InviteFields.expiresAt] as Timestamp?)?.toDate();
 
       if (communityId == null || expiresAt == null) {
-        print('❌ Datos de invitación inválidos');
+        AppLogger.e('Invalid invite data');
         return null;
       }
 
-      // Verificar expiración
       if (DateTime.now().isAfter(expiresAt)) {
-        print('❌ Token de invitación expirado');
+        AppLogger.w('Invite token expired');
         return null;
       }
 
       return {
-        'community_id': communityId,
-        'expires_at': expiresAt,
+        InviteFields.communityId: communityId,
+        InviteFields.expiresAt: expiresAt,
         'is_valid': true,
       };
     } catch (e) {
-      print('❌ Error obteniendo info de invitación: $e');
+      AppLogger.e('getInviteInfo', e);
       return null;
     }
   }
 
-  /// Une a un usuario a una comunidad mediante token de invitación
-  /// Valida que el token no esté expirado y que el usuario exista
-  /// Retorna JoinResult con información detallada del resultado
+  /// Joins the current user to the community identified by [token].
   Future<JoinResult> joinCommunityByToken(String token) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('❌ No hay usuario autenticado');
-        return JoinResult(
-          success: false,
-          message: 'No hay usuario autenticado',
-        );
+        return JoinResult(success: false, message: 'No hay usuario autenticado');
       }
 
-      // Obtener la invitación
-      final inviteDoc = await _firestore.collection('invites').doc(token).get();
+      final inviteDoc = await firestore
+          .collection(FirestoreCollections.invites)
+          .doc(token)
+          .get();
       if (!inviteDoc.exists) {
-        print('❌ Token de invitación no válido');
-        return JoinResult(
-          success: false,
-          message: 'Token de invitación no válido',
-        );
+        return JoinResult(success: false, message: 'Token de invitación no válido');
       }
 
-      final inviteData = inviteDoc.data();
-      final communityId = inviteData?['community_id'] as String?;
-      final expiresAt = (inviteData?['expires_at'] as Timestamp?)?.toDate();
+      final data = inviteDoc.data();
+      final communityId = data?[InviteFields.communityId] as String?;
+      final expiresAt = (data?[InviteFields.expiresAt] as Timestamp?)?.toDate();
 
       if (communityId == null || expiresAt == null) {
-        print('❌ Datos de invitación inválidos');
-        return JoinResult(
-          success: false,
-          message: 'Datos de invitación inválidos',
-        );
+        return JoinResult(success: false, message: 'Datos de invitación inválidos');
       }
 
-      // Verificar expiración
       if (DateTime.now().isAfter(expiresAt)) {
-        print('❌ Token de invitación expirado');
-        return JoinResult(
-          success: false,
-          message: 'El link de invitación ha expirado',
-        );
+        return JoinResult(success: false, message: 'El link de invitación ha expirado');
       }
 
-      // Verificar si ya es miembro
-      final existingMember = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .where('community_id', isEqualTo: communityId)
+      final existing = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: userId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
-      if (existingMember.docs.isNotEmpty) {
-        final memberData = existingMember.docs.first.data();
-        final role = memberData['role'] as String? ?? 'member';
-        print('ℹ️ Usuario ya es miembro de esta comunidad (rol: $role)');
+      if (existing.docs.isNotEmpty) {
+        final role = existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
         return JoinResult(
           success: true,
           alreadyMember: true,
           role: role,
-          message: role == 'admin' 
+          message: role == MemberFields.roleAdmin
               ? 'Ya eres administrador de esta comunidad'
               : 'Ya eres miembro de esta comunidad',
         );
       }
 
-      // Agregar como miembro normal
-      await _firestore.collection('community_members').add({
-        'user_id': userId,
-        'community_id': communityId,
-        'joined_at': Timestamp.now(),
-        'role': 'member', // Nuevo miembro es 'member'
+      await firestore.collection(FirestoreCollections.communityMembers).add({
+        MemberFields.userId: userId,
+        MemberFields.communityId: communityId,
+        MemberFields.joinedAt: Timestamp.now(),
+        MemberFields.role: MemberFields.roleMember,
       });
 
-      // Invalidar cache de alertas (Iteración 2.5)
       AlertRepository().invalidateCommunityCache();
+      AppLogger.d('User joined community via token');
 
-      print('✅ Usuario agregado a la comunidad');
       return JoinResult(
         success: true,
         alreadyMember: false,
-        role: 'member',
+        role: MemberFields.roleMember,
         message: 'Te has unido exitosamente a la comunidad',
       );
     } catch (e) {
-      print('❌ Error uniéndose a comunidad: $e');
-      return JoinResult(
-        success: false,
-        message: 'Error al unirse a la comunidad',
-      );
+      AppLogger.e('joinCommunityByToken', e);
+      return JoinResult(success: false, message: 'Error al unirse a la comunidad');
     }
   }
 
-  /// Obtiene el rol del usuario actual en una comunidad
-  /// Retorna 'admin', 'member', 'official' o null si no es miembro
+  // ─── Role Queries ────────────────────────────────────────────────────────
+
+  /// Returns the current user's role in [communityId], or `null` if not a member.
   Future<String?> getUserRole(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return null;
 
-      final memberSnapshot = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: userId)
-          .where('community_id', isEqualTo: communityId)
+      final snap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: userId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
-      if (memberSnapshot.docs.isEmpty) return null;
-
-      final data = memberSnapshot.docs.first.data();
-      return data['role'] as String? ?? 'member';
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
     } catch (e) {
-      print('❌ Error obteniendo rol de usuario: $e');
+      AppLogger.e('getUserRole', e);
       return null;
     }
   }
 
-  /// Abandona una comunidad (solo para comunidades normales, no entidades).
-  /// Lanza [Exception] con mensaje claro si no puede abandonar (entidad, admin único, etc.).
-  /// Un admin puede abandonar si hay al menos otro admin en la comunidad.
+  // ─── Leave / Delete ──────────────────────────────────────────────────────
+
+  /// Removes the current user from [communityId].
+  ///
+  /// Throws if the community is an entity, if the user is not a member, or if
+  /// they are the sole admin.
   Future<bool> leaveCommunity(String communityId) async {
     final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      throw Exception('Usuario no autenticado');
-    }
+    if (userId == null) throw Exception('Usuario no autenticado');
 
-    final communityDoc = await _firestore
-        .collection('communities')
+    final communityDoc = await firestore
+        .collection(FirestoreCollections.communities)
         .doc(communityId)
         .get();
 
-    if (!communityDoc.exists) {
-      throw Exception('La comunidad no existe');
-    }
-
-    final isEntity = communityDoc.data()?['is_entity'] ?? false;
-    if (isEntity) {
+    if (!communityDoc.exists) throw Exception('La comunidad no existe');
+    if (communityDoc.data()?[CommunityFields.isEntity] ?? false) {
       throw Exception('No se puede abandonar una entidad oficial');
     }
 
-    final memberSnapshot = await _firestore
-        .collection('community_members')
-        .where('user_id', isEqualTo: userId)
-        .where('community_id', isEqualTo: communityId)
+    final memberSnap = await firestore
+        .collection(FirestoreCollections.communityMembers)
+        .where(MemberFields.userId, isEqualTo: userId)
+        .where(MemberFields.communityId, isEqualTo: communityId)
         .limit(1)
         .get();
 
-    if (memberSnapshot.docs.isEmpty) {
-      throw Exception('No eres miembro de esta comunidad');
-    }
+    if (memberSnap.docs.isEmpty) throw Exception('No eres miembro de esta comunidad');
 
-    final memberData = memberSnapshot.docs.first.data();
-    final role = memberData['role'] as String? ?? 'member';
-    if (role == 'admin') {
-      // Verificar si hay al menos otro admin
-      final adminsSnapshot = await _firestore
-          .collection('community_members')
-          .where('community_id', isEqualTo: communityId)
-          .where('role', isEqualTo: 'admin')
+    final role = memberSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+    if (role == MemberFields.roleAdmin) {
+      final adminsSnap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.communityId, isEqualTo: communityId)
+          .where(MemberFields.role, isEqualTo: MemberFields.roleAdmin)
           .get();
 
-      if (adminsSnapshot.docs.length <= 1) {
+      if (adminsSnap.docs.length <= 1) {
         throw Exception('Eres el único administrador. Promueve a otro miembro antes de salir.');
       }
     }
 
-    await memberSnapshot.docs.first.reference.delete();
+    await memberSnap.docs.first.reference.delete();
     AlertRepository().invalidateCommunityCache();
     return true;
   }
 
-  /// Elimina una comunidad (solo el creador puede eliminar)
-  /// También elimina todos los miembros y invitaciones asociadas
+  /// Deletes [communityId] along with all its members and invites.
+  ///
+  /// Only the community creator may perform this action.
   Future<bool> deleteCommunity(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('❌ No hay usuario autenticado');
+        AppLogger.e('deleteCommunity: no authenticated user');
         return false;
       }
 
-      // Obtener la comunidad
-      final communityDoc = await _firestore
-          .collection('communities')
+      final communityDoc = await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .get();
 
       if (!communityDoc.exists) {
-        print('❌ Comunidad no existe');
+        AppLogger.e('deleteCommunity: community not found');
         return false;
       }
 
-      final communityData = communityDoc.data();
-      final isEntity = communityData?['is_entity'] ?? false;
-      final createdBy = communityData?['created_by'] as String?;
-
-      // No se pueden eliminar entidades
-      if (isEntity) {
-        print('⚠️ No se pueden eliminar entidades oficiales');
+      final data = communityDoc.data()!;
+      if (data[CommunityFields.isEntity] ?? false) {
+        AppLogger.w('deleteCommunity: cannot delete entity communities');
+        return false;
+      }
+      if ((data[CommunityFields.createdBy] as String?) != userId) {
+        AppLogger.w('deleteCommunity: only the creator can delete the community');
         return false;
       }
 
-      // Solo el creador puede eliminar
-      if (createdBy != userId) {
-        print('⚠️ Solo el creador puede eliminar la comunidad');
-        return false;
-      }
+      final batch = firestore.batch();
 
-      // Usar batch para eliminar todo de forma atómica
-      final batch = _firestore.batch();
-
-      // 1. Eliminar todos los miembros de la comunidad
-      final membersSnapshot = await _firestore
-          .collection('community_members')
-          .where('community_id', isEqualTo: communityId)
+      final membersSnap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .get();
-
-      for (final doc in membersSnapshot.docs) {
+      for (final doc in membersSnap.docs) {
         batch.delete(doc.reference);
       }
 
-      // 2. Eliminar todas las invitaciones de la comunidad
-      final invitesSnapshot = await _firestore
-          .collection('invites')
-          .where('community_id', isEqualTo: communityId)
+      final invitesSnap = await firestore
+          .collection(FirestoreCollections.invites)
+          .where(InviteFields.communityId, isEqualTo: communityId)
           .get();
-
-      for (final doc in invitesSnapshot.docs) {
+      for (final doc in invitesSnap.docs) {
         batch.delete(doc.reference);
       }
 
-      // 3. Eliminar la comunidad
       batch.delete(communityDoc.reference);
-
-      // Ejecutar batch
       await batch.commit();
 
-      // Invalidar cache de alertas
       AlertRepository().invalidateCommunityCache();
-
-      print('✅ Comunidad eliminada: $communityId');
+      AppLogger.d('Community deleted: $communityId');
       return true;
     } catch (e) {
-      print('❌ Error eliminando comunidad: $e');
+      AppLogger.e('deleteCommunity', e);
       return false;
     }
   }
 
-  /// Verifica si el usuario actual es el creador de una comunidad
+  /// Returns `true` if the current user is the creator of [communityId].
   Future<bool> isCreator(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      final communityDoc = await _firestore
-          .collection('communities')
+      final doc = await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .get();
 
-      if (!communityDoc.exists) return false;
-
-      final createdBy = communityDoc.data()?['created_by'] as String?;
-      return createdBy == userId;
+      if (!doc.exists) return false;
+      return (doc.data()?[CommunityFields.createdBy] as String?) == userId;
     } catch (e) {
-      print('❌ Error verificando creador: $e');
+      AppLogger.e('isCreator', e);
       return false;
     }
   }
 
-  /// Actualiza una comunidad (solo el creador puede actualizar)
-  Future<bool> updateCommunity(String communityId, {
+  /// Updates mutable fields of [communityId]. Only the creator may do this.
+  Future<bool> updateCommunity(
+    String communityId, {
     String? name,
     String? description,
     bool? allowForwardToEntities,
@@ -951,81 +756,73 @@ class CommunityService {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) {
-        print('❌ No hay usuario autenticado');
+        AppLogger.e('updateCommunity: no authenticated user');
         return false;
       }
 
-      // Verificar que es el creador
-      final isOwner = await isCreator(communityId);
-      if (!isOwner) {
-        print('⚠️ Solo el creador puede actualizar la comunidad');
+      if (!await isCreator(communityId)) {
+        AppLogger.w('updateCommunity: only the creator can update');
         return false;
       }
 
-      // Construir datos a actualizar
-      final Map<String, dynamic> updateData = {};
-      if (name != null) updateData['name'] = name;
-      if (description != null) updateData['description'] = description;
+      final updateData = <String, dynamic>{};
+      if (name != null) updateData[CommunityFields.name] = name;
+      if (description != null) updateData[CommunityFields.description] = description;
       if (allowForwardToEntities != null) {
-        updateData['allow_forward_to_entities'] = allowForwardToEntities;
+        updateData[CommunityFields.allowForwardToEntities] = allowForwardToEntities;
       }
-      if (iconCodePoint != null) updateData['icon_code_point'] = iconCodePoint;
-      if (iconColor != null) updateData['icon_color'] = iconColor;
+      if (iconCodePoint != null) updateData[CommunityFields.iconCodePoint] = iconCodePoint;
+      if (iconColor != null) updateData[CommunityFields.iconColor] = iconColor;
 
-      if (updateData.isEmpty) {
-        print('ℹ️ No hay datos para actualizar');
-        return true;
-      }
+      if (updateData.isEmpty) return true;
 
-      await _firestore
-          .collection('communities')
+      await firestore
+          .collection(FirestoreCollections.communities)
           .doc(communityId)
           .update(updateData);
 
-      print('✅ Comunidad actualizada');
+      AppLogger.d('Community updated: $communityId');
       return true;
     } catch (e) {
-      print('❌ Error actualizando comunidad: $e');
+      AppLogger.e('updateCommunity', e);
       return false;
     }
   }
 
-  // ===== MEMBER MANAGEMENT =====
+  // ─── Member Management ───────────────────────────────────────────────────
 
-  /// Obtiene los miembros de una comunidad con información del usuario
-  /// Retorna una lista de Maps con: memberId, userId, userName, userEmail, role, joinedAt
+  /// Returns the list of members of [communityId] enriched with user data.
   Future<List<Map<String, dynamic>>> getCommunityMembers(String communityId) async {
     try {
-      final membersSnapshot = await _firestore
-          .collection('community_members')
-          .where('community_id', isEqualTo: communityId)
+      final membersSnap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .get();
 
-      if (membersSnapshot.docs.isEmpty) return [];
+      if (membersSnap.docs.isEmpty) return [];
 
-      final List<Map<String, dynamic>> members = [];
+      final members = <Map<String, dynamic>>[];
 
-      // Obtener info de cada usuario
-      for (final memberDoc in membersSnapshot.docs) {
+      for (final memberDoc in membersSnap.docs) {
         final memberData = memberDoc.data();
-        final userId = memberData['user_id'] as String? ?? '';
+        final userId = memberData[MemberFields.userId] as String? ?? '';
         if (userId.isEmpty) continue;
 
-        // Buscar nombre y email en users collection
         String? userName;
         String? userEmail;
-        try {
-          final userDoc = await _firestore.collection('users').doc(userId).get();
-          if (userDoc.exists) {
-            final userData = userDoc.data();
-            userName = userData?['name'] as String? ?? userData?['displayName'] as String?;
-            userEmail = userData?['email'] as String?;
-          }
-        } catch (_) {
-          // Si no se puede obtener info del usuario, continuar sin ella
-        }
 
-        // Fallback: obtener displayName de FirebaseAuth si es el usuario actual
+        try {
+          final userDoc = await firestore
+              .collection(FirestoreCollections.users)
+              .doc(userId)
+              .get();
+          if (userDoc.exists) {
+            final data = userDoc.data()!;
+            userName = _displayName(data);
+            userEmail = data['email'] as String?;
+          }
+        } catch (_) {}
+
         if (userName == null && userId == _auth.currentUser?.uid) {
           userName = _auth.currentUser?.displayName;
           userEmail ??= _auth.currentUser?.email;
@@ -1033,122 +830,120 @@ class CommunityService {
 
         members.add({
           'member_id': memberDoc.id,
-          'user_id': userId,
+          MemberFields.userId: userId,
           'user_name': userName ?? userEmail?.split('@')[0] ?? 'Usuario',
           'user_email': userEmail ?? '',
-          'role': memberData['role'] as String? ?? 'member',
-          'joined_at': (memberData['joined_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          MemberFields.role: memberData[MemberFields.role] as String? ?? MemberFields.roleMember,
+          'joined_at': (memberData[MemberFields.joinedAt] as Timestamp?)?.toDate() ?? DateTime.now(),
         });
       }
 
-      // Ordenar: admins primero, luego por nombre
+      const roleOrder = {
+        MemberFields.roleAdmin: 0,
+        MemberFields.roleOfficial: 1,
+        MemberFields.roleMember: 2,
+      };
+
       members.sort((a, b) {
-        final roleOrder = {'admin': 0, 'official': 1, 'member': 2};
-        final aOrder = roleOrder[a['role']] ?? 3;
-        final bOrder = roleOrder[b['role']] ?? 3;
-        if (aOrder != bOrder) return aOrder.compareTo(bOrder);
+        final aOrd = roleOrder[a[MemberFields.role]] ?? 3;
+        final bOrd = roleOrder[b[MemberFields.role]] ?? 3;
+        if (aOrd != bOrd) return aOrd.compareTo(bOrd);
         return (a['user_name'] as String).compareTo(b['user_name'] as String);
       });
 
       return members;
     } catch (e) {
-      print('❌ Error obteniendo miembros: $e');
+      AppLogger.e('getCommunityMembers', e);
       return [];
     }
   }
 
-  /// Expulsa un miembro de una comunidad (solo admins)
-  /// No permite expulsar a otros admins ni a uno mismo
+  /// Removes [targetUserId] from [communityId]. Admins only; cannot remove
+  /// other admins or self.
   Future<bool> removeMember(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      // Verificar que el usuario actual es admin
-      final currentRole = await getUserRole(communityId);
-      if (currentRole != 'admin') {
-        print('⚠️ Solo los administradores pueden expulsar miembros');
+      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
+        AppLogger.w('removeMember: caller is not admin');
         return false;
       }
-
-      // No puede expulsarse a sí mismo
       if (targetUserId == userId) {
-        print('⚠️ No puedes expulsarte a ti mismo');
+        AppLogger.w('removeMember: cannot remove self');
         return false;
       }
 
-      // Verificar que el target no es admin
-      final targetMember = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: targetUserId)
-          .where('community_id', isEqualTo: communityId)
+      final targetSnap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: targetUserId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
-      if (targetMember.docs.isEmpty) {
-        print('⚠️ El usuario no es miembro de esta comunidad');
+      if (targetSnap.docs.isEmpty) {
+        AppLogger.w('removeMember: target is not a member');
         return false;
       }
 
-      final targetRole = targetMember.docs.first.data()['role'] as String? ?? 'member';
-      if (targetRole == 'admin') {
-        print('⚠️ No se puede expulsar a otro administrador');
+      final targetRole =
+          targetSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+      if (targetRole == MemberFields.roleAdmin) {
+        AppLogger.w('removeMember: cannot remove another admin');
         return false;
       }
 
-      await targetMember.docs.first.reference.delete();
-      print('✅ Miembro expulsado');
+      await targetSnap.docs.first.reference.delete();
+      AppLogger.d('Member removed from $communityId');
       return true;
     } catch (e) {
-      print('❌ Error expulsando miembro: $e');
+      AppLogger.e('removeMember', e);
       return false;
     }
   }
 
-  /// Promueve un miembro a admin (solo admins)
+  /// Promotes [targetUserId] to admin in [communityId]. Admins only.
   Future<bool> promoteToAdmin(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      // Verificar que el usuario actual es admin
-      final currentRole = await getUserRole(communityId);
-      if (currentRole != 'admin') {
-        print('⚠️ Solo los administradores pueden promover miembros');
+      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
+        AppLogger.w('promoteToAdmin: caller is not admin');
         return false;
       }
 
-      // Buscar al target
-      final targetMember = await _firestore
-          .collection('community_members')
-          .where('user_id', isEqualTo: targetUserId)
-          .where('community_id', isEqualTo: communityId)
+      final targetSnap = await firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: targetUserId)
+          .where(MemberFields.communityId, isEqualTo: communityId)
           .limit(1)
           .get();
 
-      if (targetMember.docs.isEmpty) {
-        print('⚠️ El usuario no es miembro de esta comunidad');
+      if (targetSnap.docs.isEmpty) {
+        AppLogger.w('promoteToAdmin: target is not a member');
         return false;
       }
 
-      final targetRole = targetMember.docs.first.data()['role'] as String? ?? 'member';
-      if (targetRole == 'admin') {
-        print('ℹ️ El usuario ya es administrador');
+      final targetRole =
+          targetSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+      if (targetRole == MemberFields.roleAdmin) {
+        AppLogger.d('promoteToAdmin: user is already admin');
         return true;
       }
 
-      await targetMember.docs.first.reference.update({'role': 'admin'});
-      print('✅ Miembro promovido a admin');
+      await targetSnap.docs.first.reference.update({MemberFields.role: MemberFields.roleAdmin});
+      AppLogger.d('Member promoted to admin');
       return true;
     } catch (e) {
-      print('❌ Error promoviendo miembro: $e');
+      AppLogger.e('promoteToAdmin', e);
       return false;
     }
   }
 
-  // ===== MEMBER REPORTS =====
+  // ─── Member Reports ──────────────────────────────────────────────────────
 
-  /// Crea un reporte de un miembro (cualquier miembro puede reportar)
+  /// Creates a report against [reportedUserId] in [communityId].
   Future<bool> reportMember({
     required String communityId,
     required String reportedUserId,
@@ -1157,17 +952,12 @@ class CommunityService {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
-
-      // No puede reportarse a sí mismo
       if (reportedUserId == userId) {
-        print('⚠️ No puedes reportarte a ti mismo');
+        AppLogger.w('reportMember: cannot report self');
         return false;
       }
-
-      // Verificar que ambos son miembros
-      final isReporterMember = await getUserRole(communityId);
-      if (isReporterMember == null) {
-        print('⚠️ No eres miembro de esta comunidad');
+      if (await getUserRole(communityId) == null) {
+        AppLogger.w('reportMember: caller is not a member');
         return false;
       }
 
@@ -1177,139 +967,129 @@ class CommunityService {
         reportedByUserId: userId,
         reason: reason,
         createdAt: DateTime.now(),
-        status: 'pending',
+        status: ReportFields.statusPending,
       );
 
-      await _firestore.collection('member_reports').add(report.toFirestore());
-      print('✅ Reporte creado');
+      await firestore
+          .collection(FirestoreCollections.memberReports)
+          .add(report.toFirestore());
+      AppLogger.d('Member report created');
       return true;
     } catch (e) {
-      print('❌ Error creando reporte: $e');
+      AppLogger.e('reportMember', e);
       return false;
     }
   }
 
-  /// Obtiene los reportes pendientes de una comunidad (solo admins)
+  /// Returns pending member reports for [communityId]. Admins only.
   Future<List<Map<String, dynamic>>> getReportsForCommunity(String communityId) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return [];
-
-      // Verificar que es admin
-      final currentRole = await getUserRole(communityId);
-      if (currentRole != 'admin') {
-        print('⚠️ Solo los administradores pueden ver reportes');
+      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
+        AppLogger.w('getReportsForCommunity: caller is not admin');
         return [];
       }
 
-      final reportsSnapshot = await _firestore
-          .collection('member_reports')
-          .where('community_id', isEqualTo: communityId)
-          .where('status', isEqualTo: 'pending')
-          .orderBy('created_at', descending: true)
+      final reportsSnap = await firestore
+          .collection(FirestoreCollections.memberReports)
+          .where(ReportFields.communityId, isEqualTo: communityId)
+          .where(ReportFields.status, isEqualTo: ReportFields.statusPending)
+          .orderBy(ReportFields.createdAt, descending: true)
           .get();
 
-      final List<Map<String, dynamic>> reports = [];
+      final reports = <Map<String, dynamic>>[];
 
-      for (final reportDoc in reportsSnapshot.docs) {
+      for (final reportDoc in reportsSnap.docs) {
         final reportData = reportDoc.data();
-        final reportedUserId = reportData['reported_user_id'] as String? ?? '';
-        final reportedByUserId = reportData['reported_by_user_id'] as String? ?? '';
+        final reportedId = reportData[ReportFields.reportedUserId] as String? ?? '';
+        final reportedById = reportData[ReportFields.reportedByUserId] as String? ?? '';
 
-        // Obtener nombres de usuarios
-        String reportedUserName = 'Usuario';
-        String reportedByUserName = 'Usuario';
-
-        try {
-          final reportedUserDoc = await _firestore.collection('users').doc(reportedUserId).get();
-          if (reportedUserDoc.exists) {
-            final data = reportedUserDoc.data();
-            reportedUserName = data?['name'] as String? ?? data?['displayName'] as String? ?? data?['email']?.split('@')[0] ?? 'Usuario';
-          }
-        } catch (_) {}
-
-        try {
-          final reportedByUserDoc = await _firestore.collection('users').doc(reportedByUserId).get();
-          if (reportedByUserDoc.exists) {
-            final data = reportedByUserDoc.data();
-            reportedByUserName = data?['name'] as String? ?? data?['displayName'] as String? ?? data?['email']?.split('@')[0] ?? 'Usuario';
-          }
-        } catch (_) {}
+        final reportedName = await _getDisplayNameForUser(reportedId);
+        final reportedByName = await _getDisplayNameForUser(reportedById);
 
         reports.add({
           'report_id': reportDoc.id,
-          'reported_user_id': reportedUserId,
-          'reported_user_name': reportedUserName,
-          'reported_by_user_id': reportedByUserId,
-          'reported_by_user_name': reportedByUserName,
-          'reason': reportData['reason'] ?? '',
-          'created_at': (reportData['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          'status': reportData['status'] ?? 'pending',
+          ReportFields.reportedUserId: reportedId,
+          'reported_user_name': reportedName,
+          ReportFields.reportedByUserId: reportedById,
+          'reported_by_user_name': reportedByName,
+          ReportFields.reason: reportData[ReportFields.reason] ?? '',
+          'created_at':
+              (reportData[ReportFields.createdAt] as Timestamp?)?.toDate() ?? DateTime.now(),
+          ReportFields.status: reportData[ReportFields.status] ?? ReportFields.statusPending,
         });
       }
 
       return reports;
     } catch (e) {
-      print('❌ Error obteniendo reportes: $e');
+      AppLogger.e('getReportsForCommunity', e);
       return [];
     }
   }
 
-  /// Descarta un reporte (solo admins)
+  /// Marks [reportId] as dismissed.
   Future<bool> dismissReport(String reportId) async {
     try {
-      await _firestore
-          .collection('member_reports')
+      await firestore
+          .collection(FirestoreCollections.memberReports)
           .doc(reportId)
-          .update({'status': 'dismissed'});
-      print('✅ Reporte descartado');
+          .update({ReportFields.status: ReportFields.statusDismissed});
+      AppLogger.d('Report dismissed: $reportId');
       return true;
     } catch (e) {
-      print('❌ Error descartando reporte: $e');
+      AppLogger.e('dismissReport', e);
       return false;
     }
   }
 
-  /// Obtiene el conteo de reportes pendientes de una comunidad
+  /// Returns the count of pending reports for [communityId].
   Future<int> getPendingReportsCount(String communityId) async {
     try {
-      final snapshot = await _firestore
-          .collection('member_reports')
-          .where('community_id', isEqualTo: communityId)
-          .where('status', isEqualTo: 'pending')
+      final snap = await firestore
+          .collection(FirestoreCollections.memberReports)
+          .where(ReportFields.communityId, isEqualTo: communityId)
+          .where(ReportFields.status, isEqualTo: ReportFields.statusPending)
           .get();
-      return snapshot.docs.length;
+      return snap.docs.length;
     } catch (e) {
       return 0;
     }
   }
 
-  /// Genera un token único y seguro para invitaciones (32 caracteres alfanuméricos)
-  /// Usa múltiples fuentes de aleatoriedad para garantizar unicidad y seguridad
+  // ─── Private helpers ─────────────────────────────────────────────────────
+
+  /// Resolves the display name for [userId] from Firestore, or returns a
+  /// generic fallback.
+  Future<String> _getDisplayNameForUser(String userId) async {
+    if (userId.isEmpty) return 'Usuario';
+    try {
+      final doc = await firestore
+          .collection(FirestoreCollections.users)
+          .doc(userId)
+          .get();
+      if (!doc.exists) return 'Usuario';
+      return _displayName(doc.data()!);
+    } catch (_) {
+      return 'Usuario';
+    }
+  }
+
+  /// Extracts a human-readable name from a Firestore user document.
+  String _displayName(Map<String, dynamic> data) =>
+      data['name'] as String? ??
+      data['displayName'] as String? ??
+      (data['email'] as String?)?.split('@')[0] ??
+      'Usuario';
+
+  Map<String, dynamic> _userMapFrom(String uid, Map<String, dynamic> data) => {
+        'uid': uid,
+        'name': _displayName(data),
+        'email': data['email'] as String? ?? '',
+      };
+
+  /// Generates a cryptographically secure 32-character alphanumeric token.
   String _generateToken() {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = Random.secure(); // Usa Random.secure() para criptográficamente seguro
-    final buffer = StringBuffer();
-    
-    // Combinar múltiples fuentes de aleatoriedad:
-    // 1. Random.secure() (criptográficamente seguro)
-    // 2. Timestamp actual (unicidad temporal)
-    // 3. Microsegundos (granularidad adicional)
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final microseconds = DateTime.now().microsecondsSinceEpoch;
-    final randomSeed = random.nextInt(1000000);
-    
-    // Generar 32 caracteres usando múltiples fuentes
-    for (int i = 0; i < 32; i++) {
-      // Combinar todas las fuentes de aleatoriedad
-      final combined = (timestamp + microseconds + randomSeed + i) % chars.length;
-      final randomIndex = random.nextInt(chars.length);
-      // XOR de ambos índices para mayor aleatoriedad
-      final finalIndex = (combined ^ randomIndex) % chars.length;
-      buffer.write(chars[finalIndex]);
-    }
-    
-    return buffer.toString();
+    final random = Random.secure();
+    return List.generate(32, (_) => chars[random.nextInt(chars.length)]).join();
   }
 }
-

@@ -59,7 +59,7 @@ class CommunityIconPicker {
   static const String defaultIconColor = '#5B6ABF';
 
   /// Cache para mapeo de codePoint -> IconData, inicializado una sola vez
-  static late final Map<int, IconData> _codePointToIcon = {
+  static final Map<int, IconData> _codePointToIcon = {
     for (var option in availableIcons) option.codePoint: option.icon,
   };
 

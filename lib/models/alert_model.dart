@@ -1,9 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Domain model representing a single alert.
 class AlertModel {
   final String? id;
-  final String type; // 'detailed', 'quick', 'swiped'
-  final String alertType; // 'EMERGENCY', 'FIRE', 'ACCIDENT', etc.
+
+  /// Alert category: `'detailed'`, `'quick'`, or `'swiped'`.
+  final String type;
+
+  /// Emergency type identifier (e.g. `'FIRE'`, `'HEALTH'`, `'POLICE'`).
+  final String alertType;
+
   final String? description;
   final DateTime timestamp;
   final bool isAnonymous;
@@ -13,15 +19,20 @@ class AlertModel {
   final String? userEmail;
   final String? userName;
   final List<String>? imageBase64;
-  final int viewedCount; // Contador de personas que han visto la alerta
-  final List<String> viewedBy; // Lista de IDs de usuarios que han visto la alerta
-  
-  // NUEVOS CAMPOS para sistema de comunidades
-  final String? communityId; // FK a community (null para alertas antiguas - compatibilidad)
-  final String alertStatus; // 'pending' | 'attended' — solo oficiales pueden cambiar
-  final int forwardsCount; // Contador de reenvíos
-  final int reportsCount; // Contador de reportes
-  final List<String> reportedBy; // IDs de usuarios que han reportado (evitar doble reporte)
+  final int viewedCount;
+  final List<String> viewedBy;
+
+  /// Community this alert was sent to. `null` for legacy alerts.
+  final String? communityId;
+
+  /// Attention status: `'pending'` or `'attended'`. Only officials may update.
+  final String alertStatus;
+
+  final int forwardsCount;
+  final int reportsCount;
+
+  /// User IDs that have reported this alert (prevents duplicate reports).
+  final List<String> reportedBy;
 
   AlertModel({
     this.id,
@@ -38,7 +49,6 @@ class AlertModel {
     this.imageBase64,
     this.viewedCount = 0,
     this.viewedBy = const [],
-    // NUEVOS CAMPOS
     this.communityId,
     this.alertStatus = 'pending',
     this.forwardsCount = 0,
@@ -47,7 +57,7 @@ class AlertModel {
   });
 
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>;
     return AlertModel(
       id: doc.id,
       type: data['type'] ?? '',
@@ -56,47 +66,50 @@ class AlertModel {
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       isAnonymous: data['isAnonymous'] ?? false,
       shareLocation: data['shareLocation'] ?? false,
-      location: data['location'] != null ? LocationData.fromMap(data['location']) : null,
+      location: data['location'] != null
+          ? LocationData.fromMap(data['location'] as Map<String, dynamic>)
+          : null,
       userId: data['userId'],
       userEmail: data['userEmail'],
       userName: data['userName'],
-      imageBase64: data['imageBase64'] != null ? List<String>.from(data['imageBase64']) : null,
+      imageBase64: data['imageBase64'] != null
+          ? List<String>.from(data['imageBase64'] as List)
+          : null,
       viewedCount: data['viewedCount'] ?? 0,
-      viewedBy: data['viewedBy'] != null ? List<String>.from(data['viewedBy']) : [],
-      // NUEVOS CAMPOS (compatibilidad: si no existen, son null/0)
+      viewedBy: data['viewedBy'] != null
+          ? List<String>.from(data['viewedBy'] as List)
+          : [],
       communityId: data['community_id'],
       alertStatus: data['alert_status'] ?? 'pending',
       forwardsCount: data['forwards_count'] ?? 0,
       reportsCount: data['reports_count'] ?? 0,
-      reportedBy: data['reported_by'] != null ? List<String>.from(data['reported_by']) : [],
+      reportedBy: data['reported_by'] != null
+          ? List<String>.from(data['reported_by'] as List)
+          : [],
     );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'type': type,
-      'alertType': alertType,
-      'description': description,
-      'timestamp': Timestamp.fromDate(timestamp),
-      'isAnonymous': isAnonymous,
-      'shareLocation': shareLocation,
-      'location': location?.toMap(),
-      'userId': userId,
-      'userEmail': userEmail,
-      'userName': userName,
-      'imageBase64': imageBase64,
-      'viewedCount': viewedCount,
-      'viewedBy': viewedBy,
-      // NUEVOS CAMPOS
-      'community_id': communityId,
-      'alert_status': alertStatus,
-      'forwards_count': forwardsCount,
-      'reports_count': reportsCount,
-      'reported_by': reportedBy,
-    };
-  }
+  Map<String, dynamic> toFirestore() => {
+        'type': type,
+        'alertType': alertType,
+        'description': description,
+        'timestamp': Timestamp.fromDate(timestamp),
+        'isAnonymous': isAnonymous,
+        'shareLocation': shareLocation,
+        'location': location?.toMap(),
+        'userId': userId,
+        'userEmail': userEmail,
+        'userName': userName,
+        'imageBase64': imageBase64,
+        'viewedCount': viewedCount,
+        'viewedBy': viewedBy,
+        'community_id': communityId,
+        'alert_status': alertStatus,
+        'forwards_count': forwardsCount,
+        'reports_count': reportsCount,
+        'reported_by': reportedBy,
+      };
 
-  // Método para crear una copia con el contador de vistas actualizado
   AlertModel copyWith({
     String? id,
     String? type,
@@ -112,7 +125,6 @@ class AlertModel {
     List<String>? imageBase64,
     int? viewedCount,
     List<String>? viewedBy,
-    // NUEVOS CAMPOS
     String? communityId,
     String? alertStatus,
     int? forwardsCount,
@@ -134,7 +146,6 @@ class AlertModel {
       imageBase64: imageBase64 ?? this.imageBase64,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,
-      // NUEVOS CAMPOS
       communityId: communityId ?? this.communityId,
       alertStatus: alertStatus ?? this.alertStatus,
       forwardsCount: forwardsCount ?? this.forwardsCount,
@@ -144,26 +155,23 @@ class AlertModel {
   }
 }
 
+/// Geographical coordinates attached to an alert.
 class LocationData {
   final double latitude;
   final double longitude;
 
-  LocationData({
+  const LocationData({
     required this.latitude,
     required this.longitude,
   });
 
-  factory LocationData.fromMap(Map<String, dynamic> map) {
-    return LocationData(
-      latitude: map['latitude']?.toDouble() ?? 0.0,
-      longitude: map['longitude']?.toDouble() ?? 0.0,
-    );
-  }
+  factory LocationData.fromMap(Map<String, dynamic> map) => LocationData(
+        latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+        longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+      );
 
-  Map<String, dynamic> toMap() {
-    return {
-      'latitude': latitude,
-      'longitude': longitude,
-    };
-  }
-} 
+  Map<String, dynamic> toMap() => {
+        'latitude': latitude,
+        'longitude': longitude,
+      };
+}

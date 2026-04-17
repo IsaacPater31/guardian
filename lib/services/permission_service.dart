@@ -1,312 +1,224 @@
-import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_logger.dart';
 import 'native_background_service.dart';
 
+/// Manages runtime-permission requests for the Guardian app.
+///
+/// On the first launch, it requests notification and battery-optimisation
+/// permissions with appropriate delays to avoid overwhelming the user.
+/// Location permissions are requested on-demand (when the user sends an alert).
 class PermissionService {
   static const String _firstLaunchKey = 'guardian_first_launch';
-  
-  /// Verifica si es la primera vez que se ejecuta la aplicación
+
+  // ─── First-launch check ──────────────────────────────────────────────────
+
   static Future<bool> _isFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_firstLaunchKey) ?? true;
   }
-  
-  /// Marca que la aplicación ya se ha ejecutado por primera vez
+
   static Future<void> _markFirstLaunchComplete() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_firstLaunchKey, false);
   }
 
-  /// Solicita solo los permisos esenciales en la primera ejecución
-  /// Con delays apropiados para mejor UX
+  // ─── First-launch permission flow ────────────────────────────────────────
+
+  /// Requests essential permissions on first launch with UX-friendly delays.
+  ///
+  /// Safe to call on every startup — it is a no-op on subsequent launches.
   static Future<void> requestAllPermissionsOnFirstLaunch() async {
-    final isFirstLaunch = await _isFirstLaunch();
-    if (!isFirstLaunch) {
-      print('🔐 Not first launch, skipping permission requests');
+    if (!await _isFirstLaunch()) {
+      AppLogger.d('PermissionService: not first launch, skipping');
       return;
     }
-    
-    print('🔐 First launch detected - Starting permission flow with delays...');
-    
+
+    AppLogger.d('PermissionService: first launch — starting permission flow');
+
     try {
-      // 1. Notificaciones (primero, más importante)
-      print('🔐 Requesting notification permission first...');
+      await _requestNotificationPermission();
+      AppLogger.d('PermissionService: waiting 3 s for user to enable notifications');
+      await Future.delayed(const Duration(seconds: 3));
+
       if (Platform.isAndroid) {
-        // En Android, usar el método nativo
-        try {
-          await NativeBackgroundService.requestNotificationPermissions();
-          print('📱 Android notification permission requested via native method');
-        } catch (e) {
-          print('❌ Error requesting Android notification permissions: $e');
-          // Fallback al método de permission_handler
-          final notificationStatus = await Permission.notification.request();
-          print('📱 Notification permission status (fallback): $notificationStatus');
-        }
-      } else {
-        // En iOS, usar permission_handler
-        final notificationStatus = await Permission.notification.request();
-        print('📱 Notification permission status: $notificationStatus');
+        await _requestBatteryOptimisation();
       }
-      
-      // Delay para dar tiempo al usuario de activar notificaciones
-      print('⏳ Waiting 3 seconds for user to enable notifications...');
-      await Future.delayed(Duration(seconds: 3));
-      
-      // 2. Optimización de batería (después, con delay)
-      if (Platform.isAndroid) {
-        print('🔐 Requesting battery optimization exemption after delay...');
-        try {
-          await NativeBackgroundService.requestBatteryOptimizationExemption();
-          print('🔋 Battery optimization exemption requested');
-        } catch (e) {
-          print('⚠️ Battery optimization request failed: $e');
-        }
-      }
-      
-      // Marcar que ya se ha ejecutado por primera vez
+
       await _markFirstLaunchComplete();
-      print('✅ First launch permissions completed with proper timing');
-      
+      AppLogger.d('PermissionService: first-launch flow complete');
     } catch (e) {
-      print('❌ Error during permission requests: $e');
+      AppLogger.e('PermissionService.requestAllPermissionsOnFirstLaunch', e);
       await _markFirstLaunchComplete();
     }
   }
 
-  /// Verifica si los permisos esenciales están concedidos (solo notificaciones inicialmente)
+  // ─── Essential-permissions check ─────────────────────────────────────────
+
+  /// Returns whether notification permission is granted.
   static Future<bool> essentialPermissionsGranted() async {
     if (Platform.isAndroid) {
-      // En Android, usar el método nativo para verificar notificaciones
-      try {
-        final notif = await NativeBackgroundService.checkNotificationPermissions();
-        print('📱 Android notification permission check: $notif');
-        return notif;
-      } catch (e) {
-        print('❌ Error checking Android notification permissions: $e');
-        // Fallback al método de permission_handler
-        final notif = await Permission.notification.isGranted;
-        return notif;
-      }
-    } else {
-      // En iOS, usar permission_handler
-      final notif = await Permission.notification.isGranted;
-      return notif;
-    }
-  }
-
-  /// Verifica si todos los permisos necesarios están concedidos
-  static Future<bool> allPermissionsGranted() async {
-    final notif = await Permission.notification.isGranted;
-    final loc = await Permission.locationWhenInUse.isGranted;
-    
-    bool batteryOptimized = true;
-    if (Platform.isAndroid) {
-      batteryOptimized = await NativeBackgroundService.isBatteryOptimizationIgnored();
-    }
-    
-    return notif && loc && batteryOptimized;
-  }
-
-  /// Verifica permisos individuales
-  static Future<bool> hasNotificationPermission() async {
-    if (Platform.isAndroid) {
-      // En Android, usar el método nativo
       try {
         return await NativeBackgroundService.checkNotificationPermissions();
       } catch (e) {
-        print('❌ Error checking Android notification permissions: $e');
-        // Fallback al método de permission_handler
-        return await Permission.notification.isGranted;
+        AppLogger.e('PermissionService.essentialPermissionsGranted', e);
+        return Permission.notification.isGranted;
       }
-    } else {
-      // En iOS, usar permission_handler
-      return await Permission.notification.isGranted;
     }
+    return Permission.notification.isGranted;
   }
 
-  /// Método centralizado para verificar permisos de notificación (elimina duplicidad)
-  static Future<bool> checkNotificationPermissions() async {
-    return await hasNotificationPermission();
+  /// Returns whether all permissions (notification + location + battery) are granted.
+  static Future<bool> allPermissionsGranted() async {
+    final notif = await Permission.notification.isGranted;
+    final loc = await Permission.locationWhenInUse.isGranted;
+
+    bool batteryOk = true;
+    if (Platform.isAndroid) {
+      batteryOk = await NativeBackgroundService.isBatteryOptimizationIgnored();
+    }
+
+    return notif && loc && batteryOk;
   }
 
-  static Future<bool> hasLocationPermission() async {
-    return await Permission.locationWhenInUse.isGranted;
+  // ─── Individual permission checks ────────────────────────────────────────
+
+  static Future<bool> hasNotificationPermission() async {
+    if (Platform.isAndroid) {
+      try {
+        return await NativeBackgroundService.checkNotificationPermissions();
+      } catch (e) {
+        AppLogger.e('PermissionService.hasNotificationPermission', e);
+        return Permission.notification.isGranted;
+      }
+    }
+    return Permission.notification.isGranted;
   }
+
+  /// Alias for [hasNotificationPermission] — kept for call-site compatibility.
+  static Future<bool> checkNotificationPermissions() => hasNotificationPermission();
+
+  static Future<bool> hasLocationPermission() async =>
+      Permission.locationWhenInUse.isGranted;
 
   static Future<bool> hasBatteryOptimizationExemption() async {
     if (!Platform.isAndroid) return true;
-    return await NativeBackgroundService.isBatteryOptimizationIgnored();
+    return NativeBackgroundService.isBatteryOptimizationIgnored();
   }
 
-  /// Método para solicitar permisos de ubicación cuando sea necesario (al enviar alertas)
+  // ─── On-demand location permission ───────────────────────────────────────
+
+  /// Requests location permission and returns whether it is now granted.
+  ///
+  /// This is called just before sending an alert, not at startup, so the
+  /// system dialog appears in a meaningful context.
   static Future<bool> requestLocationPermissionForAlerts() async {
-    print('🔐 Requesting location permission for sending alerts...');
-    
+    AppLogger.d('PermissionService: requesting location for alerts');
     try {
-      final hasLocation = await hasLocationPermission();
-      if (!hasLocation) {
-        print('🔐 Location permission needed for sending alerts...');
-        final status = await Permission.locationWhenInUse.request();
-        print('📍 Location permission status: $status');
-        return status.isGranted;
-      } else {
-        print('📍 Location permission already granted');
-        return true;
-      }
+      if (await hasLocationPermission()) return true;
+      final status = await Permission.locationWhenInUse.request();
+      AppLogger.d('PermissionService: location status = $status');
+      return status.isGranted;
     } catch (e) {
-      print('❌ Error requesting location permission: $e');
+      AppLogger.e('PermissionService.requestLocationPermissionForAlerts', e);
       return false;
     }
   }
 
-  /// Métodos individuales para solicitar permisos (mantenidos para compatibilidad)
-  static Future<void> requestNotificationPermission() async {
+  // ─── Missing-permissions retry ────────────────────────────────────────────
+
+  /// Requests any permissions that are still missing after first launch.
+  static Future<void> requestMissingPermissions() async {
+    AppLogger.d('PermissionService: requesting missing permissions');
+    try {
+      if (!await hasNotificationPermission()) {
+        await _requestNotificationPermission();
+        await Future.delayed(const Duration(seconds: 3));
+      }
+
+      if (Platform.isAndroid && !await hasBatteryOptimizationExemption()) {
+        await _requestBatteryOptimisation();
+      }
+
+      AppLogger.d('PermissionService: missing-permission retry complete');
+    } catch (e) {
+      AppLogger.e('PermissionService.requestMissingPermissions', e);
+    }
+  }
+
+  // ─── Diagnostics / testing helpers ───────────────────────────────────────
+
+  /// Resets the first-launch flag so permission dialogs will show again.
+  ///
+  /// Intended for development / QA use only.
+  static Future<void> resetFirstLaunchState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_firstLaunchKey);
+    AppLogger.d('PermissionService: first-launch state reset');
+  }
+
+  /// Forces the full permission flow regardless of launch history.
+  static Future<void> forceRequestAllPermissions() async {
+    await resetFirstLaunchState();
+    await requestAllPermissionsOnFirstLaunch();
+  }
+
+  // ─── Legacy shims (kept for call-site compatibility) ─────────────────────
+
+  static Future<void> requestBasicPermissions() =>
+      requestAllPermissionsOnFirstLaunch();
+
+  static Future<bool> allGranted() => allPermissionsGranted();
+
+  static Future<bool> requestAllPermissions() async {
+    try {
+      await requestAllPermissionsOnFirstLaunch();
+      return allPermissionsGranted();
+    } catch (e) {
+      AppLogger.e('PermissionService.requestAllPermissions', e);
+      return false;
+    }
+  }
+
+  static Future<void> requestNotificationPermission() =>
+      _requestNotificationPermission();
+
+  static Future<void> requestLocationPermission() =>
+      Permission.locationWhenInUse.request();
+
+  static Future<void> requestBatteryOptimizationExemption() =>
+      _requestBatteryOptimisation();
+
+  static Future<void> requestBatteryOptimizationOnly() =>
+      _requestBatteryOptimisation();
+
+  static Future<void> requestBatteryOptimizationOnInteraction() =>
+      _requestBatteryOptimisation();
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
+  static Future<void> _requestNotificationPermission() async {
     if (Platform.isAndroid) {
-      // En Android, usar el método nativo
       try {
         await NativeBackgroundService.requestNotificationPermissions();
-        print('📱 Android notification permission requested via native method');
+        AppLogger.d('PermissionService: Android notification permission requested');
       } catch (e) {
-        print('❌ Error requesting Android notification permissions: $e');
-        // Fallback al método de permission_handler
+        AppLogger.e('PermissionService._requestNotificationPermission', e);
         await Permission.notification.request();
       }
     } else {
-      // En iOS, usar permission_handler
       await Permission.notification.request();
     }
   }
 
-  static Future<void> requestLocationPermission() async {
-    await Permission.locationWhenInUse.request();
-  }
-
-  static Future<void> requestBatteryOptimizationExemption() async {
-    if (Platform.isAndroid) {
-      await NativeBackgroundService.requestBatteryOptimizationExemption();
-    }
-  }
-
-  /// Método para resetear el estado de primera ejecución (útil para testing)
-  static Future<void> resetFirstLaunchState() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_firstLaunchKey);
-    print('🔄 First launch state reset - permissions will be requested again');
-  }
-
-  /// Método legacy mantenido para compatibilidad
-  static Future<void> requestBasicPermissions() async {
-    await requestAllPermissionsOnFirstLaunch();
-  }
-
-  /// Método legacy mantenido para compatibilidad
-  static Future<bool> allGranted() async {
-    return await allPermissionsGranted();
-  }
-
-  /// Método legacy mantenido para compatibilidad
-  static Future<bool> requestAllPermissions() async {
-    try {
-      await requestAllPermissionsOnFirstLaunch();
-      final allGranted = await allPermissionsGranted();
-      
-      if (allGranted) {
-        print('✅ All permissions granted successfully');
-        return true;
-      } else {
-        print('⚠️ Some permissions were denied');
-        return false;
-      }
-    } catch (e) {
-      print('❌ Error requesting permissions: $e');
-      return false;
-    }
-  }
-
-  /// Método para solicitar permisos faltantes específicos
-  static Future<void> requestMissingPermissions() async {
-    print('🔐 Checking and requesting missing permissions with proper timing...');
-    
-    try {
-      final hasNotification = await hasNotificationPermission();
-      if (!hasNotification) {
-        print('🔐 Requesting missing notification permission first...');
-        if (Platform.isAndroid) {
-          // En Android, usar el método nativo
-          try {
-            await NativeBackgroundService.requestNotificationPermissions();
-            print('📱 Android notification permission requested via native method');
-          } catch (e) {
-            print('❌ Error requesting Android notification permissions: $e');
-            // Fallback al método de permission_handler
-            await Permission.notification.request();
-          }
-        } else {
-          // En iOS, usar permission_handler
-          await Permission.notification.request();
-        }
-        
-        // Delay para dar tiempo al usuario de activar notificaciones
-        print('⏳ Waiting 3 seconds for user to enable notifications...');
-        await Future.delayed(Duration(seconds: 3));
-      }
-      
-      if (Platform.isAndroid) {
-        final hasBatteryOptimization = await hasBatteryOptimizationExemption();
-        if (!hasBatteryOptimization) {
-          print('🔐 Requesting missing battery optimization exemption after delay...');
-          try {
-            await NativeBackgroundService.requestBatteryOptimizationExemption();
-          } catch (e) {
-            print('⚠️ Battery optimization request failed: $e');
-          }
-        }
-      }
-      
-      print('✅ Missing permissions requested with proper timing');
-    } catch (e) {
-      print('❌ Error requesting missing permissions: $e');
-    }
-  }
-
-  /// Método específico para solicitar optimización de batería
-  static Future<void> requestBatteryOptimizationOnly() async {
+  static Future<void> _requestBatteryOptimisation() async {
     if (!Platform.isAndroid) return;
-    
-    print('🔐 Requesting battery optimization exemption only...');
     try {
       await NativeBackgroundService.requestBatteryOptimizationExemption();
-      print('🔋 Battery optimization exemption requested successfully');
+      AppLogger.d('PermissionService: battery optimisation exemption requested');
     } catch (e) {
-      print('⚠️ Battery optimization request failed: $e');
-    }
-  }
-
-  /// Método para solicitar optimización de batería cuando el usuario interactúe
-  static Future<void> requestBatteryOptimizationOnInteraction() async {
-    if (!Platform.isAndroid) return;
-    
-    print('🔐 User interaction detected - requesting battery optimization...');
-    try {
-      await NativeBackgroundService.requestBatteryOptimizationExemption();
-      print('🔋 Battery optimization exemption requested on interaction');
-    } catch (e) {
-      print('⚠️ Battery optimization request failed: $e');
-    }
-  }
-
-  /// Método para forzar la solicitud de todos los permisos (útil para testing)
-  static Future<void> forceRequestAllPermissions() async {
-    print('🔐 Force requesting all permissions...');
-    
-    try {
-      await resetFirstLaunchState();
-      await requestAllPermissionsOnFirstLaunch();
-      print('✅ All permissions force requested');
-    } catch (e) {
-      print('❌ Error force requesting permissions: $e');
+      AppLogger.e('PermissionService._requestBatteryOptimisation', e);
     }
   }
 }

@@ -1,103 +1,22 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/services/community_service.dart';
 
+/// Handles user authentication (email/password and Google Sign-In).
+///
+/// After a successful login or registration the controller also ensures the
+/// user is enrolled in all entity communities in the background, so this
+/// step never delays the UI transition.
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Inicia sesión con correo y contraseña
+  /// Signs in with [email] and [password]. Returns an error message on
+  /// failure, or `null` on success.
   Future<String?> signInWithEmail(String email, String password) async {
-  try {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
-    return null; // Éxito
-  } on FirebaseAuthException catch (e) {
-    if (e.code == 'invalid-credential') {
-      return 'Usuario o contraseña incorrectos.';
-    }
-    return _handleAuthError(e);
-  } catch (e) {
-    return 'Error desconocido: $e';
-  }
-}
-
-
-  /// Inicia sesión con Google
-  Future<String?> signInWithGoogle() async {
-  try {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return 'Inicio de sesión cancelado.';
-
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    await _auth.signInWithCredential(credential);
-    
-    // Agregar usuario a entidades automáticamente (en background, no bloquea)
-    // Iteración 2: Membresía automática en entidades
-    // Usar unawaited para ejecutar en background sin bloquear, pero asegurar que se complete
-    CommunityService().ensureUserInEntities().catchError((error) {
-      print('⚠️ Error agregando usuario a entidades después de login con Google: $error');
-    });
-    
-    return null; // Éxito
-  } on FirebaseAuthException catch (e) {
-    if (e.code == 'invalid-credential') {
-      return 'Hubo un problema al iniciar sesión con Google. Intenta nuevamente.';
-    }
-    return _handleAuthError(e);
-  } catch (e) {
-    return 'Error inesperado al iniciar sesión con Google.';
-  }
-}
-
-
-  /// Cierra sesión del usuario actual
-  Future<void> signOut() async {
-    await _auth.signOut();
-    await GoogleSignIn().signOut();
-  }
-
-  /// Devuelve el usuario actual
-  User? get currentUser => _auth.currentUser;
-
-  /// Traduce errores comunes de FirebaseAuth
- String _handleAuthError(FirebaseAuthException e) {
-  switch (e.code) {
-    case 'email-already-in-use':
-      return 'Este correo ya está registrado.';
-    case 'invalid-email':
-      return 'Correo no válido.';
-    case 'weak-password':
-      return 'Contraseña demasiado débil.';
-    case 'user-not-found':
-      return 'El usuario no existe.';
-    case 'wrong-password':
-      return 'Contraseña incorrecta.';
-    case 'user-disabled':
-      return 'Usuario deshabilitado.';
-    default:
-      return 'Error: ${e.message}';
-  }
-}
-
-  /// Registra un nuevo usuario con correo y contraseña
-  /// También agrega al usuario a las entidades automáticamente (Iteración 2)
-  Future<String?> registerWithEmail(String email, String password) async {
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      
-      // Agregar usuario a entidades automáticamente (en background, no bloquea)
-      // Iteración 2: Membresía automática en entidades
-      // Usar unawaited para ejecutar en background sin bloquear, pero asegurar que se complete
-      CommunityService().ensureUserInEntities().catchError((error) {
-        print('⚠️ Error agregando usuario a entidades después de registro: $error');
-      });
-      
-      return null; // Éxito
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      return null;
     } on FirebaseAuthException catch (e) {
       return _handleAuthError(e);
     } catch (e) {
@@ -105,4 +24,79 @@ class LoginController {
     }
   }
 
+  /// Signs in with Google. Returns an error message on failure, or `null`
+  /// on success.
+  Future<String?> signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return 'Inicio de sesión cancelado.';
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _auth.signInWithCredential(credential);
+      _ensureEntitiesInBackground();
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _handleAuthError(e);
+    } catch (e) {
+      return 'Error inesperado al iniciar sesión con Google.';
+    }
+  }
+
+  /// Registers a new user with [email] and [password]. Returns an error
+  /// message on failure, or `null` on success.
+  Future<String?> registerWithEmail(String email, String password) async {
+    try {
+      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      _ensureEntitiesInBackground();
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _handleAuthError(e);
+    } catch (e) {
+      return 'Error desconocido: $e';
+    }
+  }
+
+  /// Signs out the current user from both Firebase and Google.
+  Future<void> signOut() async {
+    await _auth.signOut();
+    await GoogleSignIn().signOut();
+  }
+
+  /// The currently authenticated user, or `null` if not signed in.
+  User? get currentUser => _auth.currentUser;
+
+  // ─── Private helpers ──────────────────────────────────────────────────────
+
+  /// Enrolls the user in entity communities without blocking sign-in flow.
+  void _ensureEntitiesInBackground() {
+    CommunityService().ensureUserInEntities().catchError((error) {
+      AppLogger.w('ensureUserInEntities failed after auth: $error');
+    });
+  }
+
+  String _handleAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'Este correo ya está registrado.';
+      case 'invalid-email':
+        return 'Correo no válido.';
+      case 'weak-password':
+        return 'Contraseña demasiado débil.';
+      case 'user-not-found':
+        return 'El usuario no existe.';
+      case 'wrong-password':
+        return 'Contraseña incorrecta.';
+      case 'user-disabled':
+        return 'Usuario deshabilitado.';
+      case 'invalid-credential':
+        return 'Credenciales inválidas. Verifica tu correo y contraseña.';
+      default:
+        return 'Error: ${e.message}';
+    }
+  }
 }

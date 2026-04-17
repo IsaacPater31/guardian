@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:math';
+import '../../core/app_logger.dart';
 import '../../models/alert_model.dart';
 import '../../models/emergency_types.dart';
 import '../../controllers/map_controller.dart' as map_data;
@@ -83,14 +84,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
     _alertsSubscription = stream.listen(
       (alerts) {
-        if (mounted) {
-          setState(() => _alerts = alerts);
-        }
-        print('Map stream: ${alerts.length} alertas recibidas');
+        if (mounted) setState(() => _alerts = alerts);
+        AppLogger.d('Map stream: ${alerts.length} alerts received');
       },
-      onError: (error) {
-        print('Error en stream de alertas: $error');
-      },
+      onError: (error) => AppLogger.e('Map stream error', error),
     );
   }
 
@@ -147,7 +144,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
         _currentLocation = LatLng(position.latitude, position.longitude);
       });
     } catch (e) {
-      print('Error obteniendo ubicación: $e');
+      AppLogger.e('MapaView._getCurrentLocation', e);
     }
   }
 
@@ -743,3 +740,4 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     super.dispose();
   }
 }
+

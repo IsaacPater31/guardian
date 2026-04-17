@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/controllers/main_app/home_controller.dart';
 import 'package:guardian/models/alert_model.dart';
@@ -102,7 +103,7 @@ class _HomeViewState extends State<HomeView> {
       await _homeController.initialize();
       await _homeController.refreshRecentAlerts();
     } catch (e) {
-      print('Error inicializando Home: $e');
+      AppLogger.e('HomeView._initializeController', e);
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,9 +120,9 @@ class _HomeViewState extends State<HomeView> {
   Future<void> _checkServiceStatus() async {
     try {
       final isRunning = await _homeController.isServiceRunning();
-      print('🔍 Background service status: $isRunning');
+      AppLogger.d('Background service running: $isRunning');
     } catch (e) {
-      print('❌ Error checking service status: $e');
+      AppLogger.e('HomeView._checkServiceStatus', e);
     }
   }
 

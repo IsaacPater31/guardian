@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/views/login_view.dart';
 import 'package:guardian/views/main_app/main_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
@@ -33,7 +34,7 @@ class _AuthGateState extends State<AuthGate> {
           // Se ejecuta en background, no bloquea la UI
           // Usar catchError para manejar errores sin bloquear
           CommunityService().ensureUserInEntities().catchError((error) {
-            print('⚠️ Error agregando usuario a entidades en AuthGate: $error');
+            AppLogger.w('AuthGate: ensureUserInEntities failed: $error');
           });
           
           // Verificar si hay un token de invitación pendiente (solo una vez)
@@ -70,7 +71,7 @@ class _AuthGateState extends State<AuthGate> {
         }
       }
     } catch (e) {
-      print('❌ Error verificando token pendiente: $e');
+      AppLogger.e('AuthGate._checkPendingInviteToken', e);
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/community_model.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -70,10 +71,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         setState(() => _isLoadingCommunity = false);
       }
     } catch (e) {
-      print('Error cargando nombre de comunidad: $e');
-      if (mounted) {
-        setState(() => _isLoadingCommunity = false);
-      }
+      AppLogger.e('AlertDetailDialog._loadCommunityName', e);
+      if (mounted) setState(() => _isLoadingCommunity = false);
     }
   }
   
