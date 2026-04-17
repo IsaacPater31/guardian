@@ -141,10 +141,14 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    // Altura del panel de alertas: 30% en pantallas pequeñas, 34% en normales
-    final alertsPanelHeight = (screenHeight *
-        (screenWidth < 360 ? 0.28 : screenWidth < 400 ? 0.30 : 0.34))
-        .clamp(200.0, 320.0);
+    // Alerts panel: give it less space on compact screens so the radial
+    // button has room for 8 labels + central circle without clipping.
+    final alertsFraction = screenWidth < 360
+        ? 0.18
+        : screenWidth < 400
+            ? 0.22
+            : 0.26;
+    final alertsPanelHeight = (screenHeight * alertsFraction).clamp(130.0, 260.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -160,7 +164,7 @@ class _HomeViewState extends State<HomeView> {
               child: _buildRecentAlertsSection(),
             ),
 
-            // Área principal del botón de alerta
+            // Área principal del botón de alerta — gets all remaining space
             Expanded(
               child: _buildAlertButtonSection(),
             ),
@@ -445,42 +449,33 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildNoAlertsState() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 40,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _showingOwn ? 'No has enviado alertas recientes' : AppLocalizations.of(context)!.noRecentAlerts,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 24,
+              color: Colors.grey[400],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _showingOwn
-                ? 'Tus alertas enviadas apareceran aqui'
-                : AppLocalizations.of(context)!.everythingQuiet,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                _showingOwn
+                    ? 'No has enviado alertas recientes'
+                    : AppLocalizations.of(context)!.noRecentAlerts,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[500],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -752,70 +747,34 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildAlertButtonSection() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isSmall = screenWidth < 360;
+    final sw = MediaQuery.of(context).size.width;
+    final isSmall = sw < 360;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        isSmall ? 12 : 20,
-        isSmall ? 8 : 12,
-        isSmall ? 12 : 20,
-        isSmall ? 6 : 10,
+        isSmall ? 4 : 12,
+        isSmall ? 2 : 6,
+        isSmall ? 4 : 12,
+        isSmall ? 2 : 4,
       ),
       child: Column(
         children: [
-          Text(
-            AppLocalizations.of(context)!.emergencyButton,
-            style: TextStyle(
-              fontSize: (screenWidth * 0.05).clamp(16.0, 22.0),
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1A1A1A),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: isSmall ? 4 : 8),
-          Text(
-            AppLocalizations.of(context)!.dragForEmergencyTypes,
-            style: TextStyle(
-              fontSize: isSmall ? 12.0 : 14.0,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: isSmall ? 4 : 6),
-          Expanded(
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  double size;
-                  if (screenWidth < 360) {
-                    // iPhone SE y similares
-                    size = (screenHeight * 0.28).clamp(160.0, 220.0);
-                  } else if (screenWidth < 400) {
-                    size = (screenHeight * 0.30).clamp(190.0, 250.0);
-                  } else if (screenWidth < 600) {
-                    size = (screenHeight * 0.32).clamp(210.0, 280.0);
-                  } else if (screenWidth < 900) {
-                    size = (screenHeight * 0.38).clamp(240.0, 320.0);
-                  } else {
-                    size = (screenHeight * 0.42).clamp(280.0, 380.0);
-                  }
-                  final clampedSize = size.clamp(
-                      0.0, constraints.maxWidth.clamp(160.0, double.infinity));
-
-                  return SizedBox(
-                    width: clampedSize,
-                    height: clampedSize,
-                    child: AlertButton(
-                      onPressed: () {
-                        // TODO: Implement general alert
-                      },
-                    ),
-                  );
-                },
+          Padding(
+            padding: EdgeInsets.only(bottom: isSmall ? 1 : 2),
+            child: Text(
+              AppLocalizations.of(context)!.emergencyButton,
+              style: TextStyle(
+                fontSize: (sw * 0.042).clamp(13.0, 19.0),
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
               ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // AlertButton fills all remaining vertical space
+          Expanded(
+            child: AlertButton(
+              onPressed: () {},
             ),
           ),
         ],

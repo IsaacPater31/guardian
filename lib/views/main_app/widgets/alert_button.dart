@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
- 
-import 'dart:async'; // Added for Timer
+import 'package:flutter/services.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
@@ -23,21 +24,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
   
   bool _showEmergencyOptions = false;
   String _currentEmergencyType = '';
   bool _isGestureActive = false;
   
-  // Variables para mostrar el desplazamiento
   Offset _dragOffset = Offset.zero;
-  bool _isDragging = false;
   
-  // Variables para feedback visual en tiempo real
   String? _currentDragDirection;
   bool _showDragFeedback = false;
   
-  // Instancia del controlador de alertas
   final AlertController _alertController = AlertController();
   final CommunityService _communityService = CommunityService();
 
@@ -51,9 +47,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
   }
 
   @override
@@ -65,13 +58,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   void _handleGesture(String direction) {
     if (EmergencyTypes.types.containsKey(direction) && !_isGestureActive) {
       _isGestureActive = true;
+      HapticFeedback.mediumImpact();
       setState(() {
         _currentEmergencyType = direction;
         _showEmergencyOptions = true;
       });
       _animationController.forward();
       
-      // Mostrar diálogo después de la animación
       Future.delayed(const Duration(milliseconds: 200), () {
         if (mounted) {
           _showEmergencyDialog(EmergencyTypes.types[direction]!['type']);
@@ -81,6 +74,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _sendQuickAlert() async {
+    HapticFeedback.heavyImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -109,7 +103,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
     final success = await _alertController.sendQuickAlert(
       alertType: 'EMERGENCY',
-      isAnonymous: false, // Quick alerts are never anonymous
+      isAnonymous: false,
     );
 
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -188,12 +182,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   void _showEmergencyDialog(String emergencyType) async {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
     
-    if (emergencyData == null) return; // Salir si no se encuentra el tipo
+    if (emergencyData == null) return;
     
-    // Primero mostrar diálogo de selección de comunidades (múltiple)
     final selectedCommunities = await _showCommunitySelectionDialog(emergencyType);
     
-    // Si el usuario seleccionó al menos una comunidad, mostrar confirmación
     if (selectedCommunities != null && selectedCommunities.isNotEmpty && mounted) {
       _showFinalConfirmationDialog(emergencyType, selectedCommunities);
     } else {
@@ -201,11 +193,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  /// Muestra diálogo para seleccionar comunidades (múltiple selección)
   Future<List<Map<String, dynamic>>?> _showCommunitySelectionDialog(String emergencyType) async {
     if (!mounted) return null;
     
-    // Mostrar indicador de carga mientras se obtienen las comunidades
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -215,16 +205,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
     
     try {
-      // Cargar comunidades del usuario
       final communities = await _communityService.getMyCommunities();
       
-      // Cerrar indicador de carga
       if (mounted) {
         Navigator.of(context).pop();
       }
       
       if (communities.isEmpty) {
-        // Si no hay comunidades, mostrar error
         if (!mounted) return null;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -238,10 +225,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       if (!mounted) return null;
 
-      // Lista de comunidades seleccionadas
       final Set<String> selectedCommunityIds = {};
 
-      // Mostrar diálogo de selección (múltiple, con scroll)
       final selectedCommunities = await showDialog<List<Map<String, dynamic>>>(
         context: context,
         barrierDismissible: false,
@@ -286,7 +271,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
                     Row(
                       children: [
                         Container(
@@ -351,7 +335,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       ),
                     ],
                     SizedBox(height: isSmall ? 10 : 14),
-                    // Lista de comunidades con scroll
                     Expanded(
                       child: ListView.builder(
                         itemCount: communities.length,
@@ -435,10 +418,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       ),
                     ),
                     SizedBox(height: isSmall ? 10 : 14),
-                    // Botones
                     Row(
                       children: [
-                        // Botón Cancelar
                         Expanded(
                           child: SizedBox(
                             height: isSmall ? 44 : 48,
@@ -462,7 +443,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           ),
                         ),
                         SizedBox(width: isSmall ? 8 : 12),
-                        // Botón Continuar
                         Expanded(
                           child: SizedBox(
                             height: isSmall ? 44 : 48,
@@ -511,7 +491,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       return selectedCommunities;
     } catch (e) {
-      // Cerrar indicador de carga si hay error
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -526,7 +505,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  /// Muestra diálogo de confirmación final con las comunidades seleccionadas
   void _showFinalConfirmationDialog(String emergencyType, List<Map<String, dynamic>> selectedCommunities) {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
     final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
@@ -573,10 +551,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
               child: Column(
                 children: [
-                  // Header con botón de retroceso
                   Row(
                     children: [
-                      // Botón de retroceso
                       IconButton(
                         icon: Container(
                           padding: const EdgeInsets.all(8),
@@ -592,7 +568,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                         onPressed: () {
                           Navigator.of(context).pop();
-                          // Volver a mostrar solo la selección
                           _showCommunitySelectionDialog(emergencyType).then((selection) {
                             if (selection != null && selection.isNotEmpty && mounted) {
                               _showFinalConfirmationDialog(emergencyType, selection);
@@ -604,7 +579,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         tooltip: 'Volver',
                       ),
                       const Spacer(),
-                      // Título del header
                       Text(
                         'Confirmar Alerta',
                         style: TextStyle(
@@ -614,7 +588,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                       ),
                       const Spacer(),
-                      // Espacio para balancear el layout
                       SizedBox(
                         width: 44,
                       ),
@@ -623,13 +596,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   
                   const SizedBox(height: 16),
                   
-                  // Contenedor principal con scroll
                   Flexible(
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Header con ícono del tipo de alerta
                           Container(
                             width: constraints.maxWidth < 400 ? 64 : 80,
                             height: constraints.maxWidth < 400 ? 64 : 80,
@@ -650,7 +621,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           
                           SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
                           
-                          // Título del tipo de alerta
                           Text(
                             translatedType,
                             style: TextStyle(
@@ -664,7 +634,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           
                           SizedBox(height: constraints.maxWidth < 400 ? 12 : 16),
                     
-                          // Comunidades seleccionadas
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -707,7 +676,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                // Lista de comunidades seleccionadas con scroll
                                 Container(
                                   constraints: BoxConstraints(
                                     maxHeight: screenHeight * 0.25,
@@ -793,7 +761,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     
                           SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
                           
-                          // Descripción
                           Text(
                             AppLocalizations.of(context)!.confirmEmergencyReport,
                             style: TextStyle(
@@ -807,7 +774,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           
                           SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
                           
-                          // Información adicional
                           Container(
                             padding: EdgeInsets.all(
                               constraints.maxWidth < 400 ? 14 : 16,
@@ -857,26 +823,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     
                   SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
                     
-                    // Botones fijos en la parte inferior
-                    Wrap(
-                      spacing: constraints.maxWidth < 400 ? 10 : 16,
-                      runSpacing: constraints.maxWidth < 400 ? 10 : 12,
+                    // Bottom action buttons — always row on all sizes
+                    Row(
                       children: [
-                        // Botón Cancelar
-                        SizedBox(
-                          width: constraints.maxWidth < 400
-                              ? double.infinity
-                              : (constraints.maxWidth * 0.36),
-                          child: Container(
-                            height: constraints.maxWidth < 400 ? 50 : 52,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: Colors.grey[300]!,
-                                width: 1.5,
-                              ),
-                            ),
+                        // Cancel button
+                        Expanded(
+                          flex: 4,
+                          child: SizedBox(
+                            height: 50,
                             child: TextButton(
                               onPressed: () {
                                 Navigator.of(context).pop();
@@ -885,14 +839,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               style: TextButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(color: Colors.grey[300]!, width: 1.5),
                                 ),
+                                backgroundColor: Colors.grey[50],
                                 padding: EdgeInsets.zero,
                               ),
                               child: Text(
                                 AppLocalizations.of(context)!.cancel,
                                 style: TextStyle(
                                   color: const Color(0xFF424242),
-                                  fontSize: constraints.maxWidth < 400 ? 14 : 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.3,
                                 ),
@@ -900,90 +856,86 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             ),
                           ),
                         ),
-                        
-                        if (constraints.maxWidth >= 400)
-                          SizedBox(width: constraints.maxWidth < 400 ? 12 : 16),
-                        
-                        // Botón Enviar
-                        SizedBox(
-                          width: constraints.maxWidth < 400
-                              ? double.infinity
-                              : (constraints.maxWidth * 0.58),
-                          child: Container(
-                            height: constraints.maxWidth < 400 ? 50 : 52,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF007AFF),
-                                  Color(0xFF005FCC),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _primary.withValues(alpha: 0.35),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                  spreadRadius: 0,
+                        const SizedBox(width: 12),
+                        // Send button
+                        Expanded(
+                          flex: 6,
+                          child: SizedBox(
+                            height: 50,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF007AFF),
+                                    Color(0xFF005FCC),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _hideEmergencyOptions();
-                                _showSuccessSnackBar(emergencyType, selectedCommunities);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                padding: EdgeInsets.zero,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Icon(
-                                      Icons.emergency,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _primary.withValues(alpha: 0.35),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      AppLocalizations.of(context)!.sendAlert,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: constraints.maxWidth < 400 ? 14 : 15,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
+                                ],
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  _hideEmergencyOptions();
+                                  _showSuccessSnackBar(emergencyType, selectedCommunities);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      overflow: TextOverflow.ellipsis,
+                                      child: const Icon(
+                                        Icons.emergency,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        AppLocalizations.of(context)!.sendAlert,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              );
+                ],
+              ),
+            );
           },
           ),
         ),
@@ -992,7 +944,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _showSuccessSnackBar(String emergencyType, List<Map<String, dynamic>> selectedCommunities) async {
-    // Use the emergencyType parameter directly - it already contains the correct alert type
     final alertType = emergencyType;
     
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -1026,12 +977,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ),
     );
 
-    // Enviar alerta a cada comunidad seleccionada
     int successCount = 0;
     for (final community in selectedCommunities) {
       final success = await _alertController.sendSwipedAlert(
         alertType: alertType,
-        isAnonymous: false, // Swiped alerts are never anonymous
+        isAnonymous: false,
         communityId: community['id'] as String,
       );
       if (success) successCount++;
@@ -1116,8 +1066,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     setState(() {
       _showEmergencyOptions = false;
       _currentEmergencyType = '';
-      _isGestureActive = false;
-      _isDragging = false;
       _dragOffset = Offset.zero;
       _showDragFeedback = false;
       _currentDragDirection = null;
@@ -1125,100 +1073,58 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     _animationController.reverse();
   }
 
+  // ---------------------------------------------------------------------------
+  // Direction detection — corrects Flutter's Y-axis (positive = down)
+  // so that swiping UP maps to 'up', swiping DOWN maps to 'down', etc.
+  // ---------------------------------------------------------------------------
   String _getDirection(Offset offset) {
     final distance = offset.distance;
-    
-    // Zona central - no mostrar ninguna alerta específica (muy reducida para que aparezca más cerca del centro)
-    if (distance < 30) return '';
-    
-    // Calcular el ángulo en radianes
-    final angle = offset.direction;
-    final angleDegrees = (angle * 180 / 3.14159 + 360) % 360;
-    
-    // Dividir en 8 sectores de 45 grados cada uno
-    if (angleDegrees >= 337.5 || angleDegrees < 22.5) return 'right';
-    if (angleDegrees >= 22.5 && angleDegrees < 67.5) return 'upRight';
-    if (angleDegrees >= 67.5 && angleDegrees < 112.5) return 'up';
-    if (angleDegrees >= 112.5 && angleDegrees < 157.5) return 'upLeft';
-    if (angleDegrees >= 157.5 && angleDegrees < 202.5) return 'left';
-    if (angleDegrees >= 202.5 && angleDegrees < 247.5) return 'downLeft';
-    if (angleDegrees >= 247.5 && angleDegrees < 292.5) return 'down';
-    if (angleDegrees >= 292.5 && angleDegrees < 337.5) return 'downRight';
-    
+    if (distance < 25) return '';
+
+    // Negate dy: Flutter's Y axis is positive-downward, so dy<0 means UP.
+    // Without correction atan2(dy,dx) maps swipe-up to 'down' and vice-versa.
+    final corrected = Offset(offset.dx, -offset.dy);
+    final angle = corrected.direction;
+    final deg = (angle * 180 / math.pi + 360) % 360;
+
+    if (deg >= 337.5 || deg < 22.5)   return 'right';
+    if (deg >= 22.5  && deg < 67.5)   return 'upRight';
+    if (deg >= 67.5  && deg < 112.5)  return 'up';
+    if (deg >= 112.5 && deg < 157.5)  return 'upLeft';
+    if (deg >= 157.5 && deg < 202.5)  return 'left';
+    if (deg >= 202.5 && deg < 247.5)  return 'downLeft';
+    if (deg >= 247.5 && deg < 292.5)  return 'down';
+    if (deg >= 292.5 && deg < 337.5)  return 'downRight';
     return '';
   }
 
-  /// Obtiene el color suave para el fondo del círculo de desplazamiento
-  /// Usa colores sutiles que no saturan la vista pero permiten distinguir cada tipo
-  Color _getSoftBackgroundColor(String? direction) {
-    if (direction == null || direction.isEmpty) {
-      return Colors.grey.withValues(alpha: 0.2);
-    }
-    
-    final typeData = EmergencyTypes.getTypeByDirection(direction);
-    if (typeData == null) {
-      return Colors.grey.withValues(alpha: 0.2);
-    }
-    
-    final baseColor = typeData['color'] as Color;
-    final typeName = typeData['type'] as String;
-    
-    // Ajustar alpha según la intensidad del color base
-    // Colores más intensos (rojo, amarillo, púrpura) usan alpha más bajo
-    double alpha;
-    if (typeName == 'FIRE') {
-      alpha = 0.15; // Rojo: más sutil
-    } else if (typeName == 'ROBBERY') {
-      alpha = 0.18; // Púrpura: moderadamente sutil
-    } else if (typeName == 'PUBLIC SERVICES EMERGENCY') {
-      alpha = 0.16; // Amarillo: más sutil
-    } else if (typeName == 'UNSAFETY') {
-      alpha = 0.18; // Naranja: moderadamente sutil
-    } else {
-      alpha = 0.2; // Otros colores: alpha estándar
-    }
-    
-    return baseColor.withValues(alpha: alpha);
-  }
+  // ---------------------------------------------------------------------------
+  // Radial angle map: direction key → angle in radians (for label placement)
+  // These are SCREEN angles (positive Y = down in Flutter canvas)
+  // ---------------------------------------------------------------------------
+  static const Map<String, double> _dirAngles = {
+    'up':        -math.pi / 2,       // -90° (top)
+    'upRight':   -math.pi / 4,       // -45°
+    'right':      0.0,               //   0° (right)
+    'downRight':  math.pi / 4,       //  45°
+    'down':       math.pi / 2,       //  90° (bottom)
+    'downLeft':   3 * math.pi / 4,   // 135°
+    'left':       math.pi,           // 180° (left)
+    'upLeft':    -3 * math.pi / 4,   // -135°
+  };
 
-  /// Obtiene el color más intenso para el borde y elementos internos
-  Color _getIntenseBorderColor(String? direction) {
-    if (direction == null || direction.isEmpty) {
-      return Colors.grey;
-    }
-    
-    final typeData = EmergencyTypes.getTypeByDirection(direction);
-    if (typeData == null) {
-      return Colors.grey;
-    }
-    
-    final baseColor = typeData['color'] as Color;
-    // Usar el color base con alpha alto para bordes y elementos (0.85-0.95)
-    return baseColor.withValues(alpha: 0.9);
-  }
 
-  /// Obtiene el color para iconos y texto dentro del círculo
-  Color _getContentColor(String? direction) {
-    if (direction == null || direction.isEmpty) {
-      return Colors.grey[600]!;
-    }
-    
-    final typeData = EmergencyTypes.getTypeByDirection(direction);
-    if (typeData == null) {
-      return Colors.grey[600]!;
-    }
-    
-    final baseColor = typeData['color'] as Color;
-    // Usar el color base con buena opacidad pero no totalmente opaco para suavidad visual
-    return baseColor.withValues(alpha: 0.95);
-  }
+  // ===========================================================================
+  // BUILD — Premium radial swipe menu
+  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onPanStart: (details) {
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) {
+        HapticFeedback.lightImpact();
         setState(() {
-          _isDragging = true;
           _dragOffset = Offset.zero;
           _isGestureActive = false;
           _showDragFeedback = false;
@@ -1226,268 +1132,498 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         });
       },
       onPanUpdate: (details) {
-        setState(() {
-          _dragOffset += details.delta;
-        });
-        
-        // Actualizar feedback visual en tiempo real
-        final direction = _getDirection(_dragOffset);
-        if (direction != _currentDragDirection) {
+        _dragOffset += details.delta;
+        final dir = _getDirection(_dragOffset);
+        if (dir != _currentDragDirection) {
+          if (dir.isNotEmpty) HapticFeedback.selectionClick();
           setState(() {
-            _currentDragDirection = direction;
-            _showDragFeedback = direction.isNotEmpty;
+            _currentDragDirection = dir;
+            _showDragFeedback = dir.isNotEmpty;
           });
         }
       },
-      onPanEnd: (details) {
-        // Solo activar si hay una dirección válida
+      onPanEnd: (_) {
         if (_currentDragDirection != null && _currentDragDirection!.isNotEmpty) {
           _handleGesture(_currentDragDirection!);
         }
-        
         setState(() {
-          _isDragging = false;
           _dragOffset = Offset.zero;
           _showDragFeedback = false;
           _currentDragDirection = null;
         });
       },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          
-          // Indicador de desplazamiento con feedback visual en tiempo real (responsivo)
-          if (_isDragging && !_showEmergencyOptions)
-            Transform.translate(
-              offset: _dragOffset,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Calcular tamaño del indicador basado en el botón (más pequeño que el botón principal)
-                  final screenSize = MediaQuery.of(context).size;
-                  final screenWidth = screenSize.width;
-                  
-                  double indicatorSize;
-                  if (screenWidth < 400) {
-                    indicatorSize = screenWidth * 0.34; // Área de desplazamiento más grande
-                  } else if (screenWidth < 600) {
-                    indicatorSize = screenWidth * 0.3;
-                  } else if (screenWidth < 900) {
-                    indicatorSize = screenWidth * 0.24;
-                  } else {
-                    indicatorSize = screenWidth * 0.2;
-                  }
-                  
-                  indicatorSize = indicatorSize.clamp(140.0, 240.0);
-                  
-                  // Obtener colores según la dirección actual (sutiles y no saturados)
-                  final backgroundColor = _getSoftBackgroundColor(_currentDragDirection);
-                  final borderColor = _getIntenseBorderColor(_currentDragDirection);
-                  final contentColor = _getContentColor(_currentDragDirection);
-                  
-                  return Container(
-                    width: indicatorSize,
-                    height: indicatorSize,
-                    decoration: BoxDecoration(
-                      color: _showDragFeedback 
-                        ? backgroundColor
-                        : Colors.grey.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _showDragFeedback ? borderColor : Colors.grey,
-                        width: 2,
-                      ),
+      child: LayoutBuilder(
+        builder: (ctx, constraints) => _RadialMenu(
+          availableWidth: constraints.maxWidth.isFinite ? constraints.maxWidth : 320,
+          availableHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 320,
+          dirAngles: _dirAngles,
+          currentDragDirection: _currentDragDirection,
+          showDragFeedback: _showDragFeedback,
+          showEmergencyOptions: _showEmergencyOptions,
+          currentEmergencyType: _currentEmergencyType,
+          scaleAnimation: _scaleAnimation,
+          onTapCenter: _sendQuickAlert,
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// _RadialMenu — Stateless visual layer for the radial swipe interface
+//
+// Sizing strategy:
+//   1. Take the smaller of available width/height as `available`
+//   2. Button = 28% of available (clamped 56–110) — deliberately compact
+//   3. Labels = 20%/15% of available (clamped) — readable first
+//   4. Orbit = 72% of the gap between button edge and widget edge
+//   5. ClipRect prevents any visual overlay with adjacent sections
+// =============================================================================
+
+class _RadialMenu extends StatelessWidget {
+  final double availableWidth;
+  final double availableHeight;
+  final Map<String, double> dirAngles;
+  final String? currentDragDirection;
+  final bool showDragFeedback;
+  final bool showEmergencyOptions;
+  final String currentEmergencyType;
+  final Animation<double> scaleAnimation;
+  final VoidCallback onTapCenter;
+
+  const _RadialMenu({
+    required this.availableWidth,
+    required this.availableHeight,
+    required this.dirAngles,
+    required this.currentDragDirection,
+    required this.showDragFeedback,
+    required this.showEmergencyOptions,
+    required this.currentEmergencyType,
+    required this.scaleAnimation,
+    required this.onTapCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ── Responsive sizing ─────────────────────────────────────────────────
+    // Use the SMALLER dimension so nothing can ever overflow.
+    final available = math.min(availableWidth, availableHeight).clamp(140.0, 420.0);
+
+    // Central button: compact — 28% of available space, deliberately small
+    // so labels get more room and the drag gesture feels intentional.
+    final btnSize = (available * 0.28).clamp(56.0, 110.0);
+
+    // Label chip dimensions — slightly larger relative to space for readability
+    final labelW = (available * 0.20).clamp(48.0, 84.0);
+    final labelH = (available * 0.15).clamp(36.0, 62.0);
+
+    // Orbit radius: push labels outward. Use 70% of the distance between
+    // button edge and widget edge so labels sit nearer the perimeter.
+    final innerEdge = btnSize / 2 + 4.0;
+    final outerEdge = (available / 2) - (labelH * 0.58);
+    final orbit = innerEdge + (outerEdge - innerEdge) * 0.72;
+
+    final cx = availableWidth / 2;
+    final cy = availableHeight / 2;
+
+    return SizedBox(
+      width: availableWidth,
+      height: availableHeight,
+      child: ClipRect(
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          alignment: Alignment.center,
+          children: [
+            // ── 1. Orbit ring (subtle, during drag) ────────────────────────
+            if (showDragFeedback)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _OrbitPainter(
+                      center: Offset(cx, cy),
+                      radius: orbit,
+                      color: Colors.grey.withValues(alpha: 0.10),
                     ),
-                    child: _showDragFeedback && _currentDragDirection != null
-                      ? Stack(
-                          children: [
-                            Positioned(
-                              top: indicatorSize * 0.08,
-                              left: 0,
-                              right: 0,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    EmergencyTypes.getTypeByDirection(_currentDragDirection!)?['icon'] ?? Icons.warning,
-                                    color: contentColor,
-                                    size: indicatorSize * 0.2,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    EmergencyTypes.getTypeByDirectionTranslated(_currentDragDirection!, context)?['type'] ?? AppLocalizations.of(context)!.unknown,
-                                    style: TextStyle(
-                                      color: contentColor,
-                                      fontSize: indicatorSize * 0.1,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : Center(
-                          child: Text(
-                            AppLocalizations.of(context)!.drag,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: indicatorSize * 0.12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                  );
-                },
+                  ),
+                ),
+              ),
+
+            // ── 2. Radial labels — always visible, never under the finger ─
+            ...dirAngles.entries.map((e) => _buildLabel(
+                  context: context,
+                  dir: e.key,
+                  angle: e.value,
+                  orbit: orbit,
+                  cx: cx,
+                  cy: cy,
+                  labelW: labelW,
+                  labelH: labelH,
+                )),
+
+            // ── 3. Central HELP button ────────────────────────────────────
+            Center(
+              child: AnimatedBuilder(
+                animation: scaleAnimation,
+                builder: (_, __) => Transform.scale(
+                  scale: showEmergencyOptions ? scaleAnimation.value : 1.0,
+                  child: _CenterButton(
+                    btnSize: btnSize,
+                    showDragFeedback: showDragFeedback,
+                    currentDragDirection: currentDragDirection,
+                    showEmergencyOptions: showEmergencyOptions,
+                    currentEmergencyType: currentEmergencyType,
+                    onTap: onTapCenter,
+                  ),
+                ),
               ),
             ),
-          
-          // Botón principal HELP completamente responsivo
-          AnimatedBuilder(
-            animation: _scaleAnimation,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: _showEmergencyOptions ? _scaleAnimation.value : 1.0,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Obtener dimensiones de la pantalla
-                    final screenSize = MediaQuery.of(context).size;
-                    final screenWidth = screenSize.width;
-                    // final screenHeight = screenSize.height; // not used
-                    
-                    // Calcular tamaño del botón basado en la pantalla completa
-                    double buttonSize;
-                    
-                    if (screenWidth < 400) {
-                      // Pantallas pequeñas (teléfonos compactos)
-                      buttonSize = screenWidth * 0.34;
-                    } else if (screenWidth < 600) {
-                      // Pantallas medianas (teléfonos normales)
-                      buttonSize = screenWidth * 0.3;
-                    } else if (screenWidth < 900) {
-                      // Pantallas grandes (tablets pequeñas)
-                      buttonSize = screenWidth * 0.22;
-                    } else {
-                      // Pantallas muy grandes (tablets grandes)
-                      buttonSize = screenWidth * 0.18;
-                    }
-                    
-                    // Asegurar que el botón no sea demasiado pequeño ni demasiado grande
-                    buttonSize = buttonSize.clamp(120.0, 240.0);
-                    
-                    return Container(
-                      width: buttonSize,
-                      height: buttonSize,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.red.withValues(alpha: 0.4),
-                            blurRadius: buttonSize * 0.15,
-                            spreadRadius: buttonSize * 0.05,
-                            offset: Offset(0, buttonSize * 0.05),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _sendQuickAlert,
-                          borderRadius: BorderRadius.circular(buttonSize / 2),
-                          child: Center(
-                            child: Text(
-                              AppLocalizations.of(context)!.help,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: buttonSize * 0.18,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2.0,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-          
-          // Opciones de emergencia que aparecen con animación (responsivo)
-          if (_showEmergencyOptions && _currentEmergencyType.isNotEmpty)
-            AnimatedBuilder(
-              animation: _opacityAnimation,
-              builder: (context, child) {
-                final emergencyData = EmergencyTypes.getTypeByDirection(_currentEmergencyType);
-                if (emergencyData == null) return const SizedBox.shrink();
-                 return Opacity(
-                   opacity: _opacityAnimation.value,
-                   child: LayoutBuilder(
-                     builder: (context, constraints) {
-                       // Calcular tamaño responsivo del botón de emergencia específica
-                       final screenSize = MediaQuery.of(context).size;
-                       final screenWidth = screenSize.width;
-                       
-                       double emergencyButtonSize;
-                       if (screenWidth < 400) {
-                         emergencyButtonSize = screenWidth * 0.3;
-                       } else if (screenWidth < 600) {
-                         emergencyButtonSize = screenWidth * 0.25;
-                       } else if (screenWidth < 900) {
-                         emergencyButtonSize = screenWidth * 0.18;
-                       } else {
-                         emergencyButtonSize = screenWidth * 0.15;
-                       }
-                       
-                       emergencyButtonSize = emergencyButtonSize.clamp(120.0, 200.0);
-                       
-                       return Container(
-                         width: emergencyButtonSize,
-                         height: emergencyButtonSize,
-                         decoration: BoxDecoration(
-                           color: Colors.red,
-                           shape: BoxShape.circle,
-                           boxShadow: [
-                             BoxShadow(
-                               color: Colors.red.withValues(alpha: 0.4),
-                               blurRadius: emergencyButtonSize * 0.15,
-                               spreadRadius: emergencyButtonSize * 0.05,
-                               offset: Offset(0, emergencyButtonSize * 0.05),
-                             ),
-                           ],
-                         ),
-                         child: Column(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                             Icon(
-                               emergencyData['icon'],
-                               color: Colors.white,
-                               size: emergencyButtonSize * 0.2,
-                             ),
-                             SizedBox(height: emergencyButtonSize * 0.05),
-                             Text(
-                               emergencyData['type'],
-                               textAlign: TextAlign.center,
-                               style: TextStyle(
-                                 color: Colors.white,
-                                 fontSize: emergencyButtonSize * 0.08,
-                                 fontWeight: FontWeight.bold,
-                               ),
-                             ),
-                           ],
-                         ),
-                       );
-                     },
-                   ),
-                 );
-               },
-             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  Widget _buildLabel({
+    required BuildContext context,
+    required String dir,
+    required double angle,
+    required double orbit,
+    required double cx,
+    required double cy,
+    required double labelW,
+    required double labelH,
+  }) {
+    final typeData = EmergencyTypes.getTypeByDirection(dir);
+    if (typeData == null) return const SizedBox.shrink();
+
+    final isSelected = showDragFeedback && currentDragDirection == dir;
+    final baseColor = typeData['color'] as Color;
+    final icon = typeData['icon'] as IconData;
+    final name = EmergencyTypes.getTranslatedType(typeData['type'] as String, context);
+
+    final dx = orbit * math.cos(angle);
+    final dy = orbit * math.sin(angle);
+
+    final iconSz = (labelH * 0.30).clamp(11.0, 20.0);
+    final fontSize = (labelW * 0.12).clamp(7.0, 11.0);
+    final radius = labelH * 0.26;
+
+    return Positioned(
+      left: cx + dx - labelW / 2,
+      top: cy + dy - labelH / 2,
+      child: IgnorePointer(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          width: labelW,
+          height: labelH,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? baseColor.withValues(alpha: 0.14)
+                : Colors.white.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(
+              color: isSelected
+                  ? baseColor.withValues(alpha: 0.8)
+                  : const Color(0xFFE0E0E5),
+              width: isSelected ? 1.8 : 0.8,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: baseColor.withValues(alpha: 0.30),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 5,
+                      offset: const Offset(0, 1.5),
+                    )
+                  ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                child: Icon(
+                  icon,
+                  key: ValueKey('$dir-$isSelected'),
+                  size: iconSz,
+                  color: isSelected ? baseColor : const Color(0xFF8E8E93),
+                ),
+              ),
+              SizedBox(height: labelH * 0.04),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: labelW * 0.06),
+                child: Text(
+                  name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? baseColor : const Color(0xFF636366),
+                    height: 1.1,
+                    letterSpacing: -0.15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// _CenterButton — the pulsing HELP circle
+// =============================================================================
+
+class _CenterButton extends StatefulWidget {
+  final double btnSize;
+  final bool showDragFeedback;
+  final String? currentDragDirection;
+  final bool showEmergencyOptions;
+  final String currentEmergencyType;
+  final VoidCallback onTap;
+
+  const _CenterButton({
+    required this.btnSize,
+    required this.showDragFeedback,
+    required this.currentDragDirection,
+    required this.showEmergencyOptions,
+    required this.currentEmergencyType,
+    required this.onTap,
+  });
+
+  @override
+  State<_CenterButton> createState() => _CenterButtonState();
+}
+
+class _CenterButtonState extends State<_CenterButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
+      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.btnSize;
+
+    // Resolve active direction color
+    Color accentColor = const Color(0xFFFF3B30);
+    if (widget.showDragFeedback && widget.currentDragDirection != null) {
+      final td = EmergencyTypes.getTypeByDirection(widget.currentDragDirection!);
+      if (td != null) accentColor = td['color'] as Color;
+    }
+
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (_, child) {
+        final scale = widget.showDragFeedback ? 1.0 : _pulseAnim.value;
+        return Transform.scale(scale: scale, child: child);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: const Alignment(-0.3, -0.35),
+            radius: 0.9,
+            colors: widget.showDragFeedback
+                ? [
+                    accentColor.withValues(alpha: 0.88),
+                    accentColor,
+                  ]
+                : [
+                    const Color(0xFFFF6B6B),
+                    const Color(0xFFFF3B30),
+                  ],
+          ),
+          boxShadow: [
+            // Primary colored shadow
+            BoxShadow(
+              color: (widget.showDragFeedback ? accentColor : const Color(0xFFFF3B30))
+                  .withValues(alpha: widget.showDragFeedback ? 0.50 : 0.35),
+              blurRadius: size * 0.20,
+              spreadRadius: widget.showDragFeedback ? size * 0.04 : 0,
+              offset: Offset(0, size * 0.05),
+            ),
+            // Subtle white top highlight (depth illusion)
+            BoxShadow(
+              color: Colors.white.withValues(alpha: 0.18),
+              blurRadius: size * 0.04,
+              spreadRadius: -size * 0.02,
+              offset: Offset(-size * 0.03, -size * 0.03),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(size / 2),
+            splashColor: Colors.white.withValues(alpha: 0.15),
+            highlightColor: Colors.white.withValues(alpha: 0.08),
+            child: Center(child: _buildContent(context, size)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, double size) {
+    // ── Confirmed emergency ────────────────────────────────────────────────
+    if (widget.showEmergencyOptions && widget.currentEmergencyType.isNotEmpty) {
+      final td = EmergencyTypes.getTypeByDirection(widget.currentEmergencyType);
+      if (td != null) {
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(td['icon'] as IconData, color: Colors.white, size: size * 0.26),
+            SizedBox(height: size * 0.03),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: size * 0.1),
+              child: Text(
+                EmergencyTypes.getTranslatedType(td['type'] as String, context),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: size * 0.09,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
+    // ── Mid-drag: show icon of hovered option ─────────────────────────────
+    if (widget.showDragFeedback && widget.currentDragDirection != null) {
+      final td = EmergencyTypes.getTypeByDirection(widget.currentDragDirection!);
+      if (td != null) {
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 120),
+          child: Icon(
+            td['icon'] as IconData,
+            key: ValueKey(widget.currentDragDirection),
+            color: Colors.white,
+            size: size * 0.32,
+          ),
+        );
+      }
+    }
+
+    // ── Idle: HELP text with swipe hint ───────────────────────────────────
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.help,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size * 0.18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+            height: 1.0,
+          ),
+        ),
+        SizedBox(height: size * 0.035),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.swipe_rounded,
+              color: Colors.white.withValues(alpha: 0.55),
+              size: size * 0.11,
+            ),
+            SizedBox(width: size * 0.02),
+            Text(
+              AppLocalizations.of(context)!.drag,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: size * 0.075,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// _OrbitPainter — thin dashed ring shown during drag
+// =============================================================================
+
+class _OrbitPainter extends CustomPainter {
+  final Offset center;
+  final double radius;
+  final Color color;
+
+  const _OrbitPainter({
+    required this.center,
+    required this.radius,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const segments = 24;
+    const gap = 0.22;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < segments; i++) {
+      final start = (i / segments) * 2 * math.pi;
+      final end = start + (1 - gap) * (2 * math.pi / segments);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start,
+        end - start,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OrbitPainter old) =>
+      old.center != center || old.radius != radius || old.color != color;
 }
