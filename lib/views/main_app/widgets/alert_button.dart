@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
+import 'package:guardian/services/swipe_alert_config_service.dart';
+import 'package:guardian/services/quick_alert_config_service.dart';
+import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class AlertButton extends StatefulWidget {
@@ -36,6 +39,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   
   final AlertController _alertController = AlertController();
   final CommunityService _communityService = CommunityService();
+  final SwipeAlertConfigService _swipeConfig = SwipeAlertConfigService();
 
   @override
   void initState() {
@@ -47,6 +51,22 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+    // Pre-configurar comunidades por defecto basado en keywords
+    // (p.ej. POLICE → POLICIA, FIRE → BOMBEROS, etc.)
+    _initDefaultCommunities();
+  }
+
+  /// Carga las comunidades del usuario e inicializa la configuración por defecto
+  /// de cada tipo de alerta si aún no está configurada.
+  Future<void> _initDefaultCommunities() async {
+    try {
+      final communities = await _swipeConfig.getAvailableCommunities();
+      if (communities.isNotEmpty) {
+        await _swipeConfig.initDefaults(communities);
+      }
+    } catch (e) {
+      // No bloquear la UI si falla la inicialización
+    }
   }
 
   @override
@@ -75,6 +95,51 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _sendQuickAlert() async {
     HapticFeedback.heavyImpact();
+
+    // Obtener los destinos configurados para alertas rápidas
+    final quickConfig = QuickAlertConfigService();
+    final destinations = await quickConfig.getQuickAlertDestinations();
+
+    if (!mounted) return;
+
+    if (destinations.isEmpty) {
+      // Sin configuración — redirigir a ajustes
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.settings, color: Colors.white),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'No hay comunidades configuradas. Configura las alertas rápidas en Ajustes.',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1C1C1E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Configurar',
+            textColor: const Color(0xFF007AFF),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const QuickAlertConfigView(),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -94,21 +159,23 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         backgroundColor: _primaryDark,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ),
     );
 
-    final success = await _alertController.sendQuickAlert(
-      alertType: 'EMERGENCY',
+    // AlertController.sendQuickAlert fetches destinations from QuickAlertConfigService
+    // internally and sends to all of them in a single batch — just call it once.
+    final ok = await _alertController.sendQuickAlert(
+      alertType: 'HEALTH',
       isAnonymous: false,
     );
+    final int successCount = ok ? destinations.length : 0;
 
     ScaffoldMessenger.of(context).clearSnackBars();
 
-    if (success) {
+    if (!mounted) return;
+    if (successCount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Container(
@@ -118,14 +185,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
+                    color: Colors.white, shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: _primary,
-                    size: 20,
-                  ),
+                  child: const Icon(Icons.check_circle, color: _primary, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -135,18 +197,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     children: [
                       Text(
                         AppLocalizations.of(context)!.alertSent,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16,
                         ),
                       ),
                       Text(
-                        AppLocalizations.of(context)!.alertSentToCommunity,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
+                        'Enviada a $successCount comunidad${successCount > 1 ? 'es' : ''}',
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
@@ -157,9 +214,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           backgroundColor: _primaryDark,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -170,9 +225,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           backgroundColor: _danger,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -181,43 +234,119 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _showEmergencyDialog(String emergencyType) async {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
-    
-    if (emergencyData == null) return;
-    
-    final selectedCommunities = await _showCommunitySelectionDialog(emergencyType);
-    
-    if (selectedCommunities != null && selectedCommunities.isNotEmpty && mounted) {
-      _showFinalConfirmationDialog(emergencyType, selectedCommunities);
-    } else {
+    if (emergencyData == null || emergencyData.isEmpty) return;
+
+    // 1. Verificar si hay comunidades configuradas por defecto para este tipo
+    final configuredIds = await _swipeConfig.getCommunitiesForType(emergencyType);
+
+    if (configuredIds != null && configuredIds.isNotEmpty) {
+      // Hay configuración guardada — obtener los datos de esas comunidades
+      final allCommunities = await _swipeConfig.getAvailableCommunities();
+      final preselected = allCommunities
+          .where((c) => configuredIds.contains(c['id'] as String))
+          .toList();
+
+      if (preselected.isNotEmpty && mounted) {
+        // Mostrar diag de confirmación con las comunidades pre-seleccionadas
+        final selected =
+            await _showCommunitySelectionDialog(emergencyType, preSelectedIds: configuredIds.toSet());
+        if (selected != null && selected.isNotEmpty && mounted) {
+          _showFinalConfirmationDialog(emergencyType, selected);
+        } else {
+          _hideEmergencyOptions();
+        }
+        return;
+      }
+    }
+
+    // 2. No hay config guardada — buscar por keyword por defecto
+    final keyword = EmergencyTypes.getDefaultCommunityKeyword(emergencyType);
+    if (keyword != null) {
+      final allCommunities = await _swipeConfig.getAvailableCommunities();
+      final initialIds = allCommunities
+          .where((c) {
+            final name = (c['name'] as String? ?? '').toUpperCase();
+            return name.contains(keyword);
+          })
+          .map((c) => c['id'] as String)
+          .toSet();
+
+      if (!mounted) return;
+      final selected = await _showCommunitySelectionDialog(
+          emergencyType, preSelectedIds: initialIds);
+      if (selected != null && selected.isNotEmpty && mounted) {
+        _showFinalConfirmationDialog(emergencyType, selected);
+      } else {
+        _hideEmergencyOptions();
+      }
+      return;
+    }
+
+    // 3. Sin keyword y sin config — mostrar aviso y abrir configuración
+    if (mounted) {
       _hideEmergencyOptions();
+      final typeName = EmergencyTypes.getTranslatedType(emergencyType, context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.settings, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Configura las comunidades para "$typeName" en Ajustes.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1C1C1E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Configurar',
+            textColor: const Color(0xFF007AFF),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SwipeAlertConfigView(
+                    initialAlertType: emergencyType,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
     }
   }
 
-  Future<List<Map<String, dynamic>>?> _showCommunitySelectionDialog(String emergencyType) async {
+  Future<List<Map<String, dynamic>>?> _showCommunitySelectionDialog(
+      String emergencyType, {Set<String> preSelectedIds = const {}}) async {
     if (!mounted) return null;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) =>
+          const Center(child: CircularProgressIndicator()),
     );
-    
+
     try {
       final communities = await _communityService.getMyCommunities();
-      
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-      
+
+      if (mounted) Navigator.of(context).pop();
+
       if (communities.isEmpty) {
         if (!mounted) return null;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('No tienes comunidades disponibles'),
+          const SnackBar(
+            content: Text('No tienes comunidades disponibles'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
         return null;
@@ -225,7 +354,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       if (!mounted) return null;
 
-      final Set<String> selectedCommunityIds = {};
+      // Pre-seleccionar según configuración o keyword
+      final Set<String> selectedCommunityIds = Set<String>.from(preSelectedIds);
 
       final selectedCommunities = await showDialog<List<Map<String, dynamic>>>(
         context: context,
@@ -985,6 +1115,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         communityId: community['id'] as String,
       );
       if (success) successCount++;
+    }
+
+    // Guardar la selección confirmada como configuración permanente para
+    // este tipo de alerta. La próxima vez quedará pre-seleccionada automáticamente.
+    if (successCount > 0) {
+      final ids = selectedCommunities.map((c) => c['id'] as String).toList();
+      _swipeConfig.setCommunitiesForType(alertType, ids);
     }
 
     ScaffoldMessenger.of(context).clearSnackBars();

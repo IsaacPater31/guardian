@@ -117,6 +117,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportInappropriate => 'Report as Inappropriate';
 
   @override
+  String get emergencyHealth => 'Health Emergency';
+
+  @override
+  String get emergencyHomeHelp => 'Home Help';
+
+  @override
+  String get emergencyPolice => 'Police';
+
+  @override
+  String get emergencyFireNew => 'Firefighters';
+
+  @override
+  String get emergencyAccompaniment => 'Accompaniment';
+
+  @override
+  String get emergencyEnvironmental => 'Environmental';
+
+  @override
+  String get emergencyRoadEmergency => 'Road Emergency';
+
+  @override
   String get emergencyRobbery => 'Robbery Reported';
 
   @override
@@ -887,6 +908,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get configQuickAlerts => 'Configure quick alert destinations';
+
+  @override
+  String get swipeAlertsConfig => 'Alerts by Type';
+
+  @override
+  String get configSwipeAlerts => 'Configure communities per alert type';
+
+  @override
+  String get swipeAlertsTitle => 'Alerts by Type';
+
+  @override
+  String get swipeAlertsSubtitle =>
+      'Define which communities receive each alert type when you swipe the button. If none are configured, you will be asked when sending.';
+
+  @override
+  String get noDefaultCommunity => 'No default community';
+
+  @override
+  String get tapToConfigureType => 'Tap to configure';
+
+  @override
+  String defaultCommunitiesFor(String type) {
+    return 'Communities for $type';
+  }
 
   @override
   String get generalSection => 'General';
