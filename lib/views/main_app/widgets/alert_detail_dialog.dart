@@ -10,8 +10,66 @@ import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
-import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'dart:convert';
+
+// ─── Shared design constants ───────────────────────────────────────────────────
+const Color _kAttended  = Color(0xFF34C759); // Apple green
+const Color _kPending   = Color(0xFFFF9F0A); // Apple amber
+const Color _kSurface   = Color(0xFFF8F9FA);
+const Color _kBorder    = Color(0xFFE5E7EB);
+const Color _kText      = Color(0xFF1F2937);
+const Color _kTextSub   = Color(0xFF6B7280);
+const Color _kBluePrim  = Color(0xFF007AFF); // Apple blue
+const Color _kDark      = Color(0xFF1C1C1E);
+const Color _kError     = Color(0xFFFF3B30);
+
+/// Pill badge showing the attendance status of an alert.
+/// Used in the header and anywhere else an at-a-glance signal is needed.
+class AlertStatusBadge extends StatelessWidget {
+  final bool isAttended;
+  final bool large;
+
+  const AlertStatusBadge({
+    super.key,
+    required this.isAttended,
+    this.large = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color  = isAttended ? _kAttended : _kPending;
+    final icon   = isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
+    final label  = isAttended ? 'Atendida' : 'No atendida';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: large ? 12 : 8,
+        vertical:   large ? 6  : 4,
+      ),
+      decoration: BoxDecoration(
+        color:        color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border:       Border.all(color: color.withValues(alpha: 0.4), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: large ? 14 : 11, color: color),
+          SizedBox(width: large ? 5 : 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize:   large ? 13 : 11,
+              fontWeight: FontWeight.w600,
+              color:      color,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class AlertDetailDialog extends StatefulWidget {
   final AlertModel alert;
@@ -23,187 +81,141 @@ class AlertDetailDialog extends StatefulWidget {
 }
 
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
-  static const Color _primary = Color(0xFF007AFF);
-  static const Color _primaryDark = Color(0xFF1C1C1E);
-  static const Color _surface = Color(0xFFF8F9FA);
-  static const Color _error = Color(0xFFFF3B30);
+  final AlertController      _alertController      = AlertController();
+  final CommunityService     _communityService     = CommunityService();
+  final CommunityRepository  _communityRepository  = CommunityRepository();
+  final UserService          _userService          = UserService();
 
-  final AlertController _alertController = AlertController();
-  final CommunityService _communityService = CommunityService();
-  final CommunityRepository _communityRepository = CommunityRepository();
-  final UserService _userService = UserService();
-  String? _communityName;
-  bool _isLoadingCommunity = false;
-  bool _userHasReported = false;
-  int? _reportsCountOverride;
-  bool _isReporting = false;
+  /// Map of communityId → communityName for all communities in the alert.
+  final Map<String, String> _communityNames = {};
+  bool    _isLoadingCommunities = false;
+  bool    _userHasReported      = false;
+  int?    _reportsCountOverride;
+  bool    _isReporting          = false;
 
-  /// Obtiene el tipo de alerta traducido
-  String _getTranslatedAlertType() {
-    return EmergencyTypes.getTranslatedType(widget.alert.alertType, context);
-  }
+  bool get _isAttended => widget.alert.alertStatus == 'attended';
+
+  String _getTranslatedAlertType() =>
+      EmergencyTypes.getTranslatedType(widget.alert.alertType, context);
 
   @override
   void initState() {
     super.initState();
-    // Marcar la alerta como vista cuando se abre el diálogo
     if (widget.alert.id != null) {
       _alertController.markAlertAsViewed(widget.alert.id!);
     }
-    // Cargar nombre de la comunidad si la alerta tiene community_id
-    if (widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty) {
-      _loadCommunityName();
-    }
-  }
-  
-  Future<void> _loadCommunityName() async {
-    if (widget.alert.communityId == null) return;
-    
-    setState(() => _isLoadingCommunity = true);
-    try {
-      final community = await _communityRepository.getCommunityById(widget.alert.communityId!);
-      if (community != null && mounted) {
-        setState(() {
-          _communityName = community.name;
-          _isLoadingCommunity = false;
-        });
-      } else {
-        setState(() => _isLoadingCommunity = false);
-      }
-    } catch (e) {
-      AppLogger.e('AlertDetailDialog._loadCommunityName', e);
-      if (mounted) setState(() => _isLoadingCommunity = false);
-    }
-  }
-  
-  Future<void> _navigateToCommunity() async {
-    if (widget.alert.communityId == null) return;
-    
-    // Verificar que el usuario es miembro de la comunidad
-    final role = await _communityService.getUserRole(widget.alert.communityId!);
-    if (role == null) {
-      // Usuario no es miembro
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No eres miembro de esta comunidad'),
-            backgroundColor: _primaryDark,
-          ),
-        );
-      }
-      return;
-    }
-    
-    // Obtener información de la comunidad
-    final community = await _communityRepository.getCommunityById(widget.alert.communityId!);
-    if (community == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Comunidad no encontrada'),
-            backgroundColor: _error,
-          ),
-        );
-      }
-      return;
-    }
-    
-    // Navegar al feed de la comunidad
-    if (mounted) {
-      Navigator.of(context).pop(); // Cerrar diálogo
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => CommunityFeedView(
-            communityId: widget.alert.communityId!,
-            communityName: community.name,
-            isEntity: community.isEntity,
-          ),
-        ),
-      );
+    if (widget.alert.communityIds.isNotEmpty) {
+      _loadCommunityNames();
     }
   }
 
+  Future<void> _loadCommunityNames() async {
+    if (widget.alert.communityIds.isEmpty) return;
+    setState(() => _isLoadingCommunities = true);
+    try {
+      final results = await Future.wait(
+        widget.alert.communityIds.map((id) async {
+          final community = await _communityRepository.getCommunityById(id);
+          return MapEntry(id, community?.name ?? 'Comunidad desconocida');
+        }),
+      );
+      if (mounted) {
+        setState(() {
+          _communityNames.addAll(Map.fromEntries(results));
+          _isLoadingCommunities = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.e('AlertDetailDialog._loadCommunityNames', e);
+      if (mounted) setState(() => _isLoadingCommunities = false);
+    }
+  }
+
+  // ─── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final sw = MediaQuery.of(context).size.width;
-    final sh = MediaQuery.of(context).size.height;
-    final isSmall = sw < 360;
-    final contentPadding = isSmall ? 14.0 : 20.0;
+    final sw       = MediaQuery.of(context).size.width;
+    final sh       = MediaQuery.of(context).size.height;
+    final isSmall  = sw < 360;
+    final padding  = isSmall ? 14.0 : 20.0;
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
         horizontal: isSmall ? 10 : 16,
-        vertical: isSmall ? 10 : 20,
+        vertical:   isSmall ? 10 : 20,
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Container(
         constraints: BoxConstraints(
-          maxHeight: sh * (isSmall ? 0.88 : 0.85),
-          maxWidth: (sw * 0.96).clamp(0.0, 480.0),
+          maxHeight: sh * (isSmall ? 0.90 : 0.87),
+          maxWidth:  (sw * 0.96).clamp(0.0, 480.0),
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color:        Colors.white,
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 25,
+              color:      Colors.black.withValues(alpha: 0.18),
+              blurRadius: 32,
               spreadRadius: 0,
-              offset: const Offset(0, 10),
+              offset:     const Offset(0, 12),
             ),
           ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header con información de la alerta
-            _buildHeader(context, isSmall),
-
-            // Contenido scrolleable
+            _buildHeader(isSmall),
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.all(contentPadding),
+                padding: EdgeInsets.all(padding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── Status section (Apple-style card) ───────────────────
+                    _buildStatusSection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Alert type ───────────────────────────────────────────
                     _buildAlertTypeSection(),
+                    SizedBox(height: isSmall ? 12 : 16),
 
-                    SizedBox(height: isSmall ? 16 : 24),
+                    // ── Community of origin (informational only) ─────────────
+                    if (widget.alert.communityIds.isNotEmpty) ...[ 
+                      _buildCommunityInfoSection(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
 
-                    // Descripción
-                    if (widget.alert.description != null &&
-                        widget.alert.description!.isNotEmpty) ...[
+                    // ── Description ──────────────────────────────────────────
+                    if (widget.alert.description != null && widget.alert.description!.isNotEmpty) ...[
                       _buildDescriptionSection(),
                       SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // Contadores
+                    // ── Counters ─────────────────────────────────────────────
                     if (widget.alert.forwardsCount > 0 ||
                         (_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
                       _buildCountersSection(),
                       SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // Ubicación
-                    if (widget.alert.shareLocation &&
-                        widget.alert.location != null) ...[
-                      SizedBox(height: isSmall ? 16 : 24),
+                    // ── Location ─────────────────────────────────────────────
+                    if (widget.alert.shareLocation && widget.alert.location != null) ...[
                       _buildLocationSection(),
-                  _buildLocationMapSection(isSmall),
+                      const SizedBox(height: 12),
+                      _buildLocationMapSection(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // Información adicional
-                    SizedBox(height: isSmall ? 16 : 24),
+                    // ── Additional info ──────────────────────────────────────
                     _buildAdditionalInfoSection(),
 
-                    // Imágenes
+                    // ── Images ───────────────────────────────────────────────
                     if (widget.alert.imageBase64 != null &&
                         widget.alert.imageBase64!.isNotEmpty) ...[
-                      SizedBox(height: isSmall ? 16 : 24),
+                      SizedBox(height: isSmall ? 12 : 16),
                       _buildImagesSection(),
                     ],
 
@@ -212,8 +224,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 ),
               ),
             ),
-
-            // Botones de acción
             _buildActionButtons(context, isSmall),
           ],
         ),
@@ -221,91 +231,133 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isSmall) {
+  // ─── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader(bool isSmall) {
     final alertColor = _getAlertColor(widget.alert.alertType);
-    final alertIcon = _getAlertIcon(widget.alert.alertType);
-    final iconSize = isSmall ? 54.0 : 70.0;
-    final iconInnerSize = isSmall ? 26.0 : 35.0;
-    final titleFontSize = isSmall ? 17.0 : 22.0;
 
     return Container(
       decoration: BoxDecoration(
-        color: alertColor,
+        color:        alertColor,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft:  Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
-            color: alertColor.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color:      alertColor.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset:     const Offset(0, 4),
           ),
         ],
       ),
       padding: EdgeInsets.fromLTRB(
         isSmall ? 16 : 24,
+        isSmall ? 20 : 28,
         isSmall ? 16 : 24,
-        isSmall ? 16 : 24,
-        isSmall ? 16 : 24,
+        isSmall ? 20 : 28,
       ),
       child: Column(
         children: [
-          // Ícono de alerta
+          // Alert icon circle
           Container(
-            width: iconSize,
-            height: iconSize,
+            width:  isSmall ? 56 : 72,
+            height: isSmall ? 56 : 72,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.25),
-              shape: BoxShape.circle,
+              color:  Colors.white.withValues(alpha: 0.25),
+              shape:  BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color:      Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset:     const Offset(0, 3),
                 ),
               ],
             ),
             child: Icon(
-              alertIcon,
+              _getAlertIcon(widget.alert.alertType),
               color: Colors.white,
-              size: iconInnerSize,
+              size:  isSmall ? 26 : 36,
             ),
           ),
 
-          SizedBox(height: isSmall ? 12 : 20),
+          SizedBox(height: isSmall ? 12 : 16),
 
-          // Título de la alerta
+          // Title
           Text(
             _getTranslatedAlertType(),
             style: TextStyle(
-              fontSize: titleFontSize,
+              fontSize:   isSmall ? 18 : 22,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 0.3,
+              color:      Colors.white,
+              letterSpacing: 0.2,
             ),
             textAlign: TextAlign.center,
           ),
 
-          SizedBox(height: isSmall ? 6 : 8),
+          SizedBox(height: isSmall ? 8 : 10),
 
-          // Fecha y hora
+          // Datetime pill
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: isSmall ? 10 : 12,
-              vertical: isSmall ? 4 : 6,
+              vertical:   isSmall ? 4  : 6,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color:        Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               _formatDateTime(widget.alert.timestamp),
               style: TextStyle(
-                fontSize: isSmall ? 11 : 13,
-                color: Colors.white.withValues(alpha: 0.9),
+                fontSize:   isSmall ? 11 : 13,
+                color:      Colors.white.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w500,
               ),
+            ),
+          ),
+
+          SizedBox(height: isSmall ? 10 : 12),
+
+          // ── Status badge — bright, on colored background ──────────────────
+          _buildHeaderStatusBadge(isSmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderStatusBadge(bool isSmall) {
+    final color = _isAttended ? Colors.white : Colors.white.withValues(alpha: 0.88);
+    final bg    = _isAttended
+        ? Colors.white.withValues(alpha: 0.28)
+        : Colors.white.withValues(alpha: 0.15);
+    final border = _isAttended
+        ? Colors.white.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.35);
+    final icon  = _isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
+    final label = _isAttended ? 'Atendida' : 'No atendida';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 14 : 18,
+        vertical:   isSmall ? 6  : 8,
+      ),
+      decoration: BoxDecoration(
+        color:        bg,
+        borderRadius: BorderRadius.circular(24),
+        border:       Border.all(color: border, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,  size: isSmall ? 14 : 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize:   isSmall ? 13 : 14,
+              fontWeight: FontWeight.w700,
+              color:      color,
+              letterSpacing: 0.1,
             ),
           ),
         ],
@@ -313,42 +365,170 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildAlertTypeSection() {
+  // ─── Status section (info card in body) ─────────────────────────────────────
+  Widget _buildStatusSection(bool isSmall) {
+    final color   = _isAttended ? _kAttended : _kPending;
+    final bgColor = color.withValues(alpha: 0.08);
+    final icon    = _isAttended ? Icons.verified_rounded : Icons.pending_actions_rounded;
+    final title   = _isAttended ? 'Atendida' : 'No atendida';
+    final sub     = _isAttended
+        ? 'Esta alerta fue marcada como atendida por las autoridades.'
+        : 'Esta alerta está pendiente de atención.';
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
       decoration: BoxDecoration(
-        color: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3)),
+        color:        bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          Icon(
-            _getAlertIcon(widget.alert.alertType),
-            color: _getAlertColor(widget.alert.alertType),
-            size: 24,
+          Container(
+            padding:    const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color:        color.withValues(alpha: 0.15),
+              shape:        BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estado de la alerta',
+                  style: TextStyle(
+                    fontSize:   11,
+                    fontWeight: FontWeight.w600,
+                    color:      color.withValues(alpha: 0.75),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize:   15,
+                    fontWeight: FontWeight.w700,
+                    color:      color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:    color.withValues(alpha: 0.75),
+                    height:   1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Communities info — multi-community chips ───────────────────────────────
+  Widget _buildCommunityInfoSection(bool isSmall) {
+    return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color:        const Color(0xFF007AFF).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding:    const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:        const Color(0xFF007AFF).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.groups_2_rounded, color: Color(0xFF007AFF), size: 18),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'COMUNIDADES',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF007AFFAA), letterSpacing: 0.6),
+                ),
+                Text(
+                  '${widget.alert.communityIds.length} ${widget.alert.communityIds.length == 1 ? 'comunidad' : 'comunidades'}',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+                ),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 12),
+          if (_isLoadingCommunities)
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF007AFF))),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: widget.alert.communityIds.map((id) {
+                final name = _communityNames[id] ?? id;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color:        const Color(0xFF007AFF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.people_rounded, size: 12, color: Color(0xFF007AFF)),
+                    const SizedBox(width: 5),
+                    Text(
+                      name,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+                    ),
+                  ]),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Alert type section ──────────────────────────────────────────────────────
+  Widget _buildAlertTypeSection() {
+    final alertColor = _getAlertColor(widget.alert.alertType);
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:  alertColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: alertColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(_getAlertIcon(widget.alert.alertType), color: alertColor, size: 22),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   AppLocalizations.of(context)!.alertType,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: _kTextSub, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _getTranslatedAlertType(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: _getAlertColor(widget.alert.alertType),
-                  ),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: alertColor),
                 ),
               ],
             ),
@@ -358,51 +538,398 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
+  // ─── Description ─────────────────────────────────────────────────────────────
   Widget _buildDescriptionSection() {
+    return _buildInfoCard(
+      icon:      Icons.description_rounded,
+      iconColor: _kText,
+      iconBg:    _kText.withValues(alpha: 0.08),
+      label:     AppLocalizations.of(context)!.description,
+      value:     widget.alert.description!,
+    );
+  }
+
+  // ─── Counters ────────────────────────────────────────────────────────────────
+  Widget _buildCountersSection() {
+    final reports = _reportsCountOverride ?? widget.alert.reportsCount;
+    return Row(
+      children: [
+        if (widget.alert.forwardsCount > 0)
+          Expanded(child: _buildCounterChip(
+            icon: Icons.forward_rounded, color: Colors.blue,
+            count: widget.alert.forwardsCount,
+            singular: 'reenvío', plural: 'reenvíos',
+          )),
+        if (widget.alert.forwardsCount > 0 && reports > 0)
+          const SizedBox(width: 12),
+        if (reports > 0)
+          Expanded(child: _buildCounterChip(
+            icon: Icons.report_rounded, color: Colors.orange,
+            count: reports,
+            singular: 'reporte', plural: 'reportes',
+          )),
+      ],
+    );
+  }
+
+  Widget _buildCounterChip({
+    required IconData icon,
+    required Color color,
+    required int count,
+    required String singular,
+    required String plural,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding:    const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _surface,
+        color:        color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border:       Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            '$count ${count == 1 ? singular : plural}',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Location ────────────────────────────────────────────────────────────────
+  Widget _buildLocationSection() {
+    return _buildInfoCard(
+      icon:      Icons.location_on_rounded,
+      iconColor: Colors.green,
+      iconBg:    Colors.green.withValues(alpha: 0.1),
+      label:     AppLocalizations.of(context)!.location,
+      value:
+          '${widget.alert.location!.latitude.toStringAsFixed(6)}, ${widget.alert.location!.longitude.toStringAsFixed(6)}',
+    );
+  }
+
+  Widget _buildLocationMapSection(bool isSmall) {
+    if (widget.alert.location == null) return const SizedBox.shrink();
+    return Container(
+      height: isSmall ? 200 : 240,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: _kBorder),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(
+                  widget.alert.location!.latitude,
+                  widget.alert.location!.longitude,
+                ),
+                initialZoom: 16.0,
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.guardian',
+                ),
+                MarkerLayer(markers: [
+                  Marker(
+                    point: LatLng(widget.alert.location!.latitude, widget.alert.location!.longitude),
+                    width: 40, height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _getAlertColor(widget.alert.alertType),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: Icon(_getAlertIcon(widget.alert.alertType), color: Colors.white, size: 20),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+            Positioned(
+              top: 8, left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.alertLocation,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Additional info ─────────────────────────────────────────────────────────
+  Widget _buildAdditionalInfoSection() {
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'INFORMACIÓN ADICIONAL',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kTextSub, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow(
+            icon:  widget.alert.isAnonymous ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+            color: widget.alert.isAnonymous ? Colors.orange : Colors.green,
+            label: widget.alert.isAnonymous
+                ? AppLocalizations.of(context)!.anonymousReport
+                : AppLocalizations.of(context)!.identifiedReport,
+          ),
+          const SizedBox(height: 10),
+          _buildInfoRow(
+            icon:  widget.alert.shareLocation ? Icons.location_on_rounded : Icons.location_off_rounded,
+            color: widget.alert.shareLocation ? Colors.green : _kTextSub,
+            label: widget.alert.shareLocation
+                ? AppLocalizations.of(context)!.locationShared
+                : AppLocalizations.of(context)!.locationNotShared,
+          ),
+          if (widget.alert.viewedCount > 0) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              icon:  Icons.visibility_rounded,
+              color: _kBluePrim,
+              label:
+                  '${AppLocalizations.of(context)!.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? AppLocalizations.of(context)!.people : AppLocalizations.of(context)!.person}',
+            ),
+          ],
+          if (!widget.alert.isAnonymous && widget.alert.userName != null) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              icon:  Icons.person_rounded,
+              color: _kTextSub,
+              label: widget.alert.userName!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({required IconData icon, required Color color, required String label}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w500, height: 1.3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Images ──────────────────────────────────────────────────────────────────
+  Widget _buildImagesSection() {
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding:    const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: _kText.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.photo_library_rounded, color: _kText, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              AppLocalizations.of(context)!.images,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kText),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ...widget.alert.imageBase64!.map(_buildImageItem),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageItem(String base64String) {
+    try {
+      final bytes = base64Decode(base64String);
+      return Container(
+        margin:     const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: _kBorder)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: 200),
+        ),
+      );
+    } catch (_) {
+      return Container(
+        margin:   const EdgeInsets.only(bottom: 8),
+        padding:  const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(10)),
+        child: Row(children: [
+          const Icon(Icons.error_outline, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(AppLocalizations.of(context)!.errorLoadingImage, style: const TextStyle(color: Colors.grey)),
+        ]),
+      );
+    }
+  }
+
+  // ─── Action buttons ──────────────────────────────────────────────────────────
+  Widget _buildActionButtons(BuildContext context, bool isSmall) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(isSmall ? 14 : 20, isSmall ? 14 : 18, isSmall ? 14 : 20, isSmall ? 14 : 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft:  Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, -2))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reenviar (keeps its function — creates new alerts in other communities)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.alert.id != null ? _showForwardDialog : null,
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: isSmall ? 13 : 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: BorderSide(color: _kBluePrim.withValues(alpha: 0.5), width: 1.5),
+              ),
+              icon: const Icon(Icons.forward_rounded, size: 18),
+              label: Text(
+                'Reenviar a comunidad',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+
+          SizedBox(height: isSmall ? 8 : 10),
+
+          // Reportar + Cerrar
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (widget.alert.id != null && !_hasUserReported && !_isReporting)
+                      ? _showReportConfirm
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 12 : 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    side: BorderSide(
+                      color: _hasUserReported ? Colors.grey.withValues(alpha: 0.4) : _kBluePrim.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  icon: _isReporting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Icon(
+                          _hasUserReported ? Icons.check_circle_rounded : Icons.report_rounded,
+                          size: 16,
+                          color: _hasUserReported ? Colors.grey : _kBluePrim,
+                        ),
+                  label: Text(
+                    _hasUserReported ? 'Reportada' : (_isReporting ? 'Reportando…' : 'Reportar'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _hasUserReported ? Colors.grey : _kBluePrim,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _getAlertColor(widget.alert.alertType),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 12 : 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
+                    shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
+                  ),
+                  child: Text(
+                    AppLocalizations.of(context)!.close,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Reusable card builder ───────────────────────────────────────────────────
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: _kBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.description_rounded,
-              color: Color(0xFF1F2937),
-              size: 20,
-            ),
+            padding:    const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  AppLocalizations.of(context)!.description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(label, style: const TextStyle(fontSize: 11, color: _kTextSub, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
-                Text(
-                  widget.alert.description!,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF1F2937),
-                    height: 1.4,
-                  ),
-                ),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kText, height: 1.3)),
               ],
             ),
           ),
@@ -411,93 +938,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildCountersSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          // Contador de reenvíos
-          if (widget.alert.forwardsCount > 0) ...[
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.forward, color: Colors.blue[700], size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${widget.alert.forwardsCount}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.alert.forwardsCount == 1 ? 'reenvío' : 'reenvíos',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-          
-          // Contador de reportes
-          if ((_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
-            if (widget.alert.forwardsCount > 0) const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.report, color: Colors.orange[700], size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${_reportsCountOverride ?? widget.alert.reportsCount}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange[700],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      (_reportsCountOverride ?? widget.alert.reportsCount) == 1 ? 'reporte' : 'reportes',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
+  // ─── Reporting ──────────────────────────────────────────────────────────────
   bool get _hasUserReported {
     final uid = _userService.currentUser?.uid ?? '';
     return _userHasReported || (uid.isNotEmpty && widget.alert.reportedBy.contains(uid));
@@ -508,29 +949,21 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.report_problem, color: Colors.orange[700]),
-            const SizedBox(width: 8),
-            const Text('Reportar alerta'),
-          ],
-        ),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(children: [
+          Icon(Icons.report_problem_rounded, color: Colors.orange[700]),
+          const SizedBox(width: 8),
+          const Text('Reportar alerta'),
+        ]),
         content: const Text(
-          '¿Reportar esta alerta como inapropiada o con contenido problemático? '
-          'Solo puedes reportar una vez por alerta.',
+          '¿Deseas reportar esta alerta como inapropiada o con contenido problemático? Solo puedes reportar una vez.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[700],
-              foregroundColor: Colors.white,
-            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[700], foregroundColor: Colors.white),
             child: const Text('Reportar'),
           ),
         ],
@@ -548,795 +981,177 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           _reportsCountOverride = (widget.alert.reportsCount + 1);
           _isReporting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                const Text('Alerta reportada correctamente'),
-              ],
-            ),
-            backgroundColor: _primaryDark,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text('Alerta reportada correctamente'),
+          ]),
+          backgroundColor: _kDark,
+          duration: const Duration(seconds: 2),
+        ));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isReporting = false);
-        final msg = e.toString().replaceFirst('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: _error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: _kError,
+          duration: const Duration(seconds: 3),
+        ));
       }
     }
   }
 
-  Widget _buildLocationSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.location_on_rounded,
-              color: Colors.green,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.location,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.alert.location!.latitude.toStringAsFixed(6)}, ${widget.alert.location!.longitude.toStringAsFixed(6)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationMapSection(bool isSmall) {
-    if (widget.alert.location == null) return const SizedBox.shrink();
-    
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      height: isSmall ? 200 : 250,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            FlutterMap(
-              options: MapOptions(
-                initialCenter: LatLng(widget.alert.location!.latitude, widget.alert.location!.longitude),
-                initialZoom: 16.0,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.all,
-                ),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.guardian',
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(widget.alert.location!.latitude, widget.alert.location!.longitude),
-                      width: 40,
-                      height: 40,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _getAlertColor(widget.alert.alertType),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          _getAlertIcon(widget.alert.alertType),
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            // Overlay con información
-            Positioned(
-              top: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.alertLocation,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdditionalInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppLocalizations.of(context)!.additionalInfo,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Estado anónimo
-          Row(
-            children: [
-              Icon(
-                widget.alert.isAnonymous ? Icons.visibility_off : Icons.visibility,
-                color: widget.alert.isAnonymous ? Colors.orange : Colors.green,
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.alert.isAnonymous ? AppLocalizations.of(context)!.anonymousReport : AppLocalizations.of(context)!.identifiedReport,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: widget.alert.isAnonymous ? Colors.orange : Colors.green,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Compartir ubicación
-          Row(
-            children: [
-              Icon(
-                widget.alert.shareLocation ? Icons.location_on : Icons.location_off,
-                color: widget.alert.shareLocation ? Colors.green : Colors.grey,
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                widget.alert.shareLocation ? AppLocalizations.of(context)!.locationShared : AppLocalizations.of(context)!.locationNotShared,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: widget.alert.shareLocation ? Colors.green : Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-
-          // Contador de vistas
-          if (widget.alert.viewedCount > 0) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.visibility,
-                  color: Colors.blue,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${AppLocalizations.of(context)!.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? AppLocalizations.of(context)!.people : AppLocalizations.of(context)!.person}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          
-          // Información del usuario (si no es anónimo)
-          if (!widget.alert.isAnonymous && widget.alert.userName != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.person,
-                  color: Color(0xFF6B7280),
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)!.reportedBy,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        widget.alert.userName!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF374151),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImagesSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F2937).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.photo_library_rounded,
-                  color: Color(0xFF1F2937),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                AppLocalizations.of(context)!.images,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Mostrar imágenes
-          if (widget.alert.imageBase64 != null && widget.alert.imageBase64!.isNotEmpty)
-            ...widget.alert.imageBase64!.map((base64String) => _buildImageItem(base64String)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageItem(String base64String) {
-    try {
-      final bytes = base64Decode(base64String);
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: 200,
-          ),
-        ),
-      );
-    } catch (e) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.grey),
-            const SizedBox(width: 8),
-            Text(
-              AppLocalizations.of(context)!.errorLoadingImage,
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-
-  /// Muestra diálogo para reenviar alerta a otras comunidades
+  // ─── Forward dialog ──────────────────────────────────────────────────────────
   Future<void> _showForwardDialog() async {
     if (widget.alert.id == null) return;
 
-    // Cargar comunidades del usuario
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
       final allCommunities = await _communityService.getMyCommunities();
-      
-      if (mounted) {
-        Navigator.pop(context); // Cerrar loading
-      }
+      if (mounted) Navigator.pop(context);
 
-      // Obtener información de la comunidad original (si existe)
       CommunityModel? originalCommunity;
       bool canForwardToEntities = true;
-      
+
       if (widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty) {
         originalCommunity = await _communityRepository.getCommunityById(widget.alert.communityId!);
         canForwardToEntities = originalCommunity?.allowForwardToEntities ?? true;
       }
 
-      // Filtrar comunidades disponibles:
-      // 1. Excluir la comunidad de origen
-      // 2. Si no se permite reenvío a entidades, excluir entidades
       final availableCommunities = allCommunities.where((c) {
-        final id = c['id'] as String;
+        final id       = c['id'] as String;
         final isEntity = c['is_entity'] as bool;
-        
-        // Excluir comunidad de origen
-        if (widget.alert.communityId == id) {
-          return false;
-        }
-        
-        // Si no se permite reenvío a entidades, excluir entidades
-        if (isEntity && !canForwardToEntities) {
-          return false;
-        }
-        
+        // Exclude communities already in this alert's communityIds
+        if (widget.alert.communityIds.contains(id)) return false;
+        if (isEntity && !canForwardToEntities) return false;
         return true;
       }).toList();
 
       if (availableCommunities.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No hay comunidades disponibles para reenviar'),
-              backgroundColor: _primaryDark,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('No hay comunidades disponibles para reenviar'),
+            backgroundColor: _kDark,
+          ));
         }
         return;
       }
 
       if (!mounted) return;
 
-      // Mostrar diálogo de selección
       final selectedIds = await showDialog<Set<String>>(
         context: context,
-        builder: (context) => _ForwardAlertDialog(
-          availableCommunities: availableCommunities,
-          canForwardToEntities: canForwardToEntities,
+        builder: (_) => _ForwardAlertDialog(
+          availableCommunities:  availableCommunities,
+          canForwardToEntities:  canForwardToEntities,
         ),
       );
 
       if (selectedIds == null || selectedIds.isEmpty) return;
-
-      // Reenviar alerta
       if (!mounted) return;
-      
+
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
       try {
-        final successCount = await _alertController.forwardAlert(
-          alertId: widget.alert.id!,
-          targetCommunityIds: selectedIds.toList(),
+        final count = await _alertController.forwardAlert(
+          alertId:             widget.alert.id!,
+          targetCommunityIds:  selectedIds.toList(),
         );
-
         if (mounted) {
-          Navigator.pop(context); // Cerrar loading
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '✅ Alerta reenviada a $successCount ${successCount == 1 ? 'comunidad' : 'comunidades'}',
-              ),
-              backgroundColor: _primaryDark,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('✅ Alerta reenviada a $count ${count == 1 ? 'comunidad' : 'comunidades'}'),
+            backgroundColor: _kDark,
+            duration: const Duration(seconds: 3),
+          ));
         }
       } catch (e) {
         if (mounted) {
-          Navigator.pop(context); // Cerrar loading
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error reenviando alerta: ${e.toString()}'),
-              backgroundColor: _error,
-            ),
-          );
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error reenviando: ${e.toString()}'),
+            backgroundColor: _kError,
+          ));
         }
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // Cerrar loading si aún está abierto
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: _error,
-          ),
-        );
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: _kError,
+        ));
       }
     }
   }
 
-  Widget _buildActionButtons(BuildContext context, bool isSmall) {
-    final hasCommunity = widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty;
-    
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        isSmall ? 12 : 24,
-        isSmall ? 12 : 20,
-        isSmall ? 12 : 24,
-        isSmall ? 12 : 20,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Botón para ir a la comunidad (solo si tiene community_id)
-          if (hasCommunity) ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isLoadingCommunity ? null : _navigateToCommunity,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F2937),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 2,
-                ),
-                icon: _isLoadingCommunity
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.people, size: 20),
-                label: Text(
-                  _isLoadingCommunity
-                      ? 'Cargando...'
-                      : _communityName != null
-                          ? 'Ver en $_communityName'
-                          : 'Ver en Comunidad',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          
-          // Botón de reenviar
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: widget.alert.id != null ? _showForwardDialog : null,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                side: BorderSide(
-                  color: _primary.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-              ),
-              icon: const Icon(Icons.forward, size: 20),
-              label: const Text(
-                'Reenviar',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Botón reportar
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: (widget.alert.id != null && !_hasUserReported && !_isReporting)
-                  ? _showReportConfirm
-                  : null,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                side: BorderSide(
-                  color: _hasUserReported
-                      ? Colors.grey.withValues(alpha: 0.5)
-                      : _primary.withValues(alpha: 0.5),
-                  width: 1.5,
-                ),
-              ),
-              icon: _isReporting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      _hasUserReported ? Icons.check_circle : Icons.report,
-                      size: 20,
-                      color: _hasUserReported ? Colors.grey : _primary,
-                    ),
-              label: Text(
-                _hasUserReported ? 'Ya reportada' : (_isReporting ? 'Reportando...' : 'Reportar'),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _hasUserReported ? Colors.grey : _primary,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Botones principales
-          Wrap(
-            spacing: isSmall ? 10 : 16,
-            runSpacing: isSmall ? 10 : 12,
-            children: [
-              SizedBox(
-                width: isSmall
-                    ? double.infinity
-                    : (MediaQuery.of(context).size.width * 0.40),
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: isSmall ? 14 : 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    side: BorderSide(
-                      color: const Color(0xFFE5E7EB),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Text(
-                    AppLocalizations.of(context)!.close,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: isSmall
-                    ? double.infinity
-                    : (MediaQuery.of(context).size.width * 0.40),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _getAlertColor(widget.alert.alertType),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: isSmall ? 14 : 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 2,
-                    shadowColor:
-                        _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
-                  ),
-                  child: Text(
-                    AppLocalizations.of(context)!.respond,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
   IconData _getAlertIcon(String alertType) {
     switch (alertType) {
-      case 'ROBBERY':
-        return Icons.person_off;
-      case 'FIRE':
-        return Icons.local_fire_department;
-      case 'ACCIDENT':
-        return Icons.car_crash;
-      case 'STREET ESCORT':
-        return Icons.people;
-      case 'UNSAFETY':
-        return Icons.warning;
-      case 'PHYSICAL RISK':
-        return Icons.accessibility;
-      case 'PUBLIC SERVICES EMERGENCY':
-        return Icons.construction;
-      case 'VIAL EMERGENCY':
-        return Icons.directions_car;
-      case 'ASSISTANCE':
-        return Icons.help;
-      case 'EMERGENCY':
-        return Icons.emergency;
-      default:
-        return Icons.warning;
+      case 'HEALTH':       return Icons.medical_services_rounded;
+      case 'HOME_HELP':    return Icons.home_rounded;
+      case 'POLICE':       return Icons.shield_rounded;
+      case 'FIRE':         return Icons.local_fire_department_rounded;
+      case 'ACCOMPANIMENT':return Icons.people_rounded;
+      case 'ENVIRONMENTAL':return Icons.eco_rounded;
+      case 'ROAD_EMERGENCY': return Icons.directions_car_rounded;
+      case 'ROBBERY':      return Icons.person_off_rounded;
+      case 'ACCIDENT':     return Icons.car_crash_rounded;
+      case 'STREET ESCORT':return Icons.people_rounded;
+      case 'UNSAFETY':     return Icons.warning_rounded;
+      case 'PHYSICAL RISK':return Icons.accessibility_rounded;
+      case 'PUBLIC SERVICES EMERGENCY': return Icons.construction_rounded;
+      case 'VIAL EMERGENCY': return Icons.directions_car_rounded;
+      case 'ASSISTANCE':   return Icons.help_rounded;
+      case 'EMERGENCY':    return Icons.emergency_rounded;
+      default:             return Icons.warning_rounded;
     }
   }
 
   Color _getAlertColor(String alertType) {
     switch (alertType) {
-      case 'ROBBERY':
-      case 'FIRE':
-      case 'EMERGENCY':
-        return Colors.red;
-      case 'ACCIDENT':
-      case 'VIAL EMERGENCY':
-        return Colors.orange;
-      case 'UNSAFETY':
-      case 'PHYSICAL RISK':
-        return Colors.purple;
-      case 'STREET ESCORT':
-      case 'ASSISTANCE':
-        return Colors.blue;
-      case 'PUBLIC SERVICES EMERGENCY':
-        return const Color(0xFFFF9500);
-      default:
-        return Colors.grey;
+      case 'HEALTH':       return const Color(0xFF26C6DA);
+      case 'HOME_HELP':    return const Color(0xFF66BB6A);
+      case 'POLICE':       return const Color(0xFF1565C0);
+      case 'FIRE':         return const Color(0xFFE53935);
+      case 'ACCOMPANIMENT':return const Color(0xFF8E24AA);
+      case 'ENVIRONMENTAL':return const Color(0xFF43A047);
+      case 'ROAD_EMERGENCY':return const Color(0xFFFF7043);
+      case 'ROBBERY':      return const Color(0xFF9C27B0);
+      case 'EMERGENCY':    return const Color(0xFFF44336);
+      case 'ACCIDENT':     return const Color(0xFFFF9800);
+      case 'UNSAFETY':     return const Color(0xFFFF9800);
+      case 'PHYSICAL RISK':return const Color(0xFF673AB7);
+      case 'PUBLIC SERVICES EMERGENCY': return const Color(0xFFFFC107);
+      case 'VIAL EMERGENCY': return const Color(0xFF00BCD4);
+      case 'ASSISTANCE':   return const Color(0xFF4CAF50);
+      case 'STREET ESCORT':return const Color(0xFF2196F3);
+      default:             return const Color(0xFF9E9E9E);
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
+  String _formatDateTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1)  return 'Ahora mismo';
+    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
+    if (diff.inHours   < 24) return 'Hace ${diff.inHours}h';
+    if (diff.inDays    == 1) return 'Ayer';
+    return 'Hace ${diff.inDays}d';
   }
 }
 
-/// Diálogo para seleccionar comunidades destino al reenviar alerta
+// ─── Forward alert dialog ─────────────────────────────────────────────────────
 class _ForwardAlertDialog extends StatefulWidget {
   final List<Map<String, dynamic>> availableCommunities;
   final bool canForwardToEntities;
@@ -1355,18 +1170,16 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // Separar entidades y comunidades normales
-    final entities = widget.availableCommunities.where((c) => c['is_entity'] == true).toList();
-    final normalCommunities = widget.availableCommunities.where((c) => c['is_entity'] != true).toList();
+    final entities   = widget.availableCommunities.where((c) => c['is_entity'] == true).toList();
+    final normals    = widget.availableCommunities.where((c) => c['is_entity'] != true).toList();
 
     return AlertDialog(
-      title: Row(
-        children: [
-          const Icon(Icons.forward, color: Color(0xFF1F2937)),
-          const SizedBox(width: 8),
-          const Text('Reenviar Alerta'),
-        ],
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(children: [
+        Icon(Icons.forward_rounded, color: _kDark),
+        SizedBox(width: 8),
+        Text('Reenviar Alerta'),
+      ]),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -1374,137 +1187,80 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Selecciona a qué comunidades reenviar esta alerta:',
-                style: TextStyle(fontSize: 14),
-              ),
+              const Text('Selecciona a qué comunidades reenviar:', style: TextStyle(fontSize: 14)),
               const SizedBox(height: 16),
-              
-              // Sección de entidades (si hay y está permitido)
               if (entities.isNotEmpty && widget.canForwardToEntities) ...[
-                const Text(
-                  'Entidades Oficiales',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
+                const Text('Entidades Oficiales', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kBluePrim, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
-                ...entities.map((entity) => _buildCommunityCheckbox(entity)),
+                ...entities.map(_buildCommunityTile),
                 const SizedBox(height: 16),
               ],
-              
-              // Sección de comunidades normales
-              if (normalCommunities.isNotEmpty) ...[
-                const Text(
-                  'Comunidades',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
+              if (normals.isNotEmpty) ...[
+                const Text('Comunidades', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
-                ...normalCommunities.map((community) => _buildCommunityCheckbox(community)),
+                ...normals.map(_buildCommunityTile),
               ],
-              
-              if (entities.isEmpty && normalCommunities.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'No hay comunidades disponibles para reenviar',
-                    style: TextStyle(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
-          onPressed: _selectedIds.isEmpty
-              ? null
-              : () => Navigator.pop(context, _selectedIds),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1F2937),
-            foregroundColor: Colors.white,
-          ),
-          child: Text(
-            'Reenviar (${_selectedIds.length})',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          onPressed: _selectedIds.isEmpty ? null : () => Navigator.pop(context, _selectedIds),
+          style: ElevatedButton.styleFrom(backgroundColor: _kDark, foregroundColor: Colors.white),
+          child: Text('Reenviar (${_selectedIds.length})'),
         ),
       ],
     );
   }
 
-  Widget _buildCommunityCheckbox(Map<String, dynamic> community) {
-    final id = community['id'] as String;
-    final name = community['name'] as String;
+  Widget _buildCommunityTile(Map<String, dynamic> community) {
+    final id       = community['id'] as String;
+    final name     = community['name'] as String;
     final isEntity = community['is_entity'] as bool;
-    final isSelected = _selectedIds.contains(id);
+    final selected = _selectedIds.contains(id);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
+      margin:     const EdgeInsets.only(bottom: 8),
+      elevation:  0,
+      color:      selected ? _kBluePrim.withValues(alpha: 0.06) : Colors.grey[50],
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: selected ? _kBluePrim.withValues(alpha: 0.4) : _kBorder,
+          width: 1.5,
+        ),
       ),
       child: CheckboxListTile(
-        value: isSelected,
-        onChanged: (value) {
-          setState(() {
-            if (value == true) {
-              _selectedIds.add(id);
-            } else {
-              _selectedIds.remove(id);
-            }
-          });
-        },
-        title: Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
+        value:    selected,
+        onChanged: (v) => setState(() => v == true ? _selectedIds.add(id) : _selectedIds.remove(id)),
+        activeColor: _kBluePrim,
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         subtitle: isEntity
             ? Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin:     const EdgeInsets.only(top: 4),
+                padding:    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color:        _kBluePrim.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'Entidad Oficial',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.blue,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: Text('Entidad Oficial', style: TextStyle(fontSize: 10, color: _kBluePrim, fontWeight: FontWeight.w600)),
               )
             : null,
         secondary: Container(
-          width: 40,
-          height: 40,
+          width: 36, height: 36,
           decoration: BoxDecoration(
-            color: isEntity
-                ? Colors.blue.withValues(alpha: 0.1)
-                : Colors.green.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
+            color:        isEntity ? _kBluePrim.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(9),
           ),
           child: Icon(
-            isEntity ? Icons.shield : Icons.people,
-            color: isEntity ? Colors.blue : Colors.green,
-            size: 20,
+            isEntity ? Icons.shield_rounded : Icons.people_rounded,
+            color: isEntity ? _kBluePrim : Colors.green,
+            size: 18,
           ),
         ),
       ),
     );
   }
-} 
+}

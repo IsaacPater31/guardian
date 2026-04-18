@@ -34,7 +34,8 @@ abstract final class AlertFields {
   static const String imageBase64 = 'imageBase64';
   static const String viewedCount = 'viewedCount';
   static const String viewedBy = 'viewedBy';
-  static const String communityId = 'community_id';
+  static const String communityId  = 'community_id';   // legacy (read-only, backward compat)
+  static const String communityIds = 'community_ids';  // new array field
   static const String alertStatus = 'alert_status';
   static const String forwardsCount = 'forwards_count';
   static const String reportsCount = 'reports_count';

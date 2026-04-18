@@ -529,9 +529,11 @@ class _HomeViewState extends State<HomeView> {
 
 
   Widget _buildAlertCard(AlertModel alert) {
-    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
+    final alertIcon  = EmergencyTypes.getIcon(alert.alertType);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
-    final timeAgo = _getTimeAgo(alert.timestamp);
+    final timeAgo    = _getTimeAgo(alert.timestamp);
+    final isAttended = alert.alertStatus == 'attended';
+    final statusColor = isAttended ? const Color(0xFF34C759) : const Color(0xFFFF9F0A);
 
     return GestureDetector(
       onTap: () => _showAlertDetail(alert),
@@ -585,12 +587,33 @@ class _HomeViewState extends State<HomeView> {
                           ),
                         ),
                       ),
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color:        statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border:       Border.all(color: statusColor.withValues(alpha: 0.35), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                              size: 10, color: statusColor,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              isAttended ? 'Atendida' : 'No atendida',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         timeAgo,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                     ],
                   ),

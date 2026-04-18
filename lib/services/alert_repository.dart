@@ -332,7 +332,7 @@ class AlertRepository {
     try {
       final snapshot = await _firestore
           .collection(FirestoreCollections.alerts)
-          .where(AlertFields.communityId, isEqualTo: communityId)
+          .where(AlertFields.communityIds, arrayContains: communityId)
           .get();
 
       final filtered = snapshot.docs
@@ -352,7 +352,7 @@ class AlertRepository {
   Stream<List<AlertModel>> getCommunityAlertsStream(String communityId) {
     return _firestore
         .collection(FirestoreCollections.alerts)
-        .where(AlertFields.communityId, isEqualTo: communityId)
+        .where(AlertFields.communityIds, arrayContains: communityId)
         .snapshots()
         .map((snapshot) {
       final filtered = snapshot.docs
@@ -368,7 +368,7 @@ class AlertRepository {
   Stream<List<AlertModel>> getOwnAlertsStream(String communityId, String uid) {
     return _firestore
         .collection(FirestoreCollections.alerts)
-        .where(AlertFields.communityId, isEqualTo: communityId)
+        .where(AlertFields.communityIds, arrayContains: communityId)
         .where(AlertFields.userId, isEqualTo: uid)
         .snapshots()
         .map((snapshot) {
@@ -383,7 +383,7 @@ class AlertRepository {
   Stream<List<AlertModel>> getOthersAlertsStream(String communityId, String uid) {
     return _firestore
         .collection(FirestoreCollections.alerts)
-        .where(AlertFields.communityId, isEqualTo: communityId)
+        .where(AlertFields.communityIds, arrayContains: communityId)
         .where(AlertFields.userId, isNotEqualTo: uid)
         .snapshots()
         .map((snapshot) {
@@ -435,9 +435,11 @@ class AlertRepository {
 
       final counts = <String, int>{};
       for (final alert in alerts) {
-        if (alert.communityId == null || alert.communityId!.isEmpty) continue;
+        if (alert.communityIds.isEmpty) continue;
         if (!alert.viewedBy.contains(uid)) {
-          counts[alert.communityId!] = (counts[alert.communityId!] ?? 0) + 1;
+          for (final cid in alert.communityIds) {
+            counts[cid] = (counts[cid] ?? 0) + 1;
+          }
         }
       }
       return counts;
@@ -457,10 +459,10 @@ class AlertRepository {
       if (!_userService.canUserViewAlert(alert.userId, alert.userEmail, alert.isAnonymous)) {
         return false;
       }
-      if (alert.communityId != null && alert.communityId!.isNotEmpty) {
-        return communityIds.contains(alert.communityId);
-      }
-      return true;
+      // Show alerts with no community restriction (public/legacy).
+      if (alert.communityIds.isEmpty) return true;
+      // Show alert if user belongs to any of the alert's communities.
+      return alert.communityIds.any((id) => communityIds.contains(id));
     }).toList();
   }
 

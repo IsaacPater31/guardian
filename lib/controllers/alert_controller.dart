@@ -64,6 +64,7 @@ class AlertController {
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
+        communityIds: const [], // detailed alerts have no community unless sent via community UI
       );
 
       final alertId = await _alertRepository.saveAlert(alert);
@@ -110,34 +111,28 @@ class AlertController {
         throw Exception('No hay destinos configurados para quick alerts');
       }
 
-      final batch = FirebaseFirestore.instance.batch();
-      final timestamp = DateTime.now();
+      // ── ONE document, multiple communities ────────────────────────────────
+      // Instead of creating N separate documents (old pattern),
+      // we save a single alert with communityIds = all destination IDs.
+      final alert = AlertModel(
+        type: 'quick',
+        alertType: alertType,
+        timestamp: DateTime.now(),
+        isAnonymous: isAnonymous,
+        shareLocation: true,
+        location: locationData,
+        userId: !isAnonymous ? userInfo['userId'] : null,
+        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
+        userName: userName,
+        viewedCount: 0,
+        viewedBy: [],
+        communityIds: destinations,
+        forwardsCount: 0,
+        reportsCount: 0,
+      );
 
-      for (final communityId in destinations) {
-        final alert = AlertModel(
-          type: 'quick',
-          alertType: alertType,
-          timestamp: timestamp,
-          isAnonymous: isAnonymous,
-          shareLocation: true,
-          location: locationData,
-          userId: !isAnonymous ? userInfo['userId'] : null,
-          userEmail: !isAnonymous ? userInfo['userEmail'] : null,
-          userName: userName,
-          viewedCount: 0,
-          viewedBy: [],
-          communityId: communityId,
-          forwardsCount: 0,
-          reportsCount: 0,
-        );
-        final ref = FirebaseFirestore.instance
-            .collection(FirestoreCollections.alerts)
-            .doc();
-        batch.set(ref, alert.toFirestore());
-      }
-
-      await batch.commit();
-      AppLogger.d('Quick alert sent to ${destinations.length} communities');
+      await _alertRepository.saveAlert(alert);
+      AppLogger.d('Quick alert sent to ${destinations.length} communities in 1 document');
       return true;
     } catch (e) {
       AppLogger.e('AlertController.sendQuickAlert', e);
@@ -179,7 +174,7 @@ class AlertController {
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
-        communityId: communityId,
+        communityIds: [communityId],
         forwardsCount: 0,
         reportsCount: 0,
       );
@@ -244,6 +239,12 @@ class AlertController {
     var successCount = 0;
 
     for (final targetCommunityId in targetCommunityIds) {
+      // Skip communities already in the original alert's communityIds
+      if (originalAlert.communityIds.contains(targetCommunityId)) {
+        AppLogger.d('Skipping duplicate community: $targetCommunityId');
+        continue;
+      }
+
       final forwarded = AlertModel(
         type: originalAlert.type,
         alertType: originalAlert.alertType,
@@ -257,7 +258,7 @@ class AlertController {
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
-        communityId: targetCommunityId,
+        communityIds: [targetCommunityId],
         forwardsCount: 0,
         reportsCount: 0,
         imageBase64: originalAlert.imageBase64,
@@ -268,6 +269,10 @@ class AlertController {
           .doc();
       batch.set(ref, forwarded.toFirestore());
       successCount++;
+    }
+
+    if (successCount == 0) {
+      throw Exception('Todas las comunidades seleccionadas ya tienen esta alerta');
     }
 
     batch.update(

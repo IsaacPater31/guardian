@@ -629,20 +629,39 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // Badge de estado
+                            // Badge de estado — Apple-style pill
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: isAttended
-                                    ? const Color(0xFF34C759)
-                                    : Colors.white.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                              child: Text(
-                                isAttended ? 'Atendida' : 'No atendida',
-                                style: const TextStyle(
-                                  fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white,
+                                color:        isAttended
+                                    ? const Color(0xFF34C759).withValues(alpha: 0.25)
+                                    : Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isAttended
+                                      ? Colors.white.withValues(alpha: 0.7)
+                                      : Colors.white.withValues(alpha: 0.35),
+                                  width: 1,
                                 ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isAttended
+                                        ? Icons.check_circle_rounded
+                                        : Icons.schedule_rounded,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isAttended ? 'Atendida' : 'No atendida',
+                                    style: const TextStyle(
+                                      fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

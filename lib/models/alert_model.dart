@@ -22,10 +22,14 @@ class AlertModel {
   final int viewedCount;
   final List<String> viewedBy;
 
-  /// Community this alert was sent to. `null` for legacy alerts.
-  final String? communityId;
+  /// Communities this alert was sent to.
+  ///
+  /// New documents store `community_ids: List<String>`.
+  /// Legacy documents store `community_id: String?` — the parser
+  /// normalises both formats into this single list.
+  final List<String> communityIds;
 
-  /// Attention status: `'pending'` or `'attended'`. Only officials may update.
+  /// Attention status: `'pending'` or `'attended'`.
   final String alertStatus;
 
   final int forwardsCount;
@@ -49,15 +53,39 @@ class AlertModel {
     this.imageBase64,
     this.viewedCount = 0,
     this.viewedBy = const [],
-    this.communityId,
+    this.communityIds = const [],
     this.alertStatus = 'pending',
     this.forwardsCount = 0,
     this.reportsCount = 0,
     this.reportedBy = const [],
   });
 
+  // ─── Derived helpers ──────────────────────────────────────────────────────
+
+  /// `true` if this alert belongs to at least one community.
+  bool get hasCommunity => communityIds.isNotEmpty;
+
+  /// First community ID, or `null` — for forward-compat usage.
+  String? get communityId => communityIds.isEmpty ? null : communityIds.first;
+
+  // ─── Firestore serialisation ──────────────────────────────────────────────
+
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // ── community_ids normalisation: support both legacy and new format ──
+    final List<String> communityIds;
+    if (data['community_ids'] != null) {
+      // New format: array of strings
+      communityIds = List<String>.from(data['community_ids'] as List);
+    } else if (data['community_id'] != null &&
+        (data['community_id'] as String).isNotEmpty) {
+      // Legacy format: single string — wrap in list
+      communityIds = [data['community_id'] as String];
+    } else {
+      communityIds = [];
+    }
+
     return AlertModel(
       id: doc.id,
       type: data['type'] ?? '',
@@ -79,7 +107,7 @@ class AlertModel {
       viewedBy: data['viewedBy'] != null
           ? List<String>.from(data['viewedBy'] as List)
           : [],
-      communityId: data['community_id'],
+      communityIds: communityIds,
       alertStatus: data['alert_status'] ?? 'pending',
       forwardsCount: data['forwards_count'] ?? 0,
       reportsCount: data['reports_count'] ?? 0,
@@ -103,7 +131,9 @@ class AlertModel {
         'imageBase64': imageBase64,
         'viewedCount': viewedCount,
         'viewedBy': viewedBy,
-        'community_id': communityId,
+        'community_ids': communityIds,   // new field (array)
+        // Note: community_id (singular) is intentionally NOT written
+        // so new documents only have community_ids.
         'alert_status': alertStatus,
         'forwards_count': forwardsCount,
         'reports_count': reportsCount,
@@ -125,7 +155,7 @@ class AlertModel {
     List<String>? imageBase64,
     int? viewedCount,
     List<String>? viewedBy,
-    String? communityId,
+    List<String>? communityIds,
     String? alertStatus,
     int? forwardsCount,
     int? reportsCount,
@@ -146,7 +176,7 @@ class AlertModel {
       imageBase64: imageBase64 ?? this.imageBase64,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,
-      communityId: communityId ?? this.communityId,
+      communityIds: communityIds ?? this.communityIds,
       alertStatus: alertStatus ?? this.alertStatus,
       forwardsCount: forwardsCount ?? this.forwardsCount,
       reportsCount: reportsCount ?? this.reportsCount,
