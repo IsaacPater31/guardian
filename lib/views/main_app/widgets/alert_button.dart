@@ -1107,21 +1107,18 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ),
     );
 
-    int successCount = 0;
-    for (final community in selectedCommunities) {
-      final success = await _alertController.sendSwipedAlert(
-        alertType: alertType,
-        isAnonymous: false,
-        communityId: community['id'] as String,
-      );
-      if (success) successCount++;
-    }
+    // ── ONE call → ONE Firestore document with all destinations ───────────────
+    final communityIds = selectedCommunities.map((c) => c['id'] as String).toList();
+    final success = await _alertController.sendSwipedAlert(
+      alertType: alertType,
+      isAnonymous: false,
+      communityIds: communityIds,
+    );
+    final int successCount = success ? communityIds.length : 0;
 
-    // Guardar la selección confirmada como configuración permanente para
-    // este tipo de alerta. La próxima vez quedará pre-seleccionada automáticamente.
-    if (successCount > 0) {
-      final ids = selectedCommunities.map((c) => c['id'] as String).toList();
-      _swipeConfig.setCommunitiesForType(alertType, ids);
+    // Persist selection so the same communities are pre-selected next time.
+    if (success) {
+      _swipeConfig.setCommunitiesForType(alertType, communityIds);
     }
 
     ScaffoldMessenger.of(context).clearSnackBars();

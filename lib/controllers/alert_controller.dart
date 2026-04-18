@@ -140,11 +140,14 @@ class AlertController {
     }
   }
 
-  /// Sends a swiped (radial-menu) alert to a single [communityId].
+  /// Sends a swiped alert to one or more communities as a **single** document.
+  ///
+  /// Setting [communityIds] to multiple values is supported: the alert is saved
+  /// once and the full list is stored in the `community_ids` Firestore array.
   Future<bool> sendSwipedAlert({
     required String alertType,
     required bool isAnonymous,
-    required String communityId,
+    required List<String> communityIds,
   }) async {
     try {
       if (!_userService.canUserSendAlerts()) {
@@ -174,12 +177,13 @@ class AlertController {
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
-        communityIds: [communityId],
+        communityIds: communityIds,   // ← single document with all destinations
         forwardsCount: 0,
         reportsCount: 0,
       );
 
       await _alertRepository.saveAlert(alert);
+      AppLogger.d('Swiped alert sent to ${communityIds.length} communities in 1 document');
       return true;
     } catch (e) {
       AppLogger.e('AlertController.sendSwipedAlert', e);
@@ -215,9 +219,10 @@ class AlertController {
 
     final originalAlert = AlertModel.fromFirestore(alertDoc);
 
-    if (originalAlert.communityId != null && originalAlert.communityId!.isNotEmpty) {
+    // ─── Permission check: does origin community allow forwarding to entities?
+    if (originalAlert.communityIds.isNotEmpty) {
       final originCommunity =
-          await CommunityRepository().getCommunityById(originalAlert.communityId!);
+          await CommunityRepository().getCommunityById(originalAlert.communityIds.first);
 
       if (originCommunity != null && !originCommunity.allowForwardToEntities) {
         final allCommunities = await CommunityService().getMyCommunities();

@@ -457,9 +457,9 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'COMUNIDADES',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF007AFFAA), letterSpacing: 0.6),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kBluePrim.withValues(alpha: 0.67), letterSpacing: 0.6),
                 ),
                 Text(
                   '${widget.alert.communityIds.length} ${widget.alert.communityIds.length == 1 ? 'comunidad' : 'comunidades'}',
