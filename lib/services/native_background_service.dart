@@ -1,121 +1,128 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
+import '../core/app_logger.dart';
 
-/// Servicio simplificado para controlar el servicio nativo de Android
-/// Elimina duplicación y centraliza la comunicación con el servicio nativo
+/// Servicio simplificado para controlar el servicio nativo de Android.
+/// Centraliza la comunicación con el servicio nativo vía MethodChannel.
 class NativeBackgroundService {
   static const MethodChannel _channel = MethodChannel('guardian_background_service');
-  
+
   static final NativeBackgroundService _instance = NativeBackgroundService._internal();
   factory NativeBackgroundService() => _instance;
   NativeBackgroundService._internal();
 
-  /// Inicia el servicio nativo de Android
+  /// Inicia el servicio nativo de Android.
   static Future<bool> startService() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final bool result = await _channel.invokeMethod('startService');
-      print('✅ Native background service started: $result');
+      AppLogger.d('Native background service started: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error starting native background service: ${e.message}');
+      AppLogger.e('NativeBackgroundService.startService', e.message ?? e);
       return false;
     }
   }
 
-  /// Detiene el servicio nativo de Android
+  /// Detiene el servicio nativo de Android.
   static Future<bool> stopService() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final bool result = await _channel.invokeMethod('stopService');
-      print('✅ Native background service stopped: $result');
+      AppLogger.d('Native background service stopped: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error stopping native background service: ${e.message}');
+      AppLogger.e('NativeBackgroundService.stopService', e.message ?? e);
       return false;
     }
   }
 
-  /// Verifica si el servicio nativo está ejecutándose
+  /// Verifica si el servicio nativo está ejecutándose.
   static Future<bool> isServiceRunning() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final bool result = await _channel.invokeMethod('isServiceRunning');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error checking native background service status: ${e.message}');
+      AppLogger.e('NativeBackgroundService.isServiceRunning', e.message ?? e);
       return false;
     }
   }
 
-  /// Solicita exención de optimización de batería
+  /// Solicita exención de optimización de batería.
   static Future<bool> requestBatteryOptimizationExemption() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
-      final bool result = await _channel.invokeMethod('requestBatteryOptimizationExemption');
-      print('✅ Battery optimization exemption result: $result');
+      final bool result =
+          await _channel.invokeMethod('requestBatteryOptimizationExemption');
+      AppLogger.d('Battery optimization exemption result: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error requesting battery optimization exemption: ${e.message}');
+      AppLogger.e(
+          'NativeBackgroundService.requestBatteryOptimizationExemption', e.message ?? e);
       return false;
     }
   }
 
-  /// Verifica si la app está exenta de optimización de batería
+  /// Verifica si la app está exenta de optimización de batería.
   static Future<bool> isBatteryOptimizationIgnored() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final bool result = await _channel.invokeMethod('isBatteryOptimizationIgnored');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error checking battery optimization status: ${e.message}');
+      AppLogger.e(
+          'NativeBackgroundService.isBatteryOptimizationIgnored', e.message ?? e);
       return false;
     }
   }
 
-  /// Solicita que la app sea añadida a la lista blanca del sistema
+  /// Solicita que la app sea añadida a la lista blanca del sistema.
   static Future<bool> requestWhitelistPermission() async {
     if (!Platform.isAndroid) return false;
-    
+
     try {
       final bool result = await _channel.invokeMethod('requestWhitelistPermission');
-      print('✅ Whitelist permission result: $result');
+      AppLogger.d('Whitelist permission result: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error requesting whitelist permission: ${e.message}');
+      AppLogger.e('NativeBackgroundService.requestWhitelistPermission', e.message ?? e);
       return false;
     }
   }
 
-  /// Verifica si las notificaciones están habilitadas para la app
+  /// Verifica si las notificaciones están habilitadas para la app.
   static Future<bool> checkNotificationPermissions() async {
     if (!Platform.isAndroid) return true;
-    
+
     try {
       final bool result = await _channel.invokeMethod('checkNotificationPermissions');
-      print('✅ Notification permissions check result: $result');
+      AppLogger.d('Notification permissions check result: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error checking notification permissions: ${e.message}');
+      AppLogger.e(
+          'NativeBackgroundService.checkNotificationPermissions', e.message ?? e);
       return false;
     }
   }
 
-  /// Solicita permisos de notificación (Android 13+)
+  /// Solicita permisos de notificación (Android 13+).
   static Future<bool> requestNotificationPermissions() async {
     if (!Platform.isAndroid) return true;
-    
+
     try {
-      final bool result = await _channel.invokeMethod('requestNotificationPermissions');
-      print('✅ Notification permissions request result: $result');
+      final bool result =
+          await _channel.invokeMethod('requestNotificationPermissions');
+      AppLogger.d('Notification permissions request result: $result');
       return result;
     } on PlatformException catch (e) {
-      print('❌ Error requesting notification permissions: ${e.message}');
+      AppLogger.e(
+          'NativeBackgroundService.requestNotificationPermissions', e.message ?? e);
       return false;
     }
   }

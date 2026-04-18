@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import '../core/app_logger.dart';
 
 class LocalizationService extends ChangeNotifier {
   static const String _languageKey = 'selected_language';
@@ -61,9 +62,9 @@ class LocalizationService extends ChangeNotifier {
     
     try {
       await _channel.invokeMethod('setLanguage', {'language': languageCode});
-      print('✅ Language changed to: $languageCode');
+      AppLogger.d('Language changed to: $languageCode');
     } catch (e) {
-      print('❌ Error notifying native language change: $e');
+      AppLogger.e('LocalizationService._notifyNativeLanguageChange', e);
     }
   }
   

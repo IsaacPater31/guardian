@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import '../core/app_logger.dart';
 import '../models/alert_model.dart';
 
 class LocationService {
@@ -34,7 +35,7 @@ class LocationService {
         longitude: position.longitude,
       );
     } catch (e) {
-      print('Error getting location: $e');
+      AppLogger.e('LocationService.getCurrentLocation', e);
       return null;
     }
   }

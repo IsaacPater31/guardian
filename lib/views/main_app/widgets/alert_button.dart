@@ -172,8 +172,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
     final int successCount = ok ? destinations.length : 0;
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
-
     if (!mounted) return;
     if (successCount > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1121,6 +1121,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       _swipeConfig.setCommunitiesForType(alertType, communityIds);
     }
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).clearSnackBars();
 
     if (successCount > 0) {

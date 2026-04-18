@@ -1,3 +1,4 @@
+import '../core/app_logger.dart';
 import '../models/alert_model.dart';
 import '../services/alert_repository.dart';
 
@@ -31,7 +32,7 @@ class MapController {
     try {
       return await _alertRepository.getMapAlerts();
     } catch (e) {
-      print('Error loading alerts: $e');
+      AppLogger.e('MapController.getAlertsOnce', e);
       return [];
     }
   }
