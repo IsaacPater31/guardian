@@ -703,9 +703,10 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         final success =
             await _communityService.leaveCommunity(widget.communityId);
         if (mounted && success) {
-          Navigator.pop(context);
           _showSnackBar(AppLocalizations.of(context)!.leftCommunity,
               isSuccess: true, icon: Icons.exit_to_app_rounded);
+          // Señal al feed para cerrar la comunidad y volver al listado actualizado.
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
@@ -796,7 +797,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                       userRole: widget.userRole,
                     ),
                   ),
-                );
+                ).then((_) {
+                  if (mounted) _loadCommunity();
+                });
               },
             ),
             if (isAdmin)
@@ -847,7 +850,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                         autoOpenAddSheet: true,
                       ),
                     ),
-                  );
+                  ).then((_) {
+                    if (mounted) _loadCommunity();
+                  });
                 },
               ),
             _buildSettingsTile(

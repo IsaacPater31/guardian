@@ -170,7 +170,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                 color: const Color(0xFF007AFF),
               ),
               onPressed: () {
-                Navigator.push(
+                Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => CommunitySettingsView(
@@ -178,7 +178,15 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                       userRole: _userRole ?? 'member',
                     ),
                   ),
-                ).then((_) => _loadUserRole());
+                ).then((leftCommunity) {
+                  if (!mounted) return;
+                  if (leftCommunity == true) {
+                    if (!context.mounted) return;
+                    Navigator.pop(context, true);
+                  } else {
+                    _loadUserRole();
+                  }
+                });
               },
             ),
         ],

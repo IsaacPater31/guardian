@@ -203,7 +203,9 @@ class _ComunidadesViewState extends State<ComunidadesView>
                   builder: (context) => const JoinCommunityView(),
                 ),
               ).then((joined) {
-                if (joined == true) _loadCommunities();
+                if (joined == true && mounted && context.mounted) {
+                  _loadCommunities();
+                }
               });
             },
             tooltip: AppLocalizations.of(context)!.joinWithLink,
@@ -456,7 +458,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
           final communityName = community['name'] as String;
 
           if (!isEntity) {
-            Navigator.push(
+            Navigator.push<bool>(
               context,
               MaterialPageRoute(
                 builder: (context) => CommunityFeedView(
@@ -465,7 +467,12 @@ class _ComunidadesViewState extends State<ComunidadesView>
                   isEntity: false,
                 ),
               ),
-            );
+            ).then((leftCommunity) {
+              if (!mounted || !context.mounted) return;
+              if (leftCommunity == true) {
+                _loadCommunities();
+              }
+            });
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

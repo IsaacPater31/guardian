@@ -122,12 +122,14 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
       
       if (result.success) {
         if (mounted) {
+          setState(() => _isLoading = false);
+
           // Mostrar mensaje apropiado según el resultado
-          final message = result.message ?? 
+          final message = result.message ??
               (_communityPreview != null
                   ? '¡Te has unido a ${_communityPreview!.name}!'
                   : '¡Te has unido a la comunidad!');
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(message),
@@ -136,9 +138,10 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
             ),
           );
 
-          // Navegar al feed de la comunidad si tenemos la info
+          // Feed encima de esta pantalla (no pushReplacement) para que al abandonar
+          // la comunidad se propague `true` hasta ComunidadesView y se recargue la lista.
           if (_communityPreview != null) {
-            Navigator.of(context).pushReplacement(
+            final leftCommunity = await Navigator.of(context).push<bool>(
               MaterialPageRoute(
                 builder: (context) => CommunityFeedView(
                   communityId: _communityPreview!.id!,
@@ -147,8 +150,14 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                 ),
               ),
             );
+            if (!mounted) return;
+            if (context.mounted) {
+              Navigator.of(context).pop(leftCommunity == true);
+            }
           } else {
-            Navigator.of(context).pop(true);
+            if (context.mounted) {
+              Navigator.of(context).pop(true);
+            }
           }
         }
       } else {
