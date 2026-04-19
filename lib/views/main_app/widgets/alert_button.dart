@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
@@ -637,311 +638,186 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   void _showFinalConfirmationDialog(String emergencyType, List<Map<String, dynamic>> selectedCommunities) {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
-    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
-    
     if (emergencyData == null) return;
-    
+    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
+    final subtypeOptions = AlertDetailCatalog.getSubtypes(emergencyType);
+    String? selectedSubtype = subtypeOptions.isNotEmpty ? subtypeOptions.first.id : null;
+    bool isAnonymous = false;
+    final TextEditingController otherController = TextEditingController();
+    final List<String> photoPlaceholders = [];
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width < 360 ? 10 : 18,
-          vertical: MediaQuery.of(context).size.width < 360 ? 12 : 24,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: SafeArea(
-          child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenHeight = MediaQuery.of(context).size.height;
-            final maxHeight = screenHeight * 0.8;
-            
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: maxHeight,
-                maxWidth: constraints.maxWidth,
-              ),
-              padding: EdgeInsets.all(
-                constraints.maxWidth < 400 ? 16 : 24,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final requiresOtherDetail =
+              selectedSubtype != null && AlertDetailCatalog.subtypeRequiresDetail(emergencyType, selectedSubtype!);
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 720),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.arrow_back,
-                            color: Colors.grey[700],
-                            size: 20,
-                          ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 10, 0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            otherController.dispose();
+                            _showCommunitySelectionDialog(emergencyType).then((selection) {
+                              if (selection != null && selection.isNotEmpty && mounted) {
+                                _showFinalConfirmationDialog(emergencyType, selection);
+                              } else {
+                                _hideEmergencyOptions();
+                              }
+                            });
+                          },
+                          icon: const Icon(Icons.arrow_back),
                         ),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _showCommunitySelectionDialog(emergencyType).then((selection) {
-                            if (selection != null && selection.isNotEmpty && mounted) {
-                              _showFinalConfirmationDialog(emergencyType, selection);
-                            } else {
-                              _hideEmergencyOptions();
-                            }
-                          });
-                        },
-                        tooltip: 'Volver',
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Confirmar Alerta',
-                        style: TextStyle(
-                          fontSize: constraints.maxWidth < 400 ? 16 : 18,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1A1A1A),
-                        ),
-                      ),
-                      const Spacer(),
-                      SizedBox(
-                        width: 44,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: constraints.maxWidth < 400 ? 64 : 80,
-                            height: constraints.maxWidth < 400 ? 64 : 80,
-                            decoration: BoxDecoration(
-                              color: _danger.withValues(alpha: 0.10),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: _danger,
-                                width: 2.5,
-                              ),
-                            ),
-                            child: Icon(
-                              emergencyData['icon'],
-                              color: _danger,
-                              size: constraints.maxWidth < 400 ? 30 : 38,
-                            ),
-                          ),
-                          
-                          SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
-                          
-                          Text(
-                            translatedType,
-                            style: TextStyle(
-                              fontSize: constraints.maxWidth < 400 ? 20 : 24,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1A1A1A),
-                              letterSpacing: -0.5,
-                            ),
+                        const Expanded(
+                          child: Text(
+                            'Detalle de alerta',
                             textAlign: TextAlign.center,
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
                           ),
-                          
-                          SizedBox(height: constraints.maxWidth < 400 ? 12 : 16),
-                    
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: _surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: _primary.withValues(alpha: 0.18),
-                                width: 1.5,
-                              ),
-                            ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 4, 18, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: _primary.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.people,
-                                        color: _primary,
-                                        size: 18,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'Destinatarios (${selectedCommunities.length})',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: _primary,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
                                 Container(
-                                  constraints: BoxConstraints(
-                                    maxHeight: screenHeight * 0.25,
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    color: _danger.withValues(alpha: 0.10),
+                                    shape: BoxShape.circle,
                                   ),
-                                  child: ListView.separated(
-                                    shrinkWrap: true,
-                                    physics: const BouncingScrollPhysics(),
-                                    itemCount: selectedCommunities.length,
-                                    separatorBuilder: (context, index) => const SizedBox(height: 8),
-                                    itemBuilder: (context, index) {
-                                      final community = selectedCommunities[index];
-                                      final isEntity = community['is_entity'] as bool;
-                                      
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(10),
-                                          border: Border.all(
-                                            color: Colors.grey[200]!,
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: BoxDecoration(
-                                                color: isEntity 
-                                                    ? _primary.withValues(alpha: 0.1)
-                                                    : const Color(0xFF5AC8FA).withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Icon(
-                                                isEntity ? Icons.shield : Icons.people,
-                                                color: isEntity ? _primary : const Color(0xFF5AC8FA),
-                                                size: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    community['name'] ?? '',
-                                                    style: TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: const Color(0xFF1A1A1A),
-                                                      letterSpacing: 0.1,
-                                                    ),
-                                                  ),
-                                                  if (isEntity) ...[
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      'Entidad Oficial',
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: Colors.grey[600],
-                                                        fontWeight: FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                            Icon(
-                                              Icons.check_circle,
-                                              color: _primary,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                  child: Icon(emergencyData['icon'], color: _danger, size: 34),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  translatedType,
+                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                                 ),
                               ],
                             ),
                           ),
-                    
-                          SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
-                          
-                          Text(
-                            AppLocalizations.of(context)!.confirmEmergencyReport,
-                            style: TextStyle(
-                              fontSize: constraints.maxWidth < 400 ? 14 : 15,
-                              color: Colors.grey[700],
-                              height: 1.5,
-                              letterSpacing: 0.1,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          
-                          SizedBox(height: constraints.maxWidth < 400 ? 20 : 24),
-                          
+                          const SizedBox(height: 14),
                           Container(
-                            padding: EdgeInsets.all(
-                              constraints.maxWidth < 400 ? 14 : 16,
-                            ),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF5EB),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: const Color(0xFFFF9800).withValues(alpha: 0.25),
-                                width: 1.5,
+                              color: _surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _primary.withValues(alpha: 0.18)),
+                            ),
+                            child: Text(
+                              'Comunidades seleccionadas: ${selectedCommunities.map((c) => c['name']).join(', ')}',
+                              style: const TextStyle(fontSize: 13.5),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Subtipo o motivo', style: TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: selectedSubtype,
+                            items: subtypeOptions
+                                .map((option) => DropdownMenuItem<String>(
+                                      value: option.id,
+                                      child: Text(option.label),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                selectedSubtype = value;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
                               ),
                             ),
-                            child: Row(
+                          ),
+                          if (requiresOtherDetail) ...[
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: otherController,
+                              minLines: 2,
+                              maxLines: 4,
+                              decoration: InputDecoration(
+                                labelText: 'Describe el caso',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          SwitchListTile.adaptive(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                            title: const Text('Enviar como anónima'),
+                            subtitle: const Text('Tu nombre no se mostrará en la alerta'),
+                            value: isAnonymous,
+                            onChanged: (value) => setDialogState(() => isAnonymous = value),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _primary.withValues(alpha: 0.35)),
+                              color: _primary.withValues(alpha: 0.08),
+                            ),
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                  color: const Color(0xFFFF9500).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Color(0xFFFF9500),
-                                    size: 20,
-                                  ),
+                                const Text(
+                                  'Fotos (boceto visual)',
+                                  style: TextStyle(fontWeight: FontWeight.w700, color: _primary),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    AppLocalizations.of(context)!.actionCannotBeUndone,
-                                    style: TextStyle(
-                                      fontSize: constraints.maxWidth < 400 ? 13 : 14,
-                                      color: const Color(0xFFE65100),
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.4,
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'La carga real al servidor se habilitará en una siguiente fase.',
+                                  style: TextStyle(fontSize: 12.5, color: Color(0xFF4B5563)),
+                                ),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    ...photoPlaceholders.map((p) => Chip(
+                                          avatar: const Icon(Icons.image, size: 16),
+                                          label: Text(p, style: const TextStyle(fontSize: 12)),
+                                        )),
+                                    ActionChip(
+                                      avatar: const Icon(Icons.add_a_photo, size: 16),
+                                      label: const Text('Agregar placeholder'),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          photoPlaceholders.add('Foto ${photoPlaceholders.length + 1}');
+                                        });
+                                      },
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -950,130 +826,72 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       ),
                     ),
                   ),
-                    
-                  SizedBox(height: constraints.maxWidth < 400 ? 16 : 20),
-                    
-                    // Bottom action buttons — always row on all sizes
-                    Row(
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Row(
                       children: [
-                        // Cancel button
                         Expanded(
-                          flex: 4,
-                          child: SizedBox(
-                            height: 50,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _hideEmergencyOptions();
-                              },
-                              style: TextButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: BorderSide(color: Colors.grey[300]!, width: 1.5),
-                                ),
-                                backgroundColor: Colors.grey[50],
-                                padding: EdgeInsets.zero,
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)!.cancel,
-                                style: TextStyle(
-                                  color: const Color(0xFF424242),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ),
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              otherController.dispose();
+                              _hideEmergencyOptions();
+                            },
+                            child: Text(AppLocalizations.of(context)!.cancel),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // Send button
+                        const SizedBox(width: 10),
                         Expanded(
-                          flex: 6,
-                          child: SizedBox(
-                            height: 50,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF007AFF),
-                                    Color(0xFF005FCC),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _primary.withValues(alpha: 0.35),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  _hideEmergencyOptions();
-                                  _showSuccessSnackBar(emergencyType, selectedCommunities);
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  padding: EdgeInsets.zero,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Icon(
-                                        Icons.emergency,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        AppLocalizations.of(context)!.sendAlert,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (selectedSubtype == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Selecciona un subtipo para continuar')),
+                                );
+                                return;
+                              }
+                              if (requiresOtherDetail && otherController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Describe el caso para la opción Otro')),
+                                );
+                                return;
+                              }
+                              final customDetailValue = otherController.text.trim();
+                              Navigator.of(ctx).pop();
+                              otherController.dispose();
+                              _hideEmergencyOptions();
+                              _showSuccessSnackBar(
+                                emergencyType,
+                                selectedCommunities,
+                                isAnonymous: isAnonymous,
+                                subtype: selectedSubtype!,
+                                customDetail: customDetailValue,
+                                attachmentPlaceholders: List<String>.from(photoPlaceholders),
+                              );
+                            },
+                            child: Text(AppLocalizations.of(context)!.sendAlert),
                           ),
                         ),
                       ],
                     ),
+                  ),
                 ],
               ),
-            );
-          },
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  void _showSuccessSnackBar(String emergencyType, List<Map<String, dynamic>> selectedCommunities) async {
+  void _showSuccessSnackBar(
+    String emergencyType,
+    List<Map<String, dynamic>> selectedCommunities, {
+    required bool isAnonymous,
+    required String subtype,
+    required String customDetail,
+    required List<String> attachmentPlaceholders,
+  }) async {
     final alertType = emergencyType;
     
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -1111,8 +929,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final communityIds = selectedCommunities.map((c) => c['id'] as String).toList();
     final success = await _alertController.sendSwipedAlert(
       alertType: alertType,
-      isAnonymous: false,
+      isAnonymous: isAnonymous,
       communityIds: communityIds,
+      subtype: subtype,
+      customDetail: customDetail.isEmpty ? null : customDetail,
+      attachmentPlaceholders: attachmentPlaceholders,
     );
     final int successCount = success ? communityIds.length : 0;
 

@@ -148,6 +148,9 @@ class AlertController {
     required String alertType,
     required bool isAnonymous,
     required List<String> communityIds,
+    String? subtype,
+    String? customDetail,
+    List<String> attachmentPlaceholders = const [],
   }) async {
     try {
       if (!_userService.canUserSendAlerts()) {
@@ -168,6 +171,8 @@ class AlertController {
       final alert = AlertModel(
         type: 'swiped',
         alertType: alertType,
+        subtype: subtype,
+        customDetail: customDetail,
         timestamp: DateTime.now(),
         isAnonymous: isAnonymous,
         shareLocation: true,
@@ -178,6 +183,7 @@ class AlertController {
         viewedCount: 0,
         viewedBy: [],
         communityIds: communityIds,   // ← single document with all destinations
+        attachmentPlaceholders: attachmentPlaceholders,
         forwardsCount: 0,
         reportsCount: 0,
       );
@@ -267,6 +273,9 @@ class AlertController {
         forwardsCount: 0,
         reportsCount: 0,
         imageBase64: originalAlert.imageBase64,
+        subtype: originalAlert.subtype,
+        customDetail: originalAlert.customDetail,
+        attachmentPlaceholders: originalAlert.attachmentPlaceholders,
       );
 
       final ref = FirebaseFirestore.instance

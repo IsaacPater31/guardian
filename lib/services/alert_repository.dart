@@ -19,6 +19,8 @@ class AlertRepository {
   final CommunityService _communityService = CommunityService();
 
   List<String>? _cachedUserCommunityIds;
+  Set<String>? _cachedEntityCommunityIds;
+  Map<String, String>? _cachedUserRolesByCommunityId;
   DateTime? _cacheTimestamp;
 
   // ─── Write operations ────────────────────────────────────────────────────
@@ -130,27 +132,67 @@ class AlertRepository {
 
   // ─── Community ID cache ───────────────────────────────────────────────────
 
-  Future<List<String>> _getUserCommunityIds() async {
+  Future<_UserCommunityAccess> _getUserCommunityAccess() async {
     if (_cachedUserCommunityIds != null &&
+        _cachedEntityCommunityIds != null &&
+        _cachedUserRolesByCommunityId != null &&
         _cacheTimestamp != null &&
         DateTime.now().difference(_cacheTimestamp!) < AppDurations.communityIdCache) {
-      return _cachedUserCommunityIds!;
+      return _UserCommunityAccess(
+        communityIds: _cachedUserCommunityIds!,
+        entityCommunityIds: _cachedEntityCommunityIds!,
+        rolesByCommunityId: _cachedUserRolesByCommunityId!,
+      );
     }
 
     try {
+      final uid = _userService.currentUser?.uid;
+      if (uid == null) {
+        return const _UserCommunityAccess(
+          communityIds: [],
+          entityCommunityIds: <String>{},
+          rolesByCommunityId: <String, String>{},
+        );
+      }
+
       final communities = await _communityService.getMyCommunities();
       _cachedUserCommunityIds = communities.map((c) => c['id'] as String).toList();
+      _cachedEntityCommunityIds = communities
+          .where((c) => (c[CommunityFields.isEntity] as bool? ?? false))
+          .map((c) => c['id'] as String)
+          .toSet();
+
+      final memberships = await _firestore
+          .collection(FirestoreCollections.communityMembers)
+          .where(MemberFields.userId, isEqualTo: uid)
+          .get();
+      _cachedUserRolesByCommunityId = {
+        for (final doc in memberships.docs)
+          (doc.data()[MemberFields.communityId] as String):
+              (doc.data()[MemberFields.role] as String? ?? MemberFields.roleMember),
+      };
+
       _cacheTimestamp = DateTime.now();
-      return _cachedUserCommunityIds!;
+      return _UserCommunityAccess(
+        communityIds: _cachedUserCommunityIds!,
+        entityCommunityIds: _cachedEntityCommunityIds!,
+        rolesByCommunityId: _cachedUserRolesByCommunityId!,
+      );
     } catch (e) {
-      AppLogger.e('AlertRepository._getUserCommunityIds', e);
-      return _cachedUserCommunityIds ?? [];
+      AppLogger.e('AlertRepository._getUserCommunityAccess', e);
+      return _UserCommunityAccess(
+        communityIds: _cachedUserCommunityIds ?? const [],
+        entityCommunityIds: _cachedEntityCommunityIds ?? const {},
+        rolesByCommunityId: _cachedUserRolesByCommunityId ?? const {},
+      );
     }
   }
 
   /// Clears the community-ID cache, forcing a fresh fetch on the next query.
   void invalidateCommunityCache() {
     _cachedUserCommunityIds = null;
+    _cachedEntityCommunityIds = null;
+    _cachedUserRolesByCommunityId = null;
     _cacheTimestamp = null;
   }
 
@@ -169,7 +211,7 @@ class AlertRepository {
 
       return _filterByPermissionsAndCommunity(
         snapshot.docs.map(AlertModel.fromFirestore).toList(),
-        await _getUserCommunityIds(),
+        await _getUserCommunityAccess(),
       );
     } catch (e) {
       AppLogger.e('AlertRepository.getRecentAlerts', e);
@@ -187,10 +229,10 @@ class AlertRepository {
         .orderBy(AlertFields.timestamp, descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
-      final communityIds = await _getUserCommunityIds();
+      final communityAccess = await _getUserCommunityAccess();
       return _filterByPermissionsAndCommunity(
         snapshot.docs.map(AlertModel.fromFirestore).toList(),
-        communityIds,
+        communityAccess,
       );
     });
   }
@@ -209,10 +251,14 @@ class AlertRepository {
           .get();
 
       final all = snapshot.docs.map(AlertModel.fromFirestore).toList();
-      return all.where((a) {
+      final visible = all.where((a) {
         if (!a.shareLocation || a.location == null) return false;
         return _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous);
       }).toList();
+      return _filterByPermissionsAndCommunity(
+        visible,
+        await _getUserCommunityAccess(),
+      );
     } catch (e) {
       AppLogger.e('AlertRepository.getMapAlerts', e);
       return [];
@@ -228,14 +274,18 @@ class AlertRepository {
         .where(AlertFields.timestamp, isGreaterThan: Timestamp.fromDate(since))
         .orderBy(AlertFields.timestamp, descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
+        .asyncMap((snapshot) async {
+      final visible = snapshot.docs
           .map(AlertModel.fromFirestore)
           .where((a) =>
               a.shareLocation &&
               a.location != null &&
               _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
           .toList();
+      return _filterByPermissionsAndCommunity(
+        visible,
+        await _getUserCommunityAccess(),
+      );
     });
   }
 
@@ -300,7 +350,7 @@ class AlertRepository {
 
     q = q.orderBy(AlertFields.timestamp, descending: true);
 
-    return q.snapshots().map((snapshot) {
+    return q.snapshots().asyncMap((snapshot) async {
       var alerts = snapshot.docs.map(AlertModel.fromFirestore).toList();
 
       alerts = alerts
@@ -321,7 +371,10 @@ class AlertRepository {
         }).toList();
       }
 
-      return alerts;
+      return _filterByPermissionsAndCommunity(
+        alerts,
+        await _getUserCommunityAccess(),
+      );
     });
   }
 
@@ -341,7 +394,8 @@ class AlertRepository {
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      return filtered.take(50).toList();
+      final access = await _getUserCommunityAccess();
+      return _filterByPermissionsAndCommunity(filtered, access).take(50).toList();
     } catch (e) {
       AppLogger.e('AlertRepository.getCommunityAlerts', e);
       return [];
@@ -354,13 +408,14 @@ class AlertRepository {
         .collection(FirestoreCollections.alerts)
         .where(AlertFields.communityIds, arrayContains: communityId)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
       final filtered = snapshot.docs
           .map(AlertModel.fromFirestore)
           .where((a) => _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
           .toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return filtered.take(50).toList();
+      final access = await _getUserCommunityAccess();
+      return _filterByPermissionsAndCommunity(filtered, access).take(50).toList();
     });
   }
 
@@ -453,16 +508,33 @@ class AlertRepository {
 
   List<AlertModel> _filterByPermissionsAndCommunity(
     List<AlertModel> alerts,
-    List<String> communityIds,
+    _UserCommunityAccess access,
   ) {
+    final uid = _userService.currentUser?.uid;
+    final membershipSet = access.communityIds.toSet();
+
     return alerts.where((alert) {
       if (!_userService.canUserViewAlert(alert.userId, alert.userEmail, alert.isAnonymous)) {
         return false;
       }
       // Show alerts with no community restriction (public/legacy).
       if (alert.communityIds.isEmpty) return true;
-      // Show alert if user belongs to any of the alert's communities.
-      return alert.communityIds.any((id) => communityIds.contains(id));
+
+      for (final communityId in alert.communityIds) {
+        if (!membershipSet.contains(communityId)) continue;
+
+        final isEntity = access.entityCommunityIds.contains(communityId);
+        if (!isEntity) return true;
+
+        final role = access.rolesByCommunityId[communityId] ?? MemberFields.roleMember;
+        if (role == MemberFields.roleOfficial || role == MemberFields.roleAdmin) {
+          return true;
+        }
+        if (uid != null && alert.userId == uid) {
+          return true;
+        }
+      }
+      return false;
     }).toList();
   }
 
@@ -492,4 +564,16 @@ class AlertRepository {
         return (now.subtract(AppDurations.mapAlertsWindow), null);
     }
   }
+}
+
+class _UserCommunityAccess {
+  final List<String> communityIds;
+  final Set<String> entityCommunityIds;
+  final Map<String, String> rolesByCommunityId;
+
+  const _UserCommunityAccess({
+    required this.communityIds,
+    required this.entityCommunityIds,
+    required this.rolesByCommunityId,
+  });
 }

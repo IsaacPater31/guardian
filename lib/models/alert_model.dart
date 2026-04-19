@@ -11,6 +11,8 @@ class AlertModel {
   final String alertType;
 
   final String? description;
+  final String? subtype;
+  final String? customDetail;
   final DateTime timestamp;
   final bool isAnonymous;
   final bool shareLocation;
@@ -19,6 +21,7 @@ class AlertModel {
   final String? userEmail;
   final String? userName;
   final List<String>? imageBase64;
+  final List<String> attachmentPlaceholders;
   final int viewedCount;
   final List<String> viewedBy;
 
@@ -43,6 +46,8 @@ class AlertModel {
     required this.type,
     required this.alertType,
     this.description,
+    this.subtype,
+    this.customDetail,
     required this.timestamp,
     required this.isAnonymous,
     required this.shareLocation,
@@ -51,6 +56,7 @@ class AlertModel {
     this.userEmail,
     this.userName,
     this.imageBase64,
+    this.attachmentPlaceholders = const [],
     this.viewedCount = 0,
     this.viewedBy = const [],
     this.communityIds = const [],
@@ -91,6 +97,8 @@ class AlertModel {
       type: data['type'] ?? '',
       alertType: data['alertType'] ?? '',
       description: data['description'],
+      subtype: data['subtype'],
+      customDetail: data['custom_detail'],
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       isAnonymous: data['isAnonymous'] ?? false,
       shareLocation: data['shareLocation'] ?? false,
@@ -103,6 +111,9 @@ class AlertModel {
       imageBase64: data['imageBase64'] != null
           ? List<String>.from(data['imageBase64'] as List)
           : null,
+      attachmentPlaceholders: data['attachment_placeholders'] != null
+          ? List<String>.from(data['attachment_placeholders'] as List)
+          : const [],
       viewedCount: data['viewedCount'] ?? 0,
       viewedBy: data['viewedBy'] != null
           ? List<String>.from(data['viewedBy'] as List)
@@ -121,6 +132,8 @@ class AlertModel {
         'type': type,
         'alertType': alertType,
         'description': description,
+        'subtype': subtype,
+        'custom_detail': customDetail,
         'timestamp': Timestamp.fromDate(timestamp),
         'isAnonymous': isAnonymous,
         'shareLocation': shareLocation,
@@ -129,6 +142,7 @@ class AlertModel {
         'userEmail': userEmail,
         'userName': userName,
         'imageBase64': imageBase64,
+        'attachment_placeholders': attachmentPlaceholders,
         'viewedCount': viewedCount,
         'viewedBy': viewedBy,
         'community_ids': communityIds,   // new field (array)
@@ -145,6 +159,8 @@ class AlertModel {
     String? type,
     String? alertType,
     String? description,
+    String? subtype,
+    String? customDetail,
     DateTime? timestamp,
     bool? isAnonymous,
     bool? shareLocation,
@@ -153,6 +169,7 @@ class AlertModel {
     String? userEmail,
     String? userName,
     List<String>? imageBase64,
+    List<String>? attachmentPlaceholders,
     int? viewedCount,
     List<String>? viewedBy,
     List<String>? communityIds,
@@ -166,6 +183,8 @@ class AlertModel {
       type: type ?? this.type,
       alertType: alertType ?? this.alertType,
       description: description ?? this.description,
+      subtype: subtype ?? this.subtype,
+      customDetail: customDetail ?? this.customDetail,
       timestamp: timestamp ?? this.timestamp,
       isAnonymous: isAnonymous ?? this.isAnonymous,
       shareLocation: shareLocation ?? this.shareLocation,
@@ -174,6 +193,7 @@ class AlertModel {
       userEmail: userEmail ?? this.userEmail,
       userName: userName ?? this.userName,
       imageBase64: imageBase64 ?? this.imageBase64,
+      attachmentPlaceholders: attachmentPlaceholders ?? this.attachmentPlaceholders,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,
       communityIds: communityIds ?? this.communityIds,

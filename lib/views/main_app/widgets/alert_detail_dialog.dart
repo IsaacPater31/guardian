@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
@@ -729,6 +730,31 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               label: widget.alert.userName!,
             ),
           ],
+          if (widget.alert.subtype != null && widget.alert.subtype!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              icon: Icons.category_rounded,
+              color: _kBluePrim,
+              label: _resolveSubtypeLabel(widget.alert.alertType, widget.alert.subtype!),
+            ),
+          ],
+          if (widget.alert.customDetail != null && widget.alert.customDetail!.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              icon: Icons.notes_rounded,
+              color: _kTextSub,
+              label: widget.alert.customDetail!.trim(),
+            ),
+          ],
+          if (widget.alert.attachmentPlaceholders.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildInfoRow(
+              icon: Icons.photo_library_rounded,
+              color: _kBluePrim,
+              label:
+                  '${widget.alert.attachmentPlaceholders.length} ${widget.alert.attachmentPlaceholders.length == 1 ? 'foto referenciada' : 'fotos referenciadas'}',
+            ),
+          ],
         ],
       ),
     );
@@ -1148,6 +1174,15 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     if (diff.inHours   < 24) return 'Hace ${diff.inHours}h';
     if (diff.inDays    == 1) return 'Ayer';
     return 'Hace ${diff.inDays}d';
+  }
+
+  String _resolveSubtypeLabel(String alertType, String subtypeId) {
+    final options = AlertDetailCatalog.getSubtypes(alertType);
+    final match = options.cast<AlertSubtypeOption?>().firstWhere(
+          (option) => option?.id == subtypeId,
+          orElse: () => null,
+        );
+    return match?.label ?? subtypeId;
   }
 }
 

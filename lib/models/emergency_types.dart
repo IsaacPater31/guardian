@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Clase centralizada para manejar todos los tipos de emergencia.
@@ -11,43 +12,43 @@ class EmergencyTypes {
   /// null = sin comunidad sugerida (el usuario debe configurarla en Ajustes).
   static const Map<String, Map<String, dynamic>> types = {
     'up': {
-      'type': 'HEALTH',
+      'type': AlertDetailCatalog.health,
       'icon': Icons.local_hospital,
       'color': Color(0xFF26C6DA),
       'defaultCommunityKeyword': null,
     },
     'upLeft': {
-      'type': 'HOME_HELP',
+      'type': AlertDetailCatalog.homeHelp,
       'icon': Icons.home,
       'color': Color(0xFF66BB6A),
       'defaultCommunityKeyword': null,
     },
     'upRight': {
-      'type': 'POLICE',
+      'type': AlertDetailCatalog.police,
       'icon': Icons.local_police,
       'color': Color(0xFF1565C0),
       'defaultCommunityKeyword': 'POLICIA',
     },
     'right': {
-      'type': 'FIRE',
+      'type': AlertDetailCatalog.fire,
       'icon': Icons.local_fire_department,
       'color': Color(0xFFE53935),
       'defaultCommunityKeyword': 'BOMBEROS',
     },
     'downRight': {
-      'type': 'ACCOMPANIMENT',
+      'type': AlertDetailCatalog.accompaniment,
       'icon': Icons.people,
       'color': Color(0xFF8E24AA),
       'defaultCommunityKeyword': null,
     },
     'down': {
-      'type': 'ENVIRONMENTAL',
+      'type': AlertDetailCatalog.environmental,
       'icon': Icons.nature_people,
       'color': Color(0xFF43A047),
       'defaultCommunityKeyword': 'AMBIENTAL',
     },
     'downLeft': {
-      'type': 'ROAD_EMERGENCY',
+      'type': AlertDetailCatalog.roadEmergency,
       'icon': Icons.directions_car,
       'color': Color(0xFFFF7043),
       'defaultCommunityKeyword': 'TRANSITO',
@@ -135,7 +136,7 @@ class EmergencyTypes {
 
   /// Obtiene todos los tipos activos (nuevos 7)
   static List<String> get allTypes =>
-      types.values.map((data) => data['type'] as String).toList();
+      AlertDetailCatalog.supportedAlertTypes;
 
   /// Obtiene el tipo de emergencia traducido
   static String getTranslatedType(String type, BuildContext context) {
