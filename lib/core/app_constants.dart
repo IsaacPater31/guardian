@@ -123,6 +123,16 @@ abstract final class AppDurations {
   static const Duration permissionRetryDelay = Duration(seconds: 3);
 }
 
+/// Caps on Firestore query size (one read per document returned).
+abstract final class AppFirestoreLimits {
+  /// Recent-alerts window (home, streams, stats): newest documents only.
+  static const int recentAlerts = 100;
+
+  /// Map queries: max documents before location / permission client filters.
+  /// Aligns with `QUERY_CONFIG.mapFetchLimit` on the web app.
+  static const int mapAlerts = 1000;
+}
+
 // ─── Deep-link / URL ─────────────────────────────────────────────────────────
 
 abstract final class AppUrls {

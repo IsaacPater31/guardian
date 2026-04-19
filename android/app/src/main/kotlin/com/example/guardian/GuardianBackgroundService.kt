@@ -251,9 +251,11 @@ class GuardianBackgroundService : Service() {
         // Escuchar alertas de la última hora
         val oneHourAgo = Date(System.currentTimeMillis() - 60 * 60 * 1000)
         
+        // Limit document reads (align with mobile AppFirestoreLimits.recentAlerts).
         alertsListener = firestore.collection("alerts")
             .whereGreaterThan("timestamp", oneHourAgo)
             .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(100)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     println("❌ Error listening to alerts: $error")

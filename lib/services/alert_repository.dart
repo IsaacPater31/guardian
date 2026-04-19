@@ -213,6 +213,7 @@ class AlertRepository {
           .collection(FirestoreCollections.alerts)
           .where(AlertFields.timestamp, isGreaterThan: Timestamp.fromDate(since))
           .orderBy(AlertFields.timestamp, descending: true)
+          .limit(AppFirestoreLimits.recentAlerts)
           .get();
 
       return _filterByPermissionsAndCommunity(
@@ -233,6 +234,7 @@ class AlertRepository {
         .collection(FirestoreCollections.alerts)
         .where(AlertFields.timestamp, isGreaterThan: Timestamp.fromDate(since))
         .orderBy(AlertFields.timestamp, descending: true)
+        .limit(AppFirestoreLimits.recentAlerts)
         .snapshots()
         .asyncMap((snapshot) async {
       final communityAccess = await _getUserCommunityAccess();
@@ -254,6 +256,7 @@ class AlertRepository {
           .collection(FirestoreCollections.alerts)
           .where(AlertFields.timestamp, isGreaterThan: Timestamp.fromDate(since))
           .orderBy(AlertFields.timestamp, descending: true)
+          .limit(AppFirestoreLimits.mapAlerts)
           .get();
 
       final all = snapshot.docs.map(AlertModel.fromFirestore).toList();
@@ -279,6 +282,7 @@ class AlertRepository {
         .collection(FirestoreCollections.alerts)
         .where(AlertFields.timestamp, isGreaterThan: Timestamp.fromDate(since))
         .orderBy(AlertFields.timestamp, descending: true)
+        .limit(AppFirestoreLimits.mapAlerts)
         .snapshots()
         .asyncMap((snapshot) async {
       final visible = snapshot.docs
@@ -355,6 +359,7 @@ class AlertRepository {
     }
 
     q = q.orderBy(AlertFields.timestamp, descending: true);
+    q = q.limit(AppFirestoreLimits.mapAlerts);
 
     return q.snapshots().asyncMap((snapshot) async {
       var alerts = snapshot.docs.map(AlertModel.fromFirestore).toList();
