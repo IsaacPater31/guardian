@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/alert_repository.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/user_service.dart';
+import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
+import 'package:guardian/views/main_app/community_members_view.dart';
 import 'package:latlong2/latlong.dart';
 
 class CommunityFeedView extends StatefulWidget {
@@ -56,6 +59,21 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     super.dispose();
   }
 
+  void _openAddMembers() {
+    if (_userRole != MemberFields.roleAdmin) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityMembersView(
+          communityId: widget.communityId,
+          communityName: widget.communityName,
+          userRole: _userRole ?? MemberFields.roleMember,
+          autoOpenAddSheet: true,
+        ),
+      ),
+    ).then((_) => _loadUserRole());
+  }
+
   Future<void> _loadUserRole() async {
     final role = await _communityService.getUserRole(widget.communityId);
     if (mounted) {
@@ -91,6 +109,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget build(BuildContext context) {
     final sw = MediaQuery.of(context).size.width;
     final isSmall = sw < 360;
+
+    final canAddMembers =
+        !widget.isEntity && _userRole == MemberFields.roleAdmin;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
@@ -131,6 +152,16 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           ),
         ),
         actions: [
+          if (canAddMembers)
+            IconButton(
+              tooltip: AppLocalizations.of(context)!.quickAddMember,
+              icon: Icon(
+                Icons.person_add_alt_1_rounded,
+                size: isSmall ? 21 : 23,
+                color: const Color(0xFF007AFF),
+              ),
+              onPressed: _openAddMembers,
+            ),
           if (!widget.isEntity && !_isLoadingRole)
             IconButton(
               icon: Icon(
@@ -169,8 +200,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           }
 
           final alerts = snapshot.data ?? [];
+          final alertsNewestFirst = [...alerts]
+            ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-          if (alerts.isEmpty) {
+          if (alertsNewestFirst.isEmpty) {
             return _buildEmptyState();
           }
 
@@ -182,15 +215,16 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               onRefresh: () async => setState(() {}),
               color: const Color(0xFF007AFF),
               child: ListView.builder(
+                reverse: true,
                 padding: EdgeInsets.fromLTRB(
                   isSmall ? 8 : 12,
-                  12,
-                  isSmall ? 8 : 12,
                   40,
+                  isSmall ? 8 : 12,
+                  12,
                 ),
-                itemCount: alerts.length,
+                itemCount: alertsNewestFirst.length,
                 itemBuilder: (context, index) =>
-                    _buildBubble(alerts[index], sw),
+                    _buildBubble(alertsNewestFirst[index], sw),
               ),
             ),
           );
@@ -202,11 +236,23 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // ─── Chat Bubble ───────────────────────────────────────────────────────────
 
   Widget _buildBubble(AlertModel alert, double sw) {
+    final l10n = AppLocalizations.of(context)!;
     final isOwn = _userService.isUserOwnerOfAlert(alert.userId, alert.userEmail);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
     final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
     final isSmall = sw < 360;
+    final headline = AlertSubtypeDisplay.primaryWithSubtypeLine(
+          context,
+          alert.alertType,
+          alert.subtype,
+          alert.customDetail) ??
+        EmergencyTypes.getTranslatedType(alert.alertType, context);
+    final subline = AlertSubtypeDisplay.line(
+            context, alert.alertType, alert.subtype, alert.customDetail)
+        .isNotEmpty
+        ? EmergencyTypes.getTranslatedType(alert.alertType, context)
+        : null;
 
     // Burbujas grandes para mostrar TODO el contenido sin recortes
     final maxBubbleWidth = (sw * (isSmall ? 0.90 : 0.86)).clamp(220.0, 560.0);
@@ -272,7 +318,64 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                    // ── Header ─────────────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSmall ? 10 : 12,
+                        vertical: isSmall ? 7 : 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: alert.isAnonymous
+                            ? Colors.orange.withValues(alpha: 0.12)
+                            : const Color(0xFF34C759).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: alert.isAnonymous
+                              ? Colors.orange.withValues(alpha: 0.35)
+                              : const Color(0xFF34C759).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            alert.isAnonymous
+                                ? Icons.visibility_off_rounded
+                                : Icons.verified_user_rounded,
+                            size: isSmall ? 16 : 18,
+                            color: alert.isAnonymous
+                                ? Colors.orange.shade800
+                                : const Color(0xFF248A3D),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              alert.isAnonymous
+                                  ? l10n.anonymous
+                                  : l10n.identifiedAlert,
+                              style: TextStyle(
+                                fontSize: isSmall ? 12.5 : 13,
+                                fontWeight: FontWeight.w700,
+                                color: alert.isAnonymous
+                                    ? Colors.orange.shade900
+                                    : const Color(0xFF1C1C1E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: isSmall ? 10 : 12),
+                    Text(
+                      widget.communityName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: isSmall ? 11 : 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF007AFF),
+                      ),
+                    ),
+                    SizedBox(height: isSmall ? 6 : 8),
                     Row(
                       children: [
                         Container(
@@ -291,16 +394,29 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                alert.alertType,
+                                headline,
                                 style: TextStyle(
                                   fontSize: isSmall ? 14 : 16,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w800,
                                   color: const Color(0xFF1C1C1E),
                                   letterSpacing: -0.2,
                                 ),
-                                maxLines: 3,
-                                overflow: TextOverflow.visible,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
                               ),
+                              if (subline != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  subline,
+                                  style: TextStyle(
+                                    fontSize: isSmall ? 12 : 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[600],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                               const SizedBox(height: 2),
                               Text(
                                 timeAgo,
@@ -343,22 +459,25 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                           label: _formatExactTime(alert.timestamp),
                           color: const Color(0xFF007AFF),
                           isSmall: isSmall,
+                          maxLabelWidth: sw * 0.5,
                         ),
                         _buildChip(
                           icon: Icons.visibility_rounded,
-                          label: '${alert.viewedCount}',
+                          label: '${l10n.viewCount}: ${alert.viewedCount}',
                           color: const Color(0xFF5AC8FA),
                           isSmall: isSmall,
+                          maxLabelWidth: sw * 0.42,
                         ),
                         _buildChip(
                           icon: Icons.person_rounded,
                           label: alert.isAnonymous
-                              ? 'Anonimo'
+                              ? l10n.anonymous
                               : (alert.userName?.trim().isNotEmpty == true
                                   ? alert.userName!
-                                  : 'Usuario'),
+                                  : l10n.unknownUser),
                           color: const Color(0xFF1C1C1E),
                           isSmall: isSmall,
+                          maxLabelWidth: sw * 0.48,
                         ),
                       ],
                     ),
@@ -378,16 +497,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                         if (alert.shareLocation && alert.location != null)
                           _buildChip(
                             icon: Icons.location_on_rounded,
-                            label: 'Ubicación',
+                            label: l10n.locationShared,
                             color: const Color(0xFF34C759),
                             isSmall: isSmall,
-                          ),
-                        if (alert.isAnonymous)
-                          _buildChip(
-                            icon: Icons.visibility_off_rounded,
-                            label: 'Anónimo',
-                            color: Colors.orange,
-                            isSmall: isSmall,
+                            maxLabelWidth: sw * 0.4,
                           ),
                         _buildStatusBadge(alert, isSmall),
                         if (alert.forwardsCount > 0)
@@ -447,9 +560,12 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // ─── Status Badge ──────────────────────────────────────────────────────────
 
   Widget _buildStatusBadge(AlertModel alert, bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
     final isPending = alert.alertStatus == 'pending';
     final color = isPending ? const Color(0xFFFF9500) : const Color(0xFF34C759);
-    final label = isPending ? 'Pendiente' : 'Atendida';
+    final label = isPending
+        ? l10n.alertStatusPendingShort
+        : l10n.alertStatusAttendedShort;
     final icon =
         isPending ? Icons.schedule_rounded : Icons.check_circle_rounded;
 
@@ -499,7 +615,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             ),
             const SizedBox(height: 16),
             Text(
-              'Cambiar estado',
+              AppLocalizations.of(context)!.changeAlertStatusTitle,
               style: TextStyle(
                 fontSize: isSmall ? 15 : 17,
                 fontWeight: FontWeight.w700,
@@ -509,7 +625,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             ),
             const SizedBox(height: 4),
             Text(
-              'Solo los oficiales pueden cambiar el estado.',
+              AppLocalizations.of(context)!.onlyOfficialsCanChangeStatus,
               style: TextStyle(
                   fontSize: isSmall ? 12 : 13, color: Colors.grey[500]),
             ),
@@ -517,7 +633,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             _buildStatusOption(
               alert: alert,
               status: 'pending',
-              label: 'Pendiente',
+              label: AppLocalizations.of(context)!.alertStatusPendingShort,
               icon: Icons.schedule_rounded,
               color: const Color(0xFFFF9500),
               isSelected: alert.alertStatus == 'pending',
@@ -527,7 +643,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             _buildStatusOption(
               alert: alert,
               status: 'attended',
-              label: 'Atendida',
+              label: AppLocalizations.of(context)!.alertStatusAttendedShort,
               icon: Icons.check_circle_rounded,
               color: const Color(0xFF34C759),
               isSelected: alert.alertStatus == 'attended',
@@ -556,7 +672,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Error actualizando estado: $e'),
+              content: Text(
+                  '${AppLocalizations.of(context)!.errorUpdatingAlertStatus}: $e'),
               backgroundColor: Colors.red,
             ));
           }
@@ -618,30 +735,40 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     required String label,
     required Color color,
     required bool isSmall,
+    double? maxLabelWidth,
   }) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmall ? 7 : 9,
-        vertical: isSmall ? 4 : 5,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: (maxLabelWidth ?? 200) + (isSmall ? 36 : 40),
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: isSmall ? 12 : 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isSmall ? 11 : 12,
-              color: color,
-              fontWeight: FontWeight.w600,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isSmall ? 7 : 9,
+          vertical: isSmall ? 4 : 5,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: isSmall ? 12 : 13, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isSmall ? 11 : 12,
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -707,9 +834,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                     color: Colors.black.withValues(alpha: 0.66),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Ubicacion',
-                    style: TextStyle(
+                  child: Text(
+                    AppLocalizations.of(context)!.locationShared,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -791,9 +918,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                   size: 36, color: Colors.grey[400]),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Sin alertas por ahora',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.communityFeedEmptyTitle,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1C1C1E),
@@ -802,7 +929,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
             ),
             const SizedBox(height: 6),
             Text(
-              'Las alertas de esta comunidad aparecerán aquí',
+              AppLocalizations.of(context)!.communityFeedEmptySubtitle,
               style:
                   TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.4),
               textAlign: TextAlign.center,

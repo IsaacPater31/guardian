@@ -1,4 +1,9 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
@@ -24,6 +29,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
   String _searchQuery = '';
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _memberWelcomeSub;
 
   @override
   void initState() {
@@ -37,12 +43,50 @@ class _ComunidadesViewState extends State<ComunidadesView>
       curve: Curves.easeOut,
     );
     _loadCommunities();
+    _startMemberWelcomeListener();
   }
 
   @override
   void dispose() {
+    _memberWelcomeSub?.cancel();
     _fadeController.dispose();
     super.dispose();
+  }
+
+  void _startMemberWelcomeListener() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    _memberWelcomeSub?.cancel();
+    _memberWelcomeSub = FirebaseFirestore.instance
+        .collection(FirestoreCollections.memberAddedSignals)
+        .where(MemberAddedSignalFields.targetUserId, isEqualTo: uid)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) return;
+      for (final change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data();
+          var name = (data?[MemberAddedSignalFields.communityName] as String?)
+                  ?.trim() ??
+              '';
+          if (name.isEmpty) {
+            name = data?[MemberAddedSignalFields.communityId] as String? ?? '';
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              content: Text(
+                AppLocalizations.of(context)!.addedToCommunityBody(name),
+              ),
+            ),
+          );
+          unawaited(change.doc.reference.delete());
+        }
+      }
+    });
   }
 
   Future<void> _loadCommunities() async {
@@ -204,7 +248,8 @@ class _ComunidadesViewState extends State<ComunidadesView>
           backgroundColor: const Color(0xFF1C1C1E),
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
           icon: const Icon(Icons.add_rounded, size: 20),
           label: Text(
             AppLocalizations.of(context)!.createCommunity,

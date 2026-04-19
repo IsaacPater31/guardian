@@ -335,34 +335,37 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
           entry.key, entry.value.toList());
       if (ok) saved++;
     }
-    if (mounted) {
-      setState(() => _isSaving = false);
-      final success = saved == _selectedByType.length;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          backgroundColor: success ? _kPrimary : _kOrange,
-          duration: const Duration(seconds: 2),
-          content: Row(
-            children: [
-              Icon(
-                success ? Icons.check_circle_rounded : Icons.warning_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                success ? 'Configuración guardada' : 'Algunos tipos no se guardaron',
+    await _load();
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    final success = saved == _selectedByType.length;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor: success ? _kPrimary : _kOrange,
+        duration: const Duration(seconds: 3),
+        content: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle_rounded : Icons.warning_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                success ? l10n.swipeConfigSaved : l10n.swipeConfigSavePartial,
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.w500),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
 
   @override
@@ -371,10 +374,12 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
 
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: _AppleAppBar(title: 'Alertas por Tipo', actions: [
+      appBar: _AppleAppBar(
+          title: AppLocalizations.of(context)!.swipeAlertsByTypeTitle,
+          actions: [
         if (!_isLoading)
           _NavBarAction(
-            label: 'Guardar',
+            label: AppLocalizations.of(context)!.save,
             loading: _isSaving,
             onTap: _saveAll,
           ),
@@ -389,13 +394,13 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
                     child: _InfoBanner(
                       icon: Icons.swipe_rounded,
                       color: _kBlue,
-                      text:
-                          'Define a qué comunidades se enviará cada tipo de alerta cuando arrastres el botón. Si no configuras un tipo, se te pedirá al enviar.',
+                      text: AppLocalizations.of(context)!.swipeAlertsByTypeBanner,
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
-                  child: _SectionLabel('TIPOS DE ALERTA',
+                  child: _SectionLabel(
+                      AppLocalizations.of(context)!.swipeAlertsSectionLabel,
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 6)),
                 ),
                 SliverPadding(

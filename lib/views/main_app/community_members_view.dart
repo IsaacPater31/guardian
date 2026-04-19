@@ -616,12 +616,21 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
     bool hasSearched = false;
     Timer? debounce;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) {
+      barrierColor: Colors.black45,
+      builder: (dialogContext) => Dialog(
+        alignment: Alignment.topCenter,
+        insetPadding: EdgeInsets.fromLTRB(
+          12,
+          MediaQuery.of(dialogContext).padding.top + 8,
+          12,
+          16,
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
           void performSearch(String query) {
             debounce?.cancel();
             if (query.trim().length < 2) {
@@ -682,61 +691,69 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
             }
           }
 
-          return Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.75,
-            ),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF2F2F7),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 36,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+          final mq = MediaQuery.of(context);
+          return AnimatedPadding(
+            padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: BoxConstraints(
+                  maxHeight: mq.size.height * 0.82,
                 ),
-                // Header
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF2F2F7),
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                   child: Row(
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF34C759).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.person_add_rounded,
-                          color: Color(0xFF34C759),
-                          size: 22,
-                        ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close_rounded),
+                        color: const Color(0xFF8E8E93),
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Agregar Miembro',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1C1C1E),
-                          letterSpacing: -0.4,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF34C759).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.person_add_rounded,
+                                color: Color(0xFF34C759),
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.of(context)!.addMember,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1C1C1E),
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Search field
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -825,8 +842,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                       ],
                     ),
                   ),
-                // Results
-                Flexible(
+                Expanded(
                   child: searchResults.isNotEmpty
                       ? ListView.builder(
                           shrinkWrap: true,
@@ -970,10 +986,13 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                               ),
                             ),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           );
-        },
+          },
+        ),
       ),
     ).then((_) {
       debounce?.cancel();
@@ -1002,7 +1021,12 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
             ),
             if (!_isLoading)
               Text(
-                'AppLocalizations.of(context)!.memberCount(_members.length, _members.length == 1 ? AppLocalizations.of(context)!.memberSingular : AppLocalizations.of(context)!.memberPlural)',
+                AppLocalizations.of(context)!.memberCount(
+                  _members.length,
+                  _members.length == 1
+                      ? AppLocalizations.of(context)!.memberSingular
+                      : AppLocalizations.of(context)!.memberPlural,
+                ),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w400,

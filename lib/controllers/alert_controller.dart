@@ -5,7 +5,6 @@ import '../core/app_logger.dart';
 import '../models/alert_model.dart';
 import '../services/alert_repository.dart';
 import '../services/location_service.dart';
-import '../services/image_service.dart';
 import '../services/user_service.dart';
 import '../services/permission_service.dart';
 import '../services/quick_alert_config_service.dart';
@@ -20,7 +19,6 @@ import '../services/community_repository.dart';
 class AlertController {
   final AlertRepository _alertRepository = AlertRepository();
   final LocationService _locationService = LocationService();
-  final ImageService _imageService = ImageService();
   final UserService _userService = UserService();
 
   // ─── Send methods ─────────────────────────────────────────────────────────
@@ -59,25 +57,16 @@ class AlertController {
         isAnonymous: isAnonymous,
         shareLocation: shareLocation,
         location: locationData,
-        userId: !isAnonymous ? userInfo['userId'] : null,
-        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
+        userId: userInfo['userId'],
+        userEmail: userInfo['userEmail'],
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
         communityIds: const [], // detailed alerts have no community unless sent via community UI
       );
 
-      final alertId = await _alertRepository.saveAlert(alert);
-
-      if (images != null && images.isNotEmpty) {
-        await _imageService.convertImageToBase64AndUpdateAlert(
-          images.first,
-          FirebaseFirestore.instance
-              .collection(FirestoreCollections.alerts)
-              .doc(alertId),
-        );
-      }
-
+      await _alertRepository.saveAlert(alert);
+      // Imágenes: integración desactivada temporalmente (evita errores); se reactivará con storage seguro.
       return true;
     } catch (e) {
       AppLogger.e('AlertController.sendDetailedAlert', e);
@@ -121,8 +110,8 @@ class AlertController {
         isAnonymous: isAnonymous,
         shareLocation: true,
         location: locationData,
-        userId: !isAnonymous ? userInfo['userId'] : null,
-        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
+        userId: userInfo['userId'],
+        userEmail: userInfo['userEmail'],
         userName: userName,
         viewedCount: 0,
         viewedBy: [],
@@ -177,8 +166,8 @@ class AlertController {
         isAnonymous: isAnonymous,
         shareLocation: true,
         location: locationData,
-        userId: !isAnonymous ? userInfo['userId'] : null,
-        userEmail: !isAnonymous ? userInfo['userEmail'] : null,
+        userId: userInfo['userId'],
+        userEmail: userInfo['userEmail'],
         userName: userName,
         viewedCount: 0,
         viewedBy: [],

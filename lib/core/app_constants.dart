@@ -16,6 +16,9 @@ abstract final class FirestoreCollections {
   static const String invites = 'invites';
   static const String memberReports = 'member_reports';
   static const String users = 'users';
+
+  /// Ephemeral docs so a user knows they were added to a community (client shows + deletes).
+  static const String memberAddedSignals = 'member_added_signals';
 }
 
 // ─── Firestore field names (shared across collections) ───────────────────────
@@ -68,6 +71,13 @@ abstract final class MemberFields {
 abstract final class InviteFields {
   static const String communityId = 'community_id';
   static const String expiresAt = 'expires_at';
+}
+
+abstract final class MemberAddedSignalFields {
+  static const String targetUserId = 'target_user_id';
+  static const String communityId = 'community_id';
+  static const String communityName = 'community_name';
+  static const String createdAt = 'created_at';
 }
 
 abstract final class ReportFields {

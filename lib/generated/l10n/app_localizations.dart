@@ -614,6 +614,42 @@ abstract class AppLocalizations {
   /// **'Tipo de Alerta'**
   String get alertType;
 
+  /// No description provided for @alertDetailMainTypeLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo principal'**
+  String get alertDetailMainTypeLabel;
+
+  /// No description provided for @alertDetailSubtypeLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle / subtipo'**
+  String get alertDetailSubtypeLabel;
+
+  /// No description provided for @alertDetailNoSubtype.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin detalle específico'**
+  String get alertDetailNoSubtype;
+
+  /// No description provided for @alertDetailDatetimeLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha y hora'**
+  String get alertDetailDatetimeLabel;
+
+  /// No description provided for @alertDetailMessageLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensaje'**
+  String get alertDetailMessageLabel;
+
+  /// No description provided for @alertDetailAnonymityHeading.
+  ///
+  /// In es, this message translates to:
+  /// **'Anonimato'**
+  String get alertDetailAnonymityHeading;
+
   /// No description provided for @description.
   ///
   /// In es, this message translates to:
@@ -2053,6 +2089,138 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Hace {n} días'**
   String daysAgoMap(int n);
+
+  /// No description provided for @alertStatusPendingShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Pendiente'**
+  String get alertStatusPendingShort;
+
+  /// No description provided for @alertStatusAttendedShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Atendida'**
+  String get alertStatusAttendedShort;
+
+  /// No description provided for @alertStatusNotAttendedShort.
+  ///
+  /// In es, this message translates to:
+  /// **'No atendida'**
+  String get alertStatusNotAttendedShort;
+
+  /// No description provided for @alertStatusSectionHeading.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado de la alerta'**
+  String get alertStatusSectionHeading;
+
+  /// No description provided for @alertStatusPendingLong.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta alerta está pendiente de atención.'**
+  String get alertStatusPendingLong;
+
+  /// No description provided for @alertStatusAttendedLong.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta alerta fue marcada como atendida por las autoridades.'**
+  String get alertStatusAttendedLong;
+
+  /// No description provided for @communitiesHeadingShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidades'**
+  String get communitiesHeadingShort;
+
+  /// No description provided for @changeAlertStatusTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar estado'**
+  String get changeAlertStatusTitle;
+
+  /// No description provided for @onlyOfficialsCanChangeStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo los oficiales pueden cambiar el estado.'**
+  String get onlyOfficialsCanChangeStatus;
+
+  /// No description provided for @errorUpdatingAlertStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al actualizar el estado'**
+  String get errorUpdatingAlertStatus;
+
+  /// No description provided for @communityFeedEmptyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin alertas por ahora'**
+  String get communityFeedEmptyTitle;
+
+  /// No description provided for @communityFeedEmptySubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Las alertas de esta comunidad aparecerán aquí'**
+  String get communityFeedEmptySubtitle;
+
+  /// No description provided for @addedToCommunityBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Te agregaron a {name}'**
+  String addedToCommunityBody(String name);
+
+  /// No description provided for @quickAddMember.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar miembro'**
+  String get quickAddMember;
+
+  /// No description provided for @swipeAlertsByTypeTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas por tipo'**
+  String get swipeAlertsByTypeTitle;
+
+  /// No description provided for @swipeAlertsByTypeBanner.
+  ///
+  /// In es, this message translates to:
+  /// **'Define a qué comunidades se enviará cada tipo de alerta cuando arrastres el botón. Si no configuras un tipo, se te pedirá al enviar.'**
+  String get swipeAlertsByTypeBanner;
+
+  /// No description provided for @swipeAlertsSectionLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipos de alerta'**
+  String get swipeAlertsSectionLabel;
+
+  /// No description provided for @swipeConfigSaved.
+  ///
+  /// In es, this message translates to:
+  /// **'Configuración guardada'**
+  String get swipeConfigSaved;
+
+  /// No description provided for @swipeConfigSavePartial.
+  ///
+  /// In es, this message translates to:
+  /// **'Algunos tipos no se guardaron'**
+  String get swipeConfigSavePartial;
+
+  /// No description provided for @unknownCommunityFallback.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad'**
+  String get unknownCommunityFallback;
+
+  /// No description provided for @adminOnlyAddMembers.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo un administrador de la comunidad puede agregar miembros.'**
+  String get adminOnlyAddMembers;
+
+  /// No description provided for @identifiedAlert.
+  ///
+  /// In es, this message translates to:
+  /// **'Identificada'**
+  String get identifiedAlert;
 }
 
 class _AppLocalizationsDelegate

@@ -224,8 +224,27 @@ class GuardianBackgroundService : Service() {
     }
     
     private fun getCurrentLanguage(): String {
-        val prefs = getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-        return prefs.getString("language", "es") ?: "es"
+        return try {
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            var lang = flutterPrefs.getString("flutter.selected_language", null)
+            if (lang == null) {
+                for (key in flutterPrefs.all.keys) {
+                    if (key.contains("selected_language")) {
+                        lang = flutterPrefs.getString(key, null)
+                        break
+                    }
+                }
+            }
+            if (lang != null) {
+                getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+                    .edit().putString("language", lang).apply()
+                return lang
+            }
+            val legacy = getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+            legacy.getString("language", "es") ?: "es"
+        } catch (_: Exception) {
+            "es"
+        }
     }
     
     private fun startAlertsListener() {
@@ -245,7 +264,7 @@ class GuardianBackgroundService : Service() {
                     if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
                         val alertData = change.document.data
                         if (alertData != null) {
-                            handleNewAlert(alertData)
+                            handleNewAlert(alertData, change.document.id)
                         }
                     }
                 }
@@ -257,40 +276,34 @@ class GuardianBackgroundService : Service() {
         alertsListener = null
     }
     
-    private fun handleNewAlert(alertData: Map<String, Any>) {
+    private fun handleNewAlert(alertData: Map<String, Any>, documentId: String) {
         val alertType = alertData["alertType"] as? String ?: return
         val description = alertData["description"] as? String
         val isAnonymous = alertData["isAnonymous"] as? Boolean ?: false
         val shareLocation = alertData["shareLocation"] as? Boolean ?: false
         val alertUserId = alertData["userId"] as? String
         val alertUserEmail = alertData["userEmail"] as? String
-        val alertId = alertData["id"] as? String
-        val communityId = alertData["community_id"] as? String // NUEVO: comunidad de la alerta
-        
-        // Obtener usuario actual
+
         val currentUser = auth.currentUser
         if (currentUser == null) {
             println("⚠️ No user logged in, skipping notification")
             return
         }
-        
-        // Verificar si la alerta es del mismo usuario
+
         val isOwnAlert = (alertUserId != null && alertUserId == currentUser.uid) ||
-                        (alertUserEmail != null && alertUserEmail == currentUser.email)
-        
+                (alertUserEmail != null && alertUserEmail == currentUser.email)
+
         if (isOwnAlert) {
             println("🚫 Skipping notification for own alert: $alertType")
             return
         }
-        
-        // Verificar si el usuario ya vio esta alerta
+
         val viewedBy = alertData["viewedBy"] as? List<String> ?: emptyList()
         if (viewedBy.contains(currentUser.uid)) {
             println("👁️ User already viewed this alert, skipping notification: $alertType")
             return
         }
-        
-        // Verificar si la alerta es muy antigua (más de 1 hora)
+
         val timestamp = alertData["timestamp"] as? com.google.firebase.Timestamp
         if (timestamp != null) {
             val alertTime = timestamp.toDate()
@@ -300,58 +313,59 @@ class GuardianBackgroundService : Service() {
                 return
             }
         }
-        
-        // NUEVO: Verificar si el usuario debe recibir esta alerta según la comunidad
-        if (communityId != null) {
-            // Verificar membresía y permisos de forma asíncrona
-            checkAndSendAlertIfAuthorized(
-                currentUser.uid, 
-                communityId, 
-                alertType, 
-                description, 
-                isAnonymous, 
-                shareLocation
+
+        val communityIds = linkedSetOf<String>()
+        (alertData["community_ids"] as? List<*>)?.filterIsInstance<String>()?.let { communityIds.addAll(it) }
+        (alertData["community_id"] as? String)?.let { communityIds.add(it) }
+
+        if (communityIds.isNotEmpty()) {
+            tryNotifyForCommunityTargets(
+                currentUser.uid,
+                communityIds.toList(),
+                alertType,
+                description,
+                isAnonymous,
+                shareLocation,
+                0
             )
-            return // Salir aquí, la notificación se enviará en el callback si está autorizado
         } else {
-            // Alerta sin comunidad (antigua) - mantener comportamiento anterior
-            // Por compatibilidad, se envía a todos
-            println("ℹ️ Alert without community_id (legacy), sending to all users")
-            
-            // Crear notificación de alerta (comportamiento antiguo)
+            println("ℹ️ Alert $documentId without community scope (legacy), notifying user")
             showAlertNotification(alertType, description, isAnonymous, shareLocation)
             triggerVibration()
             println("🚨 New alert notification sent: $alertType")
         }
     }
-    
+
     /**
-     * Verifica si el usuario debe recibir alertas de una comunidad y envía notificación si está autorizado
-     * Para entidades: solo miembros oficiales (role: 'official')
-     * Para comunidades normales: todos los miembros
+     * Sends at most one notification: first [communityIds] entry where the user is allowed
+     * to see alerts (all members for normal communities; only `official` for entities).
      */
-    private fun checkAndSendAlertIfAuthorized(
+    private fun tryNotifyForCommunityTargets(
         userId: String,
-        communityId: String,
+        communityIds: List<String>,
         alertType: String,
         description: String?,
         isAnonymous: Boolean,
-        shareLocation: Boolean
+        shareLocation: Boolean,
+        index: Int
     ) {
-        // Obtener información de la comunidad
+        if (index >= communityIds.size) {
+            println("🚫 User not authorized for any community on this alert")
+            return
+        }
+        val communityId = communityIds[index]
         firestore.collection("communities")
             .document(communityId)
             .get()
             .addOnSuccessListener { communityDoc ->
                 if (!communityDoc.exists()) {
-                    println("⚠️ Community does not exist: $communityId")
+                    tryNotifyForCommunityTargets(
+                        userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
+                    )
                     return@addOnSuccessListener
                 }
-                
                 val communityData = communityDoc.data
                 val isEntity = communityData?.get("is_entity") as? Boolean ?: false
-                
-                // Obtener membresía del usuario
                 firestore.collection("community_members")
                     .whereEqualTo("user_id", userId)
                     .whereEqualTo("community_id", communityId)
@@ -359,28 +373,22 @@ class GuardianBackgroundService : Service() {
                     .get()
                     .addOnSuccessListener { memberSnapshot ->
                         if (memberSnapshot.isEmpty) {
-                            println("🚫 User is not a member of community: $communityId")
+                            tryNotifyForCommunityTargets(
+                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
+                            )
                             return@addOnSuccessListener
                         }
-                        
                         val memberData = memberSnapshot.documents[0].data
                         val role = memberData?.get("role") as? String ?: "member"
-                        
-                        // Si es entidad, solo miembros oficiales reciben alertas
-                        if (isEntity) {
-                            if (role != "official") {
-                                println("🚫 User is not an official member of entity: $communityId (role: $role)")
-                                return@addOnSuccessListener
-                            }
-                            println("✅ User is official member of entity: $communityId")
-                        } else {
-                            println("✅ User is member of normal community: $communityId")
+                        if (isEntity && role != "official") {
+                            tryNotifyForCommunityTargets(
+                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
+                            )
+                            return@addOnSuccessListener
                         }
-                        
-                        // Usuario autorizado - enviar notificación
                         showAlertNotification(alertType, description, isAnonymous, shareLocation)
                         triggerVibration()
-                        println("🚨 Alert notification sent to authorized user: $alertType")
+                        println("🚨 Alert notification sent for community $communityId: $alertType")
                     }
                     .addOnFailureListener { e ->
                         println("❌ Error checking user membership: $e")
@@ -399,7 +407,9 @@ class GuardianBackgroundService : Service() {
     ) {
         val title = getAlertTitle(alertType)
         val body = buildAlertBody(alertType, description, isAnonymous, shareLocation)
-        
+        val summary = EmergencyTypes.buildNotificationSummary(description, isAnonymous, shareLocation)
+        val expanded = if (body.isNotEmpty()) body else summary
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -411,19 +421,25 @@ class GuardianBackgroundService : Service() {
         
         val notification = NotificationCompat.Builder(this, ALERTS_CHANNEL_ID)
             .setContentTitle(title)
-            .setContentText(body)
+            .setContentText(summary)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_MAX) // MAX para alertas críticas
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
             .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000))
             .setLights(0xFFD32F2F.toInt(), 1000, 1000)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setFullScreenIntent(pendingIntent, true) // Mostrar en pantalla completa
-            .setTimeoutAfter(30000) // Timeout después de 30 segundos
+            .setFullScreenIntent(pendingIntent, true)
+            .setTimeoutAfter(30000)
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .setBigContentTitle(title)
+                    .bigText(expanded)
+                    .setSummaryText(summary)
+            )
             .build()
         
         val notificationManager = getSystemService(NotificationManager::class.java)

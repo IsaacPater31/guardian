@@ -427,6 +427,29 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
+  /// In-app welcome pipeline: Firestore doc consumed by clients (snackbar / future push).
+  Future<void> emitMemberAddedWelcomeSignal({
+    required String targetUserId,
+    required String communityId,
+  }) async {
+    try {
+      final commSnap = await firestore
+          .collection(FirestoreCollections.communities)
+          .doc(communityId)
+          .get();
+      final commName =
+          commSnap.data()?[CommunityFields.name] as String? ?? '';
+      await firestore.collection(FirestoreCollections.memberAddedSignals).add({
+        MemberAddedSignalFields.targetUserId: targetUserId,
+        MemberAddedSignalFields.communityId: communityId,
+        MemberAddedSignalFields.communityName: commName,
+        MemberAddedSignalFields.createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      AppLogger.e('emitMemberAddedWelcomeSignal', e);
+    }
+  }
+
   /// Adds [targetUserId] directly to [communityId] (admin only).
   Future<JoinResult> addMemberDirectly(String communityId, String targetUserId) async {
     try {
@@ -473,6 +496,11 @@ class CommunityService with CommunityFetchMixin {
 
       final targetName = _displayName(targetDoc.data() ?? {});
       AppLogger.d('User $targetName added to community');
+
+      await emitMemberAddedWelcomeSignal(
+        targetUserId: targetUserId,
+        communityId: communityId,
+      );
 
       return JoinResult(
         success: true,
@@ -581,6 +609,11 @@ class CommunityService with CommunityFetchMixin {
 
       AlertRepository().invalidateCommunityCache();
       AppLogger.d('User joined community via token');
+
+      await emitMemberAddedWelcomeSignal(
+        targetUserId: userId,
+        communityId: communityId,
+      );
 
       return JoinResult(
         success: true,

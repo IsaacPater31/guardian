@@ -268,6 +268,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get alertType => 'Tipo de Alerta';
 
   @override
+  String get alertDetailMainTypeLabel => 'Tipo principal';
+
+  @override
+  String get alertDetailSubtypeLabel => 'Detalle / subtipo';
+
+  @override
+  String get alertDetailNoSubtype => 'Sin detalle específico';
+
+  @override
+  String get alertDetailDatetimeLabel => 'Fecha y hora';
+
+  @override
+  String get alertDetailMessageLabel => 'Mensaje';
+
+  @override
+  String get alertDetailAnonymityHeading => 'Anonimato';
+
+  @override
   String get description => 'Descripción';
 
   @override
@@ -1065,4 +1083,78 @@ class AppLocalizationsEs extends AppLocalizations {
   String daysAgoMap(int n) {
     return 'Hace $n días';
   }
+
+  @override
+  String get alertStatusPendingShort => 'Pendiente';
+
+  @override
+  String get alertStatusAttendedShort => 'Atendida';
+
+  @override
+  String get alertStatusNotAttendedShort => 'No atendida';
+
+  @override
+  String get alertStatusSectionHeading => 'Estado de la alerta';
+
+  @override
+  String get alertStatusPendingLong =>
+      'Esta alerta está pendiente de atención.';
+
+  @override
+  String get alertStatusAttendedLong =>
+      'Esta alerta fue marcada como atendida por las autoridades.';
+
+  @override
+  String get communitiesHeadingShort => 'Comunidades';
+
+  @override
+  String get changeAlertStatusTitle => 'Cambiar estado';
+
+  @override
+  String get onlyOfficialsCanChangeStatus =>
+      'Solo los oficiales pueden cambiar el estado.';
+
+  @override
+  String get errorUpdatingAlertStatus => 'Error al actualizar el estado';
+
+  @override
+  String get communityFeedEmptyTitle => 'Sin alertas por ahora';
+
+  @override
+  String get communityFeedEmptySubtitle =>
+      'Las alertas de esta comunidad aparecerán aquí';
+
+  @override
+  String addedToCommunityBody(String name) {
+    return 'Te agregaron a $name';
+  }
+
+  @override
+  String get quickAddMember => 'Agregar miembro';
+
+  @override
+  String get swipeAlertsByTypeTitle => 'Alertas por tipo';
+
+  @override
+  String get swipeAlertsByTypeBanner =>
+      'Define a qué comunidades se enviará cada tipo de alerta cuando arrastres el botón. Si no configuras un tipo, se te pedirá al enviar.';
+
+  @override
+  String get swipeAlertsSectionLabel => 'Tipos de alerta';
+
+  @override
+  String get swipeConfigSaved => 'Configuración guardada';
+
+  @override
+  String get swipeConfigSavePartial => 'Algunos tipos no se guardaron';
+
+  @override
+  String get unknownCommunityFallback => 'Comunidad';
+
+  @override
+  String get adminOnlyAddMembers =>
+      'Solo un administrador de la comunidad puede agregar miembros.';
+
+  @override
+  String get identifiedAlert => 'Identificada';
 }

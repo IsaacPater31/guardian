@@ -78,7 +78,7 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '${AppLocalizations.of(context)!.alertNotification}: ${alert.alertType}',
+                    '${AppLocalizations.of(context)!.alertNotification}: ${EmergencyTypes.getTranslatedType(alert.alertType, context)}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/models/alert_model.dart';
@@ -6,13 +7,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:guardian/controllers/alert_controller.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:guardian/models/emergency_types.dart';
-import 'package:guardian/core/alert_detail_catalog.dart';
+import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
-import 'dart:convert';
-
 // ─── Shared design constants ───────────────────────────────────────────────────
 const Color _kAttended  = Color(0xFF34C759); // Apple green
 const Color _kPending   = Color(0xFFFF9F0A); // Apple amber
@@ -38,9 +38,12 @@ class AlertStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final color  = isAttended ? _kAttended : _kPending;
     final icon   = isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
-    final label  = isAttended ? 'Atendida' : 'No atendida';
+    final label  = isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -87,9 +90,9 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   final CommunityRepository  _communityRepository  = CommunityRepository();
   final UserService          _userService          = UserService();
 
-  /// Map of communityId → communityName for all communities in the alert.
+  /// Community id → name **only for communities the current user belongs to**.
+  /// Other destinations on the alert are omitted (no label, no UUID).
   final Map<String, String> _communityNames = {};
-  bool    _isLoadingCommunities = false;
   bool    _userHasReported      = false;
   int?    _reportsCountOverride;
   bool    _isReporting          = false;
@@ -105,31 +108,63 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     if (widget.alert.id != null) {
       _alertController.markAlertAsViewed(widget.alert.id!);
     }
-    if (widget.alert.communityIds.isNotEmpty) {
-      _loadCommunityNames();
+    _scheduleCommunityNameLoad();
+  }
+
+  @override
+  void didUpdateWidget(covariant AlertDetailDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.alert.communityIds, widget.alert.communityIds)) {
+      _communityNames.clear();
+      _scheduleCommunityNameLoad();
     }
   }
 
-  Future<void> _loadCommunityNames() async {
+  /// After first frame so [AppLocalizations] is available (not safe in [initState]).
+  void _scheduleCommunityNameLoad() {
     if (widget.alert.communityIds.isEmpty) return;
-    setState(() => _isLoadingCommunities = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadCommunityNames();
+    });
+  }
+
+  Future<void> _loadCommunityNames() async {
+    final ids = widget.alert.communityIds
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) return;
+
+    if (!mounted || AppLocalizations.of(context) == null) return;
+
+    final myNameById = <String, String>{};
     try {
-      final results = await Future.wait(
-        widget.alert.communityIds.map((id) async {
-          final community = await _communityRepository.getCommunityById(id);
-          return MapEntry(id, community?.name ?? 'Comunidad desconocida');
-        }),
-      );
-      if (mounted) {
-        setState(() {
-          _communityNames.addAll(Map.fromEntries(results));
-          _isLoadingCommunities = false;
-        });
+      final mine = await _communityService.getMyCommunities();
+      for (final m in mine) {
+        final mid = (m['id'] as String?)?.trim();
+        final mname = (m['name'] as String?)?.trim();
+        if (mid != null && mid.isNotEmpty && mname != null && mname.isNotEmpty) {
+          myNameById[mid] = mname;
+        }
       }
     } catch (e) {
-      AppLogger.e('AlertDetailDialog._loadCommunityNames', e);
-      if (mounted) setState(() => _isLoadingCommunities = false);
+      AppLogger.e('AlertDetailDialog._loadCommunityNames myCommunities', e);
     }
+
+    // Only show names for communities the user is a member of. Do not resolve
+    // or display other IDs (privacy: no "deleted", no UUID, no guessing).
+    final resolved = <String, String>{};
+    for (final id in ids) {
+      final name = myNameById[id];
+      if (name != null && name.isNotEmpty) resolved[id] = name;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _communityNames
+        ..clear()
+        ..addAll(resolved);
+    });
   }
 
   // ─── Build ──────────────────────────────────────────────────────────────────
@@ -175,21 +210,29 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Status section (Apple-style card) ───────────────────
+                    // ── Estado de atención ───────────────────────────────────
                     _buildStatusSection(isSmall),
                     SizedBox(height: isSmall ? 12 : 16),
 
-                    // ── Alert type ───────────────────────────────────────────
-                    _buildAlertTypeSection(),
-                    SizedBox(height: isSmall ? 12 : 16),
-
-                    // ── Community of origin (informational only) ─────────────
-                    if (widget.alert.communityIds.isNotEmpty) ...[ 
+                    // ── Comunidad (solo miembros) ─────────────────────────────
+                    if (_communityNames.isNotEmpty) ...[
                       _buildCommunityInfoSection(isSmall),
                       SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // ── Description ──────────────────────────────────────────
+                    // ── Tipo principal + detalle / subtipo ────────────────────
+                    _buildAlertTypeAndSubtypeBodySection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Anonimato ─────────────────────────────────────────────
+                    _buildAnonymityHighlightSection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Fecha y hora (absoluta) ──────────────────────────────
+                    _buildDateTimeDetailSection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Mensaje ──────────────────────────────────────────────
                     if (widget.alert.description != null && widget.alert.description!.isNotEmpty) ...[
                       _buildDescriptionSection(),
                       SizedBox(height: isSmall ? 12 : 16),
@@ -213,11 +256,10 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     // ── Additional info ──────────────────────────────────────
                     _buildAdditionalInfoSection(),
 
-                    // ── Images ───────────────────────────────────────────────
                     if (widget.alert.imageBase64 != null &&
                         widget.alert.imageBase64!.isNotEmpty) ...[
                       SizedBox(height: isSmall ? 12 : 16),
-                      _buildImagesSection(),
+                      _buildImageAttachmentNotice(isSmall),
                     ],
 
                     SizedBox(height: isSmall ? 8 : 16),
@@ -283,17 +325,54 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
           SizedBox(height: isSmall ? 12 : 16),
 
-          // Title
+          // Tipo principal primero; subtipo destacado debajo (Policía → Robo).
           Text(
             _getTranslatedAlertType(),
             style: TextStyle(
-              fontSize:   isSmall ? 18 : 22,
-              fontWeight: FontWeight.bold,
+              fontSize:   isSmall ? 19 : 22,
+              fontWeight: FontWeight.w800,
               color:      Colors.white,
-              letterSpacing: 0.2,
+              letterSpacing: 0.15,
+              height:     1.2,
             ),
             textAlign: TextAlign.center,
           ),
+          if (AlertSubtypeDisplay.line(
+                context,
+                widget.alert.alertType,
+                widget.alert.subtype,
+                widget.alert.customDetail,
+              ).isNotEmpty) ...[
+            SizedBox(height: isSmall ? 8 : 10),
+            Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontSize:   isSmall ? 16 : 18,
+                  fontWeight: FontWeight.w800,
+                  color:      Colors.white,
+                  height:     1.2,
+                ),
+                children: [
+                  TextSpan(
+                    text: '→ ',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: AlertSubtypeDisplay.line(
+                      context,
+                      widget.alert.alertType,
+                      widget.alert.subtype,
+                      widget.alert.customDetail,
+                    ),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
 
           SizedBox(height: isSmall ? 8 : 10),
 
@@ -334,8 +413,11 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     final border = _isAttended
         ? Colors.white.withValues(alpha: 0.6)
         : Colors.white.withValues(alpha: 0.35);
+    final l10n = AppLocalizations.of(context)!;
     final icon  = _isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
-    final label = _isAttended ? 'Atendida' : 'No atendida';
+    final label = _isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -368,13 +450,16 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
   // ─── Status section (info card in body) ─────────────────────────────────────
   Widget _buildStatusSection(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
     final color   = _isAttended ? _kAttended : _kPending;
     final bgColor = color.withValues(alpha: 0.08);
     final icon    = _isAttended ? Icons.verified_rounded : Icons.pending_actions_rounded;
-    final title   = _isAttended ? 'Atendida' : 'No atendida';
+    final title   = _isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
     final sub     = _isAttended
-        ? 'Esta alerta fue marcada como atendida por las autoridades.'
-        : 'Esta alerta está pendiente de atención.';
+        ? l10n.alertStatusAttendedLong
+        : l10n.alertStatusPendingLong;
 
     return Container(
       padding: EdgeInsets.all(isSmall ? 14 : 16),
@@ -399,7 +484,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Estado de la alerta',
+                  AppLocalizations.of(context)!.alertStatusSectionHeading,
                   style: TextStyle(
                     fontSize:   11,
                     fontWeight: FontWeight.w600,
@@ -459,93 +544,235 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'COMUNIDADES',
+                  AppLocalizations.of(context)!.communitiesHeadingShort.toUpperCase(),
                   style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kBluePrim.withValues(alpha: 0.67), letterSpacing: 0.6),
                 ),
                 Text(
-                  '${widget.alert.communityIds.length} ${widget.alert.communityIds.length == 1 ? 'comunidad' : 'comunidades'}',
+                  () {
+                    final n = _communityNames.length;
+                    final isEs =
+                        Localizations.localeOf(context).languageCode == 'es';
+                    final plural = isEs
+                        ? (n == 1 ? '' : 'es')
+                        : (n == 1 ? 'y' : 'ies');
+                    return AppLocalizations.of(context)!
+                        .communityCount(n, plural);
+                  }(),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
                 ),
               ],
             ),
           ]),
           const SizedBox(height: 12),
-          if (_isLoadingCommunities)
-            const Padding(
-              padding: EdgeInsets.only(left: 4),
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF007AFF))),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.alert.communityIds.map((id) {
-                final name = _communityNames[id] ?? id;
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color:        const Color(0xFF007AFF).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.people_rounded, size: 12, color: Color(0xFF007AFF)),
-                    const SizedBox(width: 5),
-                    Text(
-                      name,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final rawId in widget.alert.communityIds)
+                if (_communityNames.containsKey(rawId.trim()))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:        const Color(0xFF007AFF).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
                     ),
-                  ]),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Alert type section ──────────────────────────────────────────────────────
-  Widget _buildAlertTypeSection() {
-    final alertColor = _getAlertColor(widget.alert.alertType);
-    return Container(
-      padding:    const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color:  alertColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: alertColor.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(_getAlertIcon(widget.alert.alertType), color: alertColor, size: 22),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.alertType,
-                  style: const TextStyle(fontSize: 11, color: _kTextSub, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _getTranslatedAlertType(),
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: alertColor),
-                ),
-              ],
-            ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.people_rounded, size: 12, color: Color(0xFF007AFF)),
+                      const SizedBox(width: 5),
+                      Text(
+                        _communityNames[rawId.trim()]!,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+                      ),
+                    ]),
+                  ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  // ─── Cuerpo: tipo principal + subtipo (misma jerarquía que el encabezado) ───
+  Widget _buildAlertTypeAndSubtypeBodySection(bool isSmall) {
+    final l10n    = AppLocalizations.of(context)!;
+    final alertColor = _getAlertColor(widget.alert.alertType);
+    final main   = _getTranslatedAlertType();
+    final sub    = AlertSubtypeDisplay.line(
+      context,
+      widget.alert.alertType,
+      widget.alert.subtype,
+      widget.alert.customDetail,
+    );
+    final subText = sub.isNotEmpty ? sub : l10n.alertDetailNoSubtype;
+
+    return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color:  alertColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: alertColor.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: alertColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(_getAlertIcon(widget.alert.alertType), color: alertColor, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.alertDetailMainTypeLabel.toUpperCase(),
+                      style: TextStyle(
+                        fontSize:   10,
+                        fontWeight: FontWeight.w700,
+                        color:      alertColor.withValues(alpha: 0.75),
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      main,
+                      style: TextStyle(
+                        fontSize:   isSmall ? 17 : 18,
+                        fontWeight: FontWeight.w800,
+                        color:      alertColor,
+                        height:     1.2,
+                      ),
+                    ),
+                    SizedBox(height: isSmall ? 12 : 14),
+                    Text(
+                      l10n.alertDetailSubtypeLabel.toUpperCase(),
+                      style: TextStyle(
+                        fontSize:   10,
+                        fontWeight: FontWeight.w700,
+                        color:      _kTextSub,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subText,
+                      style: const TextStyle(
+                        fontSize:   16,
+                        fontWeight: FontWeight.w800,
+                        color:      _kText,
+                        height:     1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnonymityHighlightSection(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    final anon = widget.alert.isAnonymous;
+    final fg   = anon ? const Color(0xFFB45309) : const Color(0xFF1B7F3A);
+    final bg   = anon ? Colors.orange.withValues(alpha: 0.1) : const Color(0xFF34C759).withValues(alpha: 0.1);
+    final bd   = anon ? Colors.orange.withValues(alpha: 0.35) : const Color(0xFF34C759).withValues(alpha: 0.35);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color:        bg,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: bd, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.alertDetailAnonymityHeading.toUpperCase(),
+            style: TextStyle(
+              fontSize:   10,
+              fontWeight: FontWeight.w700,
+              color:      fg.withValues(alpha: 0.8),
+              letterSpacing: 0.6,
+            ),
+          ),
+          SizedBox(height: isSmall ? 8 : 10),
+          Row(
+            children: [
+              Icon(
+                anon ? Icons.visibility_off_rounded : Icons.verified_user_rounded,
+                color: fg,
+                size: isSmall ? 22 : 24,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  anon ? l10n.anonymousReport : l10n.identifiedReport,
+                  style: TextStyle(
+                    fontSize:   isSmall ? 15 : 16,
+                    fontWeight: FontWeight.w800,
+                    color:      fg,
+                    height:     1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!anon && widget.alert.userName != null && widget.alert.userName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${l10n.reportedBy}: ${widget.alert.userName!.trim()}',
+              style: const TextStyle(
+                fontSize:   13,
+                fontWeight: FontWeight.w600,
+                color:      _kTextSub,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeDetailSection(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    return _buildInfoCard(
+      icon:      Icons.schedule_rounded,
+      iconColor: _kBluePrim,
+      iconBg:    _kBluePrim.withValues(alpha: 0.1),
+      label:     l10n.alertDetailDatetimeLabel,
+      value:     _formatFullDateTimeForDetail(widget.alert.timestamp),
+    );
+  }
+
+  String _formatFullDateTimeForDetail(DateTime dt) {
+    final locale = Localizations.localeOf(context).toString();
+    try {
+      return DateFormat.yMMMMEEEEd(locale).add_Hm().format(dt);
+    } catch (_) {
+      return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+    }
+  }
+
   // ─── Description ─────────────────────────────────────────────────────────────
   Widget _buildDescriptionSection() {
     return _buildInfoCard(
-      icon:      Icons.description_rounded,
+      icon:      Icons.chat_bubble_outline_rounded,
       iconColor: _kText,
       iconBg:    _kText.withValues(alpha: 0.08),
-      label:     AppLocalizations.of(context)!.description,
+      label:     AppLocalizations.of(context)!.alertDetailMessageLabel,
       value:     widget.alert.description!,
     );
   }
@@ -699,14 +926,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           ),
           const SizedBox(height: 14),
           _buildInfoRow(
-            icon:  widget.alert.isAnonymous ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            color: widget.alert.isAnonymous ? Colors.orange : Colors.green,
-            label: widget.alert.isAnonymous
-                ? AppLocalizations.of(context)!.anonymousReport
-                : AppLocalizations.of(context)!.identifiedReport,
-          ),
-          const SizedBox(height: 10),
-          _buildInfoRow(
             icon:  widget.alert.shareLocation ? Icons.location_on_rounded : Icons.location_off_rounded,
             color: widget.alert.shareLocation ? Colors.green : _kTextSub,
             label: widget.alert.shareLocation
@@ -720,30 +939,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
               color: _kBluePrim,
               label:
                   '${AppLocalizations.of(context)!.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? AppLocalizations.of(context)!.people : AppLocalizations.of(context)!.person}',
-            ),
-          ],
-          if (!widget.alert.isAnonymous && widget.alert.userName != null) ...[
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              icon:  Icons.person_rounded,
-              color: _kTextSub,
-              label: widget.alert.userName!,
-            ),
-          ],
-          if (widget.alert.subtype != null && widget.alert.subtype!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              icon: Icons.category_rounded,
-              color: _kBluePrim,
-              label: _resolveSubtypeLabel(widget.alert.alertType, widget.alert.subtype!),
-            ),
-          ],
-          if (widget.alert.customDetail != null && widget.alert.customDetail!.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              icon: Icons.notes_rounded,
-              color: _kTextSub,
-              label: widget.alert.customDetail!.trim(),
             ),
           ],
           if (widget.alert.attachmentPlaceholders.isNotEmpty) ...[
@@ -776,60 +971,47 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  // ─── Images ──────────────────────────────────────────────────────────────────
-  Widget _buildImagesSection() {
+  Widget _buildImageAttachmentNotice(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding:    const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
       decoration: BoxDecoration(
-        color:        _kSurface,
+        color: _kBluePrim.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border:       Border.all(color: _kBorder),
+        border: Border.all(color: _kBluePrim.withValues(alpha: 0.2)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              padding:    const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: _kText.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.photo_library_rounded, color: _kText, size: 18),
+          Icon(Icons.photo_outlined, color: _kBluePrim, size: isSmall ? 22 : 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.imagesAttached,
+                  style: TextStyle(
+                    fontSize: isSmall ? 14 : 15,
+                    fontWeight: FontWeight.w700,
+                    color: _kText,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.comingSoon,
+                  style: TextStyle(
+                    fontSize: isSmall ? 12 : 13,
+                    color: _kTextSub,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Text(
-              AppLocalizations.of(context)!.images,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kText),
-            ),
-          ]),
-          const SizedBox(height: 12),
-          ...widget.alert.imageBase64!.map(_buildImageItem),
+          ),
         ],
       ),
     );
-  }
-
-  Widget _buildImageItem(String base64String) {
-    try {
-      final bytes = base64Decode(base64String);
-      return Container(
-        margin:     const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: _kBorder)),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: 200),
-        ),
-      );
-    } catch (_) {
-      return Container(
-        margin:   const EdgeInsets.only(bottom: 8),
-        padding:  const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(10)),
-        child: Row(children: [
-          const Icon(Icons.error_outline, color: Colors.grey),
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.errorLoadingImage, style: const TextStyle(color: Colors.grey)),
-        ]),
-      );
-    }
   }
 
   // ─── Action buttons ──────────────────────────────────────────────────────────
@@ -1176,14 +1358,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return 'Hace ${diff.inDays}d';
   }
 
-  String _resolveSubtypeLabel(String alertType, String subtypeId) {
-    final options = AlertDetailCatalog.getSubtypes(alertType);
-    final match = options.cast<AlertSubtypeOption?>().firstWhere(
-          (option) => option?.id == subtypeId,
-          orElse: () => null,
-        );
-    return match?.label ?? subtypeId;
-  }
 }
 
 // ─── Forward alert dialog ─────────────────────────────────────────────────────

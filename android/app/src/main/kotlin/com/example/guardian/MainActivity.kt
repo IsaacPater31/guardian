@@ -15,6 +15,8 @@ class MainActivity : FlutterActivity() {
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        syncFlutterLocaleToNative()
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -181,6 +183,32 @@ class MainActivity : FlutterActivity() {
             val prefs = getSharedPreferences("flutter_localization", MODE_PRIVATE)
             prefs.edit().putString("language", language).apply()
             println("✅ Language set to: $language")
+        }
+    }
+
+    /**
+     * Copia el idioma guardado por Flutter (`shared_preferences`) al almacén
+     * que lee el servicio en segundo plano, para que arranque con el locale correcto.
+     */
+    private fun syncFlutterLocaleToNative() {
+        try {
+            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            var lang = flutterPrefs.getString("flutter.selected_language", null)
+            if (lang == null) {
+                for (key in flutterPrefs.all.keys) {
+                    if (key.contains("selected_language")) {
+                        lang = flutterPrefs.getString(key, null)
+                        break
+                    }
+                }
+            }
+            if (lang != null) {
+                getSharedPreferences("flutter_localization", MODE_PRIVATE)
+                    .edit().putString("language", lang).apply()
+                println("✅ Synced Flutter locale to native: $lang")
+            }
+        } catch (e: Exception) {
+            println("⚠️ syncFlutterLocaleToNative: ${e.message}")
         }
     }
 }

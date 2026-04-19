@@ -71,6 +71,12 @@ class AlertRepository {
         final viewedBy = List<String>.from(alertDoc.data()?[AlertFields.viewedBy] ?? []);
         final viewedCount = alertDoc.data()?[AlertFields.viewedCount] ?? 0;
 
+        final ownerId = alertDoc.data()?[AlertFields.userId] as String?;
+        final ownerEmail = alertDoc.data()?[AlertFields.userEmail] as String?;
+        if (_userService.isUserOwnerOfAlert(ownerId, ownerEmail)) {
+          return;
+        }
+
         if (!viewedBy.contains(currentUser.uid)) {
           viewedBy.add(currentUser.uid);
           tx.update(alertRef, {
@@ -491,6 +497,9 @@ class AlertRepository {
       final counts = <String, int>{};
       for (final alert in alerts) {
         if (alert.communityIds.isEmpty) continue;
+        if (_userService.isUserOwnerOfAlert(alert.userId, alert.userEmail)) {
+          continue;
+        }
         if (!alert.viewedBy.contains(uid)) {
           for (final cid in alert.communityIds) {
             counts[cid] = (counts[cid] ?? 0) + 1;

@@ -267,6 +267,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alertType => 'Alert Type';
 
   @override
+  String get alertDetailMainTypeLabel => 'Main type';
+
+  @override
+  String get alertDetailSubtypeLabel => 'Detail / subtype';
+
+  @override
+  String get alertDetailNoSubtype => 'No specific detail';
+
+  @override
+  String get alertDetailDatetimeLabel => 'Date and time';
+
+  @override
+  String get alertDetailMessageLabel => 'Message';
+
+  @override
+  String get alertDetailAnonymityHeading => 'Anonymity';
+
+  @override
   String get description => 'Description';
 
   @override
@@ -1058,4 +1076,77 @@ class AppLocalizationsEn extends AppLocalizations {
   String daysAgoMap(int n) {
     return '$n days ago';
   }
+
+  @override
+  String get alertStatusPendingShort => 'Pending';
+
+  @override
+  String get alertStatusAttendedShort => 'Attended';
+
+  @override
+  String get alertStatusNotAttendedShort => 'Not attended';
+
+  @override
+  String get alertStatusSectionHeading => 'Alert status';
+
+  @override
+  String get alertStatusPendingLong =>
+      'This alert is still awaiting attention.';
+
+  @override
+  String get alertStatusAttendedLong =>
+      'This alert was marked as attended by authorities.';
+
+  @override
+  String get communitiesHeadingShort => 'Communities';
+
+  @override
+  String get changeAlertStatusTitle => 'Change status';
+
+  @override
+  String get onlyOfficialsCanChangeStatus =>
+      'Only officials can change the status.';
+
+  @override
+  String get errorUpdatingAlertStatus => 'Could not update the status';
+
+  @override
+  String get communityFeedEmptyTitle => 'No alerts yet';
+
+  @override
+  String get communityFeedEmptySubtitle =>
+      'Alerts for this community will appear here';
+
+  @override
+  String addedToCommunityBody(String name) {
+    return 'You were added to $name';
+  }
+
+  @override
+  String get quickAddMember => 'Add member';
+
+  @override
+  String get swipeAlertsByTypeTitle => 'Alerts by type';
+
+  @override
+  String get swipeAlertsByTypeBanner =>
+      'Choose which communities receive each alert type when you drag the button. If a type is not configured, you will be asked when sending.';
+
+  @override
+  String get swipeAlertsSectionLabel => 'Alert types';
+
+  @override
+  String get swipeConfigSaved => 'Settings saved';
+
+  @override
+  String get swipeConfigSavePartial => 'Some types could not be saved';
+
+  @override
+  String get unknownCommunityFallback => 'Community';
+
+  @override
+  String get adminOnlyAddMembers => 'Only a community admin can add members.';
+
+  @override
+  String get identifiedAlert => 'Identified';
 }

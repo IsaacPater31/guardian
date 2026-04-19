@@ -93,18 +93,42 @@ object EmergencyTypes {
      * Función para obtener el idioma actual
      */
     private fun getCurrentLanguage(): String {
-        return context?.let { ctx ->
-            val prefs = ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-            prefs.getString("language", "es") ?: "es"
-        } ?: "es"
+        val ctx = context ?: return "es"
+        return try {
+            val flutterPrefs = ctx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            var lang = flutterPrefs.getString("flutter.selected_language", null)
+            if (lang == null) {
+                for (key in flutterPrefs.all.keys) {
+                    if (key.contains("selected_language")) {
+                        lang = flutterPrefs.getString(key, null)
+                        break
+                    }
+                }
+            }
+            if (lang != null) {
+                ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+                    .edit().putString("language", lang).apply()
+                return lang
+            }
+            ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
+                .getString("language", "es") ?: "es"
+        } catch (_: Exception) {
+            "es"
+        }
     }
     
     /**
      * Títulos en español
      */
     private val spanishTitles = mapOf(
+        "HEALTH" to "🏥 Alerta sanitaria",
+        "HOME_HELP" to "🏠 Ayuda en casa",
+        "POLICE" to "🚔 Policía",
+        "FIRE" to "🔥 Bomberos / incendio",
+        "ACCOMPANIMENT" to "👥 Acompañamiento",
+        "ENVIRONMENTAL" to "🌿 Emergencia ambiental",
+        "ROAD_EMERGENCY" to "🚗 Emergencia vial",
         "ROBBERY" to "🚨 Robo Reportado",
-        "FIRE" to "🔥 Incendio Reportado",
         "ACCIDENT" to "🚗 Accidente Reportado",
         "STREET ESCORT" to "👥 Acompañamiento Solicitado",
         "UNSAFETY" to "⚠️ Zona Insegura",
@@ -119,8 +143,14 @@ object EmergencyTypes {
      * Títulos en inglés
      */
     private val englishTitles = mapOf(
+        "HEALTH" to "🏥 Health emergency",
+        "HOME_HELP" to "🏠 Home help",
+        "POLICE" to "🚔 Police",
+        "FIRE" to "🔥 Fire department",
+        "ACCOMPANIMENT" to "👥 Escort / accompaniment",
+        "ENVIRONMENTAL" to "🌿 Environmental emergency",
+        "ROAD_EMERGENCY" to "🚗 Road emergency",
         "ROBBERY" to "🚨 Robbery Reported",
-        "FIRE" to "🔥 Fire Reported",
         "ACCIDENT" to "🚗 Accident Reported",
         "STREET ESCORT" to "👥 Street Escort Requested",
         "UNSAFETY" to "⚠️ Unsafe Area",
@@ -151,24 +181,48 @@ object EmergencyTypes {
     ): String {
         val language = getCurrentLanguage()
         val body = StringBuilder()
-        
-        // Agregar descripción
+
         if (!description.isNullOrEmpty()) {
-            body.append(description)
+            body.append(description.trim())
         }
-        
-        // Agregar información adicional según idioma
+
         if (shareLocation) {
-            val locationText = if (language == "es") "📍 Ubicación incluida" else "📍 Location included"
-            body.append("\n").append(locationText)
+            val locationText = if (language == "es") "📍 Ubicación compartida" else "📍 Location shared"
+            if (body.isNotEmpty()) body.append("\n")
+            body.append(locationText)
         }
-        
+
         if (isAnonymous) {
             val anonymousText = if (language == "es") "👤 Reporte anónimo" else "👤 Anonymous report"
-            body.append("\n").append(anonymousText)
+            if (body.isNotEmpty()) body.append("\n")
+            body.append(anonymousText)
         }
-        
-        return body.toString()
+
+        return body.toString().trim()
+    }
+
+    /** Short single-line summary for collapsed notification view. */
+    fun buildNotificationSummary(
+        description: String?,
+        isAnonymous: Boolean,
+        shareLocation: Boolean
+    ): String {
+        val language = getCurrentLanguage()
+        val parts = mutableListOf<String>()
+        if (!description.isNullOrBlank()) {
+            val oneLine = description.trim().replace("\n", " ")
+            parts.add(if (oneLine.length > 80) oneLine.take(77) + "…" else oneLine)
+        }
+        if (shareLocation) {
+            parts.add(if (language == "es") "📍 Ubicación" else "📍 Location")
+        }
+        if (isAnonymous) {
+            parts.add(if (language == "es") "👤 Anónimo" else "👤 Anonymous")
+        }
+        if (parts.isEmpty()) {
+            return if (language == "es") "Toca para ver detalles" else "Tap to view details"
+        }
+        return parts.joinToString(" · ")
     }
 }
 

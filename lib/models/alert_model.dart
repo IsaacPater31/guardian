@@ -76,21 +76,27 @@ class AlertModel {
 
   // ─── Firestore serialisation ──────────────────────────────────────────────
 
+  /// Parses `community_ids` / `communityIds` (web) / legacy `community_id` / `communityId`.
+  static List<String> parseCommunityIds(Map<String, dynamic> data) {
+    final dynamic raw = data['community_ids'] ?? data['communityIds'];
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    final dynamic single = data['community_id'] ?? data['communityId'];
+    if (single != null) {
+      final s = single.toString().trim();
+      if (s.isNotEmpty) return [s];
+    }
+    return [];
+  }
+
   factory AlertModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    // ── community_ids normalisation: support both legacy and new format ──
-    final List<String> communityIds;
-    if (data['community_ids'] != null) {
-      // New format: array of strings
-      communityIds = List<String>.from(data['community_ids'] as List);
-    } else if (data['community_id'] != null &&
-        (data['community_id'] as String).isNotEmpty) {
-      // Legacy format: single string — wrap in list
-      communityIds = [data['community_id'] as String];
-    } else {
-      communityIds = [];
-    }
+    final communityIds = parseCommunityIds(data);
 
     return AlertModel(
       id: doc.id,
