@@ -10,6 +10,7 @@ class RegisterView extends StatefulWidget {
 }
 
 class _RegisterViewState extends State<RegisterView> {
+  final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final LoginController _loginController = LoginController();
@@ -19,6 +20,7 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   void dispose() {
+    _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -46,10 +48,11 @@ class _RegisterViewState extends State<RegisterView> {
   // ============================
 
   Future<void> _register() async {
+    final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.errorOccurred)),
@@ -84,7 +87,11 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     setState(() => _isLoading = true);
-    final error = await _loginController.registerWithEmail(email, password);
+    final error = await _loginController.registerWithEmail(
+      email,
+      password,
+      fullName: fullName,
+    );
     if (!mounted) return;
     setState(() => _isLoading = false);
 
@@ -142,6 +149,22 @@ class _RegisterViewState extends State<RegisterView> {
                 child: Image.asset('assets/images/guardian_logo.png', width: 120),
               ),
               const SizedBox(height: 40),
+
+              TextField(
+                controller: _fullNameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Nombre completo',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
 
               TextField(
                 controller: _emailController,
