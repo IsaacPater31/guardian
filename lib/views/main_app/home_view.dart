@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/core/app_logger.dart';
@@ -138,18 +140,39 @@ class _HomeViewState extends State<HomeView> {
     super.dispose();
   }
 
+  /// Altura del bloque "Alertas recientes": debe caber al menos una tarjeta
+  /// completa (cabecera de sección + fila de título + chips) sin recortes.
+  double _recentAlertsPanelHeight(BuildContext context) {
+    final h = MediaQuery.sizeOf(context).height;
+    final w = MediaQuery.sizeOf(context).width;
+    // Fracción del alto útil; en anchos pequeños no se penaliza el panel
+    // (antes 0.18–0.22 dejaba ~130–170 px y la lista quedaba inusable).
+    final fraction = w < 360
+        ? 0.34
+        : w < 420
+            ? 0.32
+            : w < 600
+                ? 0.30
+                : 0.28;
+    // Teléfonos bajos (SE, etc.): subir un poco el mínimo relativo al alto.
+    final desiredMin = w < 360
+        ? 232.0
+        : w < 420
+            ? 216.0
+            : 200.0;
+    if (h < 520) {
+      // Landscape u orientaciones muy bajas: no forzar más del 38% del alto.
+      final cap = h * 0.38;
+      return math.min(cap, math.max(168.0, h * fraction));
+    }
+    final maxPanel = math.min(320.0, h * 0.42);
+    final minPanel = math.min(desiredMin, maxPanel);
+    return (h * fraction).clamp(minPanel, maxPanel);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    // Alerts panel: give it less space on compact screens so the radial
-    // button has room for 8 labels + central circle without clipping.
-    final alertsFraction = screenWidth < 360
-        ? 0.18
-        : screenWidth < 400
-            ? 0.22
-            : 0.26;
-    final alertsPanelHeight = (screenHeight * alertsFraction).clamp(130.0, 260.0);
+    final alertsPanelHeight = _recentAlertsPanelHeight(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -162,7 +185,7 @@ class _HomeViewState extends State<HomeView> {
             // Sección de alertas recientes con altura adaptativa
             SizedBox(
               height: alertsPanelHeight,
-              child: _buildRecentAlertsSection(),
+              child: _buildRecentAlertsSection(panelHeight: alertsPanelHeight),
             ),
 
             // Área principal del botón de alerta — gets all remaining space
@@ -293,17 +316,29 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildRecentAlertsSection() {
+  Widget _buildRecentAlertsSection({required double panelHeight}) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmall = screenWidth < 360;
-    final sectionPadding = isSmall ? 14.0 : 20.0;
-    final titleFontSize = isSmall ? 15.0 : 18.0;
+    final isCompact = isSmall || screenWidth < 420 || panelHeight < 248;
+    final horizontalInset = isSmall ? 10.0 : 20.0;
+    final verticalInset = isCompact ? 8.0 : 20.0;
+    final sectionPaddingH = isSmall ? 12.0 : 18.0;
+    final sectionPaddingV = isCompact ? 10.0 : 16.0;
+    final titleFontSize = isSmall ? 15.0 : (isCompact ? 16.0 : 18.0);
     final iconSize = isSmall ? 17.0 : 20.0;
     final filtered = _filteredAlerts;
 
     return Container(
-      margin: EdgeInsets.all(sectionPadding),
-      padding: EdgeInsets.all(sectionPadding),
+      margin: EdgeInsets.fromLTRB(
+        horizontalInset,
+        verticalInset,
+        horizontalInset,
+        verticalInset,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: sectionPaddingH,
+        vertical: sectionPaddingV,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -407,23 +442,23 @@ class _HomeViewState extends State<HomeView> {
             ],
           ),
 
-          SizedBox(height: isSmall ? 10 : 16),
+          SizedBox(height: isCompact ? 8 : 16),
 
           Expanded(
             child: _isLoading
-                ? _buildLoadingState()
+                ? _buildLoadingState(compact: isCompact)
                 : filtered.isEmpty
-                    ? _buildNoAlertsState()
-                    : _buildAlertsList(filtered),
+                    ? _buildNoAlertsState(compact: isCompact)
+                    : _buildAlertsList(filtered, compact: isCompact),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState({bool compact = false}) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(compact ? 14 : 24),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
@@ -437,11 +472,15 @@ class _HomeViewState extends State<HomeView> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text(
-            AppLocalizations.of(context)!.loading,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B7280),
+          Expanded(
+            child: Text(
+              AppLocalizations.of(context)!.loading,
+              style: TextStyle(
+                fontSize: compact ? 13 : 14,
+                color: const Color(0xFF6B7280),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -449,16 +488,19 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildNoAlertsState() {
+  Widget _buildNoAlertsState({bool compact = false}) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 12,
+          vertical: compact ? 4 : 6,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.check_circle_outline,
-              size: 24,
+              size: compact ? 22 : 24,
               color: Colors.grey[400],
             ),
             const SizedBox(width: 10),
@@ -468,11 +510,13 @@ class _HomeViewState extends State<HomeView> {
                     ? 'No has enviado alertas recientes'
                     : AppLocalizations.of(context)!.noRecentAlerts,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: compact ? 12 : 13,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey[500],
                 ),
                 overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -481,7 +525,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildAlertsList(List<AlertModel> alerts) {
+  Widget _buildAlertsList(List<AlertModel> alerts, {bool compact = false}) {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _isLoading = true);
@@ -500,8 +544,9 @@ class _HomeViewState extends State<HomeView> {
         if (mounted) setState(() => _isLoading = false);
       },
       child: ListView.builder(
-        shrinkWrap: true,
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         itemCount: alerts.length,
         itemBuilder: (context, index) {
           final alert = alerts[index];
@@ -511,7 +556,7 @@ class _HomeViewState extends State<HomeView> {
             duration: Duration(milliseconds: 200 + (index * 50).clamp(0, 300)),
             curve: Curves.easeOut,
             builder: (context, value, child) => Opacity(opacity: value, child: child),
-            child: _buildAlertCard(alert),
+            child: _buildAlertCard(alert, compact: compact),
           );
         },
       ),
@@ -528,18 +573,176 @@ class _HomeViewState extends State<HomeView> {
 
 
 
-  Widget _buildAlertCard(AlertModel alert) {
-    final alertIcon  = EmergencyTypes.getIcon(alert.alertType);
+  Widget _buildAlertCard(AlertModel alert, {bool compact = false}) {
+    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
-    final timeAgo    = _getTimeAgo(alert.timestamp);
+    final timeAgo = _getTimeAgo(alert.timestamp);
     final isAttended = alert.alertStatus == 'attended';
-    final statusColor = isAttended ? const Color(0xFF34C759) : const Color(0xFFFF9F0A);
+    final statusColor =
+        isAttended ? const Color(0xFF34C759) : const Color(0xFFFF9F0A);
+
+    final iconBox = compact ? 6.0 : 8.0;
+    final iconGraphic = compact ? 18.0 : 20.0;
+    final gap = compact ? 8.0 : 12.0;
+    final titleSize = compact ? 13.0 : 14.0;
+    final descSize = compact ? 12.0 : 13.0;
+    final cardPad = compact ? 10.0 : 16.0;
+    final bottomMargin = compact ? 8.0 : 12.0;
+
+    Widget statusBadge() {
+      return Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 5 : 6,
+          vertical: compact ? 2 : 3,
+        ),
+        decoration: BoxDecoration(
+          color: statusColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.35),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded,
+              size: compact ? 9 : 10,
+              color: statusColor,
+            ),
+            SizedBox(width: compact ? 2 : 3),
+            Text(
+              isAttended ? 'Atendida' : 'No atendida',
+              style: TextStyle(
+                fontSize: compact ? 9 : 10,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final metaChips = <Widget>[
+      if (alert.shareLocation && alert.location != null)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            AppLocalizations.of(context)!.locationTag,
+            style: TextStyle(
+              fontSize: compact ? 9 : 10,
+              color: Colors.green,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      if (alert.isAnonymous)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            AppLocalizations.of(context)!.anonymousTag,
+            style: TextStyle(
+              fontSize: compact ? 9 : 10,
+              color: Colors.orange,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      if (alert.viewedCount > 0)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '👁️ ${alert.viewedCount}',
+            style: TextStyle(
+              fontSize: compact ? 9 : 10,
+              color: Colors.blue,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      if (alert.forwardsCount > 0)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.forward, size: compact ? 9 : 10, color: Colors.blue[700]),
+              const SizedBox(width: 2),
+              Text(
+                '${alert.forwardsCount}',
+                style: TextStyle(
+                  fontSize: compact ? 9 : 10,
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (alert.reportsCount > 0)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.report, size: compact ? 9 : 10, color: Colors.orange[700]),
+              const SizedBox(width: 2),
+              Text(
+                '${alert.reportsCount}',
+                style: TextStyle(
+                  fontSize: compact ? 9 : 10,
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.grey.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          alert.type.toUpperCase(),
+          style: TextStyle(
+            fontSize: compact ? 9 : 10,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
+    ];
 
     return GestureDetector(
       onTap: () => _showAlertDetail(alert),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: EdgeInsets.only(bottom: bottomMargin),
+        padding: EdgeInsets.all(cardPad),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -553,10 +756,10 @@ class _HomeViewState extends State<HomeView> {
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icono de alerta
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(iconBox),
               decoration: BoxDecoration(
                 color: alertColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -564,189 +767,91 @@ class _HomeViewState extends State<HomeView> {
               child: Icon(
                 alertIcon,
                 color: alertColor,
-                size: 20,
+                size: iconGraphic,
               ),
             ),
-            
-            const SizedBox(width: 12),
-            
-            // Contenido de la alerta
+            SizedBox(width: gap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          alert.alertType,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                        ),
-                      ),
-                      // Status badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color:        statusColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border:       Border.all(color: statusColor.withValues(alpha: 0.35), width: 1),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded,
-                              size: 10, color: statusColor,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              isAttended ? 'Atendida' : 'No atendida',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        timeAgo,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                  
-                  if (alert.description != null && alert.description!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                  if (compact) ...[
                     Text(
-                      alert.description!,
+                      alert.alertType,
                       style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1A1A1A),
+                        height: 1.2,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: compact ? 4 : 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Flexible(child: statusBadge()),
+                        const SizedBox(width: 8),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            fontSize: compact ? 11 : 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            alert.alertType,
+                            style: TextStyle(
+                              fontSize: titleSize,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1A1A1A),
+                              height: 1.25,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        statusBadge(),
+                        const SizedBox(width: 6),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Información adicional
-                  Row(
-                    children: [
-                      if (alert.shareLocation && alert.location != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            AppLocalizations.of(context)!.locationTag,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      
-                      if (alert.isAnonymous) ...[
-                        if (alert.shareLocation && alert.location != null)
-                          const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            AppLocalizations.of(context)!.anonymousTag,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.orange,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      // Contador de vistas
-                      if (alert.viewedCount > 0) ...[
-                        if (alert.shareLocation && alert.location != null || alert.isAnonymous)
-                          const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '👁️ ${alert.viewedCount}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (alert.forwardsCount > 0) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.forward, size: 10, color: Colors.blue[700]),
-                              const SizedBox(width: 2),
-                              Text(
-                                '${alert.forwardsCount}',
-                                style: TextStyle(fontSize: 10, color: Colors.blue[700], fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (alert.reportsCount > 0) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.report, size: 10, color: Colors.orange[700]),
-                              const SizedBox(width: 2),
-                              Text(
-                                '${alert.reportsCount}',
-                                style: TextStyle(fontSize: 10, color: Colors.orange[700], fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      
-                      const Spacer(),
-                      
-                      Text(
-                        alert.type.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w500,
-                        ),
+                  if (alert.description != null &&
+                      alert.description!.isNotEmpty) ...[
+                    SizedBox(height: compact ? 4 : 6),
+                    Text(
+                      alert.description!,
+                      style: TextStyle(
+                        fontSize: descSize,
+                        color: Colors.grey[600],
+                        height: 1.25,
                       ),
-                    ],
+                      maxLines: compact ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  SizedBox(height: compact ? 6 : 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: metaChips,
                   ),
                 ],
               ),
