@@ -7,7 +7,6 @@ class PerfilView extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
-    // Solo mostrar mensaje si el contexto está montado
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.logout)),
@@ -17,15 +16,16 @@ class PerfilView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final user = FirebaseAuth.instance.currentUser;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         title: Text(
-          AppLocalizations.of(context)!.profile,
-          style: TextStyle(
+          l10n.profile,
+          style: const TextStyle(
             color: Color(0xFF1F2937),
             fontWeight: FontWeight.bold,
           ),
@@ -42,10 +42,9 @@ class PerfilView extends StatelessWidget {
               child: Icon(Icons.person, size: 56, color: Colors.white),
             ),
             const SizedBox(height: 16),
-            // Text(user?.email ?? '', style: const TextStyle(fontSize: 16)),
             Text(
-              AppLocalizations.of(context)!.profileInfo,
-              style: TextStyle(fontSize: 16, color: Colors.black54),
+              l10n.profileInfo,
+              style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const Spacer(),
             Padding(
@@ -63,8 +62,8 @@ class PerfilView extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.logout, color: Colors.white),
                   label: Text(
-                    AppLocalizations.of(context)!.logout,
-                    style: TextStyle(
+                    l10n.logout,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,

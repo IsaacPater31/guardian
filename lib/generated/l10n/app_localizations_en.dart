@@ -1149,4 +1149,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get identifiedAlert => 'Identified';
+
+  @override
+  String get myAlertsStatisticsSectionLabel => 'Personal history';
+
+  @override
+  String get myAlertsTitle => 'My alerts';
+
+  @override
+  String get myAlertsProfileSubtitle => 'History of alerts you sent';
+
+  @override
+  String get myAlertsEmptyTitle => 'No alerts yet';
+
+  @override
+  String get myAlertsEmptySubtitle =>
+      'Alerts you send from the main button will appear here.';
+
+  @override
+  String get myAlertsEmptyFilteredTitle => 'Nothing matches your filters';
+
+  @override
+  String get myAlertsEmptyFilteredSubtitle =>
+      'Try clearing filters or adjusting your search.';
+
+  @override
+  String get myAlertsFilters => 'Filters';
+
+  @override
+  String get myAlertsApplyFilters => 'Apply';
+
+  @override
+  String get myAlertsClearFilters => 'Clear';
+
+  @override
+  String get myAlertsAllCommunities => 'All communities';
+
+  @override
+  String get myAlertsEngagementFilter => 'Views';
+
+  @override
+  String get myAlertsEngagementAll => 'All';
+
+  @override
+  String get myAlertsEngagementSeen => 'With views';
+
+  @override
+  String get myAlertsEngagementNone => 'No views yet';
+
+  @override
+  String get myAlertsSearchHint => 'Search message or type';
+
+  @override
+  String get myAlertsSignInRequired => 'Sign in to see your alerts.';
+
+  @override
+  String get myAlertsFilterCommunitySection => 'Community';
+
+  @override
+  String get myAlertsFilterDateSection => 'Date';
+
+  @override
+  String get myAlertsFilterStatusSection => 'Status';
+
+  @override
+  String get myAlertsFilterTypeSection => 'Alert type';
+
+  @override
+  String get myAlertsPickStartDate => 'From';
+
+  @override
+  String get myAlertsPickEndDate => 'To';
+
+  @override
+  String myAlertsListCapHint(int n) {
+    return 'Up to the $n most recent alerts you sent are shown.';
+  }
 }

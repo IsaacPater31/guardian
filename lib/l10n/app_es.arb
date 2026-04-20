@@ -429,5 +429,35 @@
   "swipeConfigSavePartial": "Algunos tipos no se guardaron",
   "unknownCommunityFallback": "Comunidad",
   "adminOnlyAddMembers": "Solo un administrador de la comunidad puede agregar miembros.",
-  "identifiedAlert": "Identificada"
+  "identifiedAlert": "Identificada",
+
+  "myAlertsStatisticsSectionLabel": "Historial personal",
+  "myAlertsTitle": "Mis alertas",
+  "myAlertsProfileSubtitle": "Historial de alertas que enviaste",
+  "myAlertsEmptyTitle": "Sin alertas aún",
+  "myAlertsEmptySubtitle": "Las alertas que envíes desde el botón principal aparecerán aquí.",
+  "myAlertsEmptyFilteredTitle": "Nada coincide con los filtros",
+  "myAlertsEmptyFilteredSubtitle": "Prueba a limpiar filtros o ajustar la búsqueda.",
+  "myAlertsFilters": "Filtros",
+  "myAlertsApplyFilters": "Aplicar",
+  "myAlertsClearFilters": "Limpiar",
+  "myAlertsAllCommunities": "Todas las comunidades",
+  "myAlertsEngagementFilter": "Vistas",
+  "myAlertsEngagementAll": "Todas",
+  "myAlertsEngagementSeen": "Con vistas",
+  "myAlertsEngagementNone": "Sin vistas",
+  "myAlertsSearchHint": "Buscar en mensaje o tipo",
+  "myAlertsSignInRequired": "Inicia sesión para ver tus alertas.",
+  "myAlertsFilterCommunitySection": "Comunidad",
+  "myAlertsFilterDateSection": "Fecha",
+  "myAlertsFilterStatusSection": "Estado",
+  "myAlertsFilterTypeSection": "Tipo de alerta",
+  "myAlertsPickStartDate": "Desde",
+  "myAlertsPickEndDate": "Hasta",
+  "myAlertsListCapHint": "Se muestran como máximo las {n} alertas más recientes enviadas desde este dispositivo.",
+  "@myAlertsListCapHint": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  }
 }

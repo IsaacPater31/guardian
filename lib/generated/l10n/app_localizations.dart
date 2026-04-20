@@ -2221,6 +2221,150 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Identificada'**
   String get identifiedAlert;
+
+  /// No description provided for @myAlertsStatisticsSectionLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial personal'**
+  String get myAlertsStatisticsSectionLabel;
+
+  /// No description provided for @myAlertsTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mis alertas'**
+  String get myAlertsTitle;
+
+  /// No description provided for @myAlertsProfileSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de alertas que enviaste'**
+  String get myAlertsProfileSubtitle;
+
+  /// No description provided for @myAlertsEmptyTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin alertas aún'**
+  String get myAlertsEmptyTitle;
+
+  /// No description provided for @myAlertsEmptySubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Las alertas que envíes desde el botón principal aparecerán aquí.'**
+  String get myAlertsEmptySubtitle;
+
+  /// No description provided for @myAlertsEmptyFilteredTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Nada coincide con los filtros'**
+  String get myAlertsEmptyFilteredTitle;
+
+  /// No description provided for @myAlertsEmptyFilteredSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Prueba a limpiar filtros o ajustar la búsqueda.'**
+  String get myAlertsEmptyFilteredSubtitle;
+
+  /// No description provided for @myAlertsFilters.
+  ///
+  /// In es, this message translates to:
+  /// **'Filtros'**
+  String get myAlertsFilters;
+
+  /// No description provided for @myAlertsApplyFilters.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar'**
+  String get myAlertsApplyFilters;
+
+  /// No description provided for @myAlertsClearFilters.
+  ///
+  /// In es, this message translates to:
+  /// **'Limpiar'**
+  String get myAlertsClearFilters;
+
+  /// No description provided for @myAlertsAllCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas las comunidades'**
+  String get myAlertsAllCommunities;
+
+  /// No description provided for @myAlertsEngagementFilter.
+  ///
+  /// In es, this message translates to:
+  /// **'Vistas'**
+  String get myAlertsEngagementFilter;
+
+  /// No description provided for @myAlertsEngagementAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas'**
+  String get myAlertsEngagementAll;
+
+  /// No description provided for @myAlertsEngagementSeen.
+  ///
+  /// In es, this message translates to:
+  /// **'Con vistas'**
+  String get myAlertsEngagementSeen;
+
+  /// No description provided for @myAlertsEngagementNone.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin vistas'**
+  String get myAlertsEngagementNone;
+
+  /// No description provided for @myAlertsSearchHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar en mensaje o tipo'**
+  String get myAlertsSearchHint;
+
+  /// No description provided for @myAlertsSignInRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Inicia sesión para ver tus alertas.'**
+  String get myAlertsSignInRequired;
+
+  /// No description provided for @myAlertsFilterCommunitySection.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad'**
+  String get myAlertsFilterCommunitySection;
+
+  /// No description provided for @myAlertsFilterDateSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha'**
+  String get myAlertsFilterDateSection;
+
+  /// No description provided for @myAlertsFilterStatusSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado'**
+  String get myAlertsFilterStatusSection;
+
+  /// No description provided for @myAlertsFilterTypeSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo de alerta'**
+  String get myAlertsFilterTypeSection;
+
+  /// No description provided for @myAlertsPickStartDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Desde'**
+  String get myAlertsPickStartDate;
+
+  /// No description provided for @myAlertsPickEndDate.
+  ///
+  /// In es, this message translates to:
+  /// **'Hasta'**
+  String get myAlertsPickEndDate;
+
+  /// No description provided for @myAlertsListCapHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Se muestran como máximo las {n} alertas más recientes enviadas desde este dispositivo.'**
+  String myAlertsListCapHint(int n);
 }
 
 class _AppLocalizationsDelegate

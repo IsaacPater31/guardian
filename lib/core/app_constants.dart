@@ -131,6 +131,9 @@ abstract final class AppFirestoreLimits {
   /// Map queries: max documents before location / permission client filters.
   /// Aligns with `QUERY_CONFIG.mapFetchLimit` on the web app.
   static const int mapAlerts = 1000;
+
+  /// "Mis alertas": newest documents for the current user (`userId` query).
+  static const int myAlerts = 200;
 }
 
 // ─── Deep-link / URL ─────────────────────────────────────────────────────────

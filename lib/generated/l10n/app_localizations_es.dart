@@ -1157,4 +1157,80 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get identifiedAlert => 'Identificada';
+
+  @override
+  String get myAlertsStatisticsSectionLabel => 'Historial personal';
+
+  @override
+  String get myAlertsTitle => 'Mis alertas';
+
+  @override
+  String get myAlertsProfileSubtitle => 'Historial de alertas que enviaste';
+
+  @override
+  String get myAlertsEmptyTitle => 'Sin alertas aún';
+
+  @override
+  String get myAlertsEmptySubtitle =>
+      'Las alertas que envíes desde el botón principal aparecerán aquí.';
+
+  @override
+  String get myAlertsEmptyFilteredTitle => 'Nada coincide con los filtros';
+
+  @override
+  String get myAlertsEmptyFilteredSubtitle =>
+      'Prueba a limpiar filtros o ajustar la búsqueda.';
+
+  @override
+  String get myAlertsFilters => 'Filtros';
+
+  @override
+  String get myAlertsApplyFilters => 'Aplicar';
+
+  @override
+  String get myAlertsClearFilters => 'Limpiar';
+
+  @override
+  String get myAlertsAllCommunities => 'Todas las comunidades';
+
+  @override
+  String get myAlertsEngagementFilter => 'Vistas';
+
+  @override
+  String get myAlertsEngagementAll => 'Todas';
+
+  @override
+  String get myAlertsEngagementSeen => 'Con vistas';
+
+  @override
+  String get myAlertsEngagementNone => 'Sin vistas';
+
+  @override
+  String get myAlertsSearchHint => 'Buscar en mensaje o tipo';
+
+  @override
+  String get myAlertsSignInRequired => 'Inicia sesión para ver tus alertas.';
+
+  @override
+  String get myAlertsFilterCommunitySection => 'Comunidad';
+
+  @override
+  String get myAlertsFilterDateSection => 'Fecha';
+
+  @override
+  String get myAlertsFilterStatusSection => 'Estado';
+
+  @override
+  String get myAlertsFilterTypeSection => 'Tipo de alerta';
+
+  @override
+  String get myAlertsPickStartDate => 'Desde';
+
+  @override
+  String get myAlertsPickEndDate => 'Hasta';
+
+  @override
+  String myAlertsListCapHint(int n) {
+    return 'Se muestran como máximo las $n alertas más recientes enviadas desde este dispositivo.';
+  }
 }

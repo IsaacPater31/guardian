@@ -226,6 +226,41 @@ class AlertRepository {
     }
   }
 
+  /// Stream of alerts created by the current user (newest first, capped).
+  ///
+  /// Requires a Firestore composite index on `alerts`: `userId` + `timestamp`.
+  Stream<List<AlertModel>> getMyAlertsStream() {
+    final uid = _userService.currentUserId;
+    if (uid == null) return Stream.value([]);
+
+    return _firestore
+        .collection(FirestoreCollections.alerts)
+        .where(AlertFields.userId, isEqualTo: uid)
+        .orderBy(AlertFields.timestamp, descending: true)
+        .limit(AppFirestoreLimits.myAlerts)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(AlertModel.fromFirestore).toList());
+  }
+
+  /// One-shot fetch of [getMyAlertsStream] shape (same cap).
+  Future<List<AlertModel>> getMyAlerts() async {
+    final uid = _userService.currentUserId;
+    if (uid == null) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection(FirestoreCollections.alerts)
+          .where(AlertFields.userId, isEqualTo: uid)
+          .orderBy(AlertFields.timestamp, descending: true)
+          .limit(AppFirestoreLimits.myAlerts)
+          .get();
+      return snapshot.docs.map(AlertModel.fromFirestore).toList();
+    } catch (e) {
+      AppLogger.e('AlertRepository.getMyAlerts', e);
+      return [];
+    }
+  }
+
   /// Reactive stream of recent alerts, filtered by user permissions.
   Stream<List<AlertModel>> getRecentAlertsStream() {
     final since = DateTime.now().subtract(AppDurations.alertFeedWindow);

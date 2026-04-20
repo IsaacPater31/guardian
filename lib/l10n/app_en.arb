@@ -429,5 +429,35 @@
   "swipeConfigSavePartial": "Some types could not be saved",
   "unknownCommunityFallback": "Community",
   "adminOnlyAddMembers": "Only a community admin can add members.",
-  "identifiedAlert": "Identified"
+  "identifiedAlert": "Identified",
+
+  "myAlertsStatisticsSectionLabel": "Personal history",
+  "myAlertsTitle": "My alerts",
+  "myAlertsProfileSubtitle": "History of alerts you sent",
+  "myAlertsEmptyTitle": "No alerts yet",
+  "myAlertsEmptySubtitle": "Alerts you send from the main button will appear here.",
+  "myAlertsEmptyFilteredTitle": "Nothing matches your filters",
+  "myAlertsEmptyFilteredSubtitle": "Try clearing filters or adjusting your search.",
+  "myAlertsFilters": "Filters",
+  "myAlertsApplyFilters": "Apply",
+  "myAlertsClearFilters": "Clear",
+  "myAlertsAllCommunities": "All communities",
+  "myAlertsEngagementFilter": "Views",
+  "myAlertsEngagementAll": "All",
+  "myAlertsEngagementSeen": "With views",
+  "myAlertsEngagementNone": "No views yet",
+  "myAlertsSearchHint": "Search message or type",
+  "myAlertsSignInRequired": "Sign in to see your alerts.",
+  "myAlertsFilterCommunitySection": "Community",
+  "myAlertsFilterDateSection": "Date",
+  "myAlertsFilterStatusSection": "Status",
+  "myAlertsFilterTypeSection": "Alert type",
+  "myAlertsPickStartDate": "From",
+  "myAlertsPickEndDate": "To",
+  "myAlertsListCapHint": "Up to the {n} most recent alerts you sent are shown.",
+  "@myAlertsListCapHint": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  }
 }
