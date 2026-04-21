@@ -138,6 +138,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emergencyRoadEmergency => 'Road Emergency';
 
   @override
+  String get emergencyHarassment => 'Harassment';
+
+  @override
   String get emergencyUrgency => 'Urgency';
 
   @override

@@ -7,7 +7,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 class EmergencyTypes {
   /// [alertType] guardado en Firestore para alertas de un toque (centro del botón).
   static const String quickAlertType = 'URGENCY';
-  /// Mapa con los 7 tipos de emergencia activos y sus configuraciones.
+  /// Mapa radial: una dirección de gesto → tipo (coincide con filtros web salvo URGENCY solo rápida).
   /// La dirección 'left' está reservada para la categoría de acoso.
   /// [defaultCommunityKeyword] — substring (en mayúsculas) del nombre de la
   /// comunidad que se pre-selecciona por defecto al enviar este tipo de alerta.
@@ -171,9 +171,7 @@ class EmergencyTypes {
       case 'ENVIRONMENTAL':  return localizations.emergencyEnvironmental;
       case 'ROAD_EMERGENCY': return localizations.emergencyRoadEmergency;
       case 'URGENCY':        return localizations.emergencyUrgency;
-      case 'HARASSMENT':
-        final code = Localizations.localeOf(context).languageCode;
-        return code == 'es' ? 'Acoso' : 'Harassment';
+      case 'HARASSMENT':     return localizations.emergencyHarassment;
       // Históricos (para detalle/feed de alertas antiguas)
       case 'STREET ESCORT':              return localizations.emergencyStreetEscort;
       case 'ROBBERY':                    return localizations.emergencyRobbery;

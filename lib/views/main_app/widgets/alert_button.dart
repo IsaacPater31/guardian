@@ -644,6 +644,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     String? selectedSubtype = subtypeOptions.isNotEmpty ? subtypeOptions.first.id : null;
     bool isAnonymous = false;
     final TextEditingController otherController = TextEditingController();
+    final FocusNode otherFocus = FocusNode();
     final List<String> photoPlaceholders = [];
 
     showDialog(
@@ -651,8 +652,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final requiresOtherDetail =
-              selectedSubtype != null && AlertDetailCatalog.subtypeRequiresDetail(emergencyType, selectedSubtype!);
+          final requiresOtherDetail = selectedSubtype != null &&
+              AlertDetailCatalog.subtypeRequiresDetail(emergencyType, selectedSubtype!);
 
           return Dialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -668,6 +669,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         IconButton(
                           onPressed: () {
                             Navigator.of(ctx).pop();
+                            otherFocus.dispose();
                             otherController.dispose();
                             _showCommunitySelectionDialog(emergencyType).then((selection) {
                               if (selection != null && selection.isNotEmpty && mounted) {
@@ -741,9 +743,17 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     ))
                                 .toList(),
                             onChanged: (value) {
+                              if (value == null) return;
                               setDialogState(() {
                                 selectedSubtype = value;
                               });
+                              if (value == AlertDetailCatalog.otherSubtypeId) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (otherFocus.canRequestFocus) {
+                                    otherFocus.requestFocus();
+                                  }
+                                });
+                              }
                             },
                             decoration: InputDecoration(
                               filled: true,
@@ -758,10 +768,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             const SizedBox(height: 12),
                             TextField(
                               controller: otherController,
+                              focusNode: otherFocus,
                               minLines: 2,
                               maxLines: 4,
+                              keyboardType: TextInputType.multiline,
+                              textCapitalization: TextCapitalization.sentences,
                               decoration: InputDecoration(
                                 labelText: 'Describe el caso',
+                                hintText: 'Especifica el detalle (obligatorio)',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -834,6 +848,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           child: OutlinedButton(
                             onPressed: () {
                               Navigator.of(ctx).pop();
+                              otherFocus.dispose();
                               otherController.dispose();
                               _hideEmergencyOptions();
                             },
@@ -858,6 +873,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               }
                               final customDetailValue = otherController.text.trim();
                               Navigator.of(ctx).pop();
+                              otherFocus.dispose();
                               otherController.dispose();
                               _hideEmergencyOptions();
                               _showSuccessSnackBar(

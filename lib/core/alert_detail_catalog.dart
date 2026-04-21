@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 ///
 /// This catalog is intentionally local and editable so product/operations can
 /// add, remove, or rename categories/subtypes without rewriting UI logic.
+///
+/// Web parity: use the same `alertType` / subtype `id` strings as in the webapp
+/// (`src/config/alertTypes.js`, `src/utils/alertSubtype.js`) so Firestore reads match both clients.
 class AlertDetailCatalog {
   static const String health = 'HEALTH';
   static const String homeHelp = 'HOME_HELP';
@@ -149,11 +152,10 @@ class AlertDetailCatalog {
   static bool supportsDetailStep(String alertType) => categories.containsKey(alertType);
 
   static bool subtypeRequiresDetail(String alertType, String subtypeId) {
-    final subtype = getSubtypes(alertType).cast<AlertSubtypeOption?>().firstWhere(
-          (option) => option?.id == subtypeId,
-          orElse: () => null,
-        );
-    return subtype?.requiresDetail ?? false;
+    for (final option in getSubtypes(alertType)) {
+      if (option.id == subtypeId) return option.requiresDetail;
+    }
+    return false;
   }
 
   static IconData getCategoryIcon(String alertType) {
