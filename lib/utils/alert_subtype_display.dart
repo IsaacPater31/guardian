@@ -84,6 +84,10 @@ class AlertSubtypeDisplay {
       'DISABILITY_SUPPORT': 'Disability support',
       AlertDetailCatalog.otherSubtypeId: 'Other',
     },
+    AlertDetailCatalog.harassment: {
+      'HARASSMENT': 'Harassment',
+      AlertDetailCatalog.otherSubtypeId: 'Other',
+    },
   };
 
   static String _humanizeId(String id) {

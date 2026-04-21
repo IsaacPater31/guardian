@@ -168,7 +168,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     // AlertController.sendQuickAlert fetches destinations from QuickAlertConfigService
     // internally and sends to all of them in a single batch — just call it once.
     final ok = await _alertController.sendQuickAlert(
-      alertType: 'HEALTH',
+      alertType: EmergencyTypes.quickAlertType,
       isAnonymous: false,
     );
     final int successCount = ok ? destinations.length : 0;

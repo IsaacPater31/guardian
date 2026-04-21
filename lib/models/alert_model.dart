@@ -98,10 +98,17 @@ class AlertModel {
 
     final communityIds = parseCommunityIds(data);
 
+    final flowType = data['type'] as String? ?? '';
+    var alertType = data['alertType'] as String? ?? '';
+    // Legacy one-tap quick alerts were stored as HEALTH; normalize to URGENCY.
+    if (flowType == 'quick' && alertType == 'HEALTH') {
+      alertType = 'URGENCY';
+    }
+
     return AlertModel(
       id: doc.id,
-      type: data['type'] ?? '',
-      alertType: data['alertType'] ?? '',
+      type: flowType,
+      alertType: alertType,
       description: data['description'],
       subtype: data['subtype'],
       customDetail: data['custom_detail'],

@@ -3,10 +3,12 @@ import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Clase centralizada para manejar todos los tipos de emergencia.
-/// 7 tipos activos mapeados en el menú radial de swipe.
+/// Tipos del menú radial de swipe + tipos solo envío (p. ej. alerta rápida).
 class EmergencyTypes {
+  /// [alertType] guardado en Firestore para alertas de un toque (centro del botón).
+  static const String quickAlertType = 'URGENCY';
   /// Mapa con los 7 tipos de emergencia activos y sus configuraciones.
-  /// La dirección 'left' no tiene mapeo — queda sin label en el radial menu.
+  /// La dirección 'left' está reservada para la categoría de acoso.
   /// [defaultCommunityKeyword] — substring (en mayúsculas) del nombre de la
   /// comunidad que se pre-selecciona por defecto al enviar este tipo de alerta.
   /// null = sin comunidad sugerida (el usuario debe configurarla en Ajustes).
@@ -53,6 +55,12 @@ class EmergencyTypes {
       'color': Color(0xFFFF7043),
       'defaultCommunityKeyword': 'TRANSITO',
     },
+    'left': {
+      'type': AlertDetailCatalog.harassment,
+      'icon': Icons.shield,
+      'color': Color(0xFFEC407A),
+      'defaultCommunityKeyword': null,
+    },
   };
 
   // ── Compatibilidad histórica: getIcon / getColor cubren tipos viejos ──────
@@ -68,6 +76,8 @@ class EmergencyTypes {
       case 'ACCOMPANIMENT':   return Icons.people;
       case 'ENVIRONMENTAL':   return Icons.nature_people;
       case 'ROAD_EMERGENCY':  return Icons.directions_car;
+      case 'HARASSMENT':      return Icons.shield;
+      case 'URGENCY':         return Icons.emergency;
       // Tipos históricos (para mostrar alertas antiguas en feed/mapa)
       case 'ROBBERY':                    return Icons.person_off;
       case 'ACCIDENT':                   return Icons.car_crash;
@@ -93,6 +103,8 @@ class EmergencyTypes {
       case 'ACCOMPANIMENT':   return const Color(0xFF8E24AA);
       case 'ENVIRONMENTAL':   return const Color(0xFF43A047);
       case 'ROAD_EMERGENCY':  return const Color(0xFFFF7043);
+      case 'HARASSMENT':      return const Color(0xFFEC407A);
+      case 'URGENCY':         return const Color(0xFFF44336);
       // Tipos históricos
       case 'ROBBERY':                   return const Color(0xFF9C27B0);
       case 'ACCIDENT':
@@ -134,9 +146,15 @@ class EmergencyTypes {
   /// Obtiene todas las direcciones disponibles
   static List<String> get allDirections => types.keys.toList();
 
-  /// Obtiene todos los tipos activos (nuevos 7)
+  /// Tipos con paso de detalle por swipe (configuración “Alertas por tipo”).
   static List<String> get allTypes =>
       AlertDetailCatalog.supportedAlertTypes;
+
+  /// Tipos que pueden aparecer en filtros (swipe + alerta rápida).
+  static List<String> get allTypesForFilters => [
+        ...allTypes,
+        quickAlertType,
+      ];
 
   /// Obtiene el tipo de emergencia traducido
   static String getTranslatedType(String type, BuildContext context) {
@@ -152,6 +170,10 @@ class EmergencyTypes {
       case 'ACCOMPANIMENT':  return localizations.emergencyAccompaniment;
       case 'ENVIRONMENTAL':  return localizations.emergencyEnvironmental;
       case 'ROAD_EMERGENCY': return localizations.emergencyRoadEmergency;
+      case 'URGENCY':        return localizations.emergencyUrgency;
+      case 'HARASSMENT':
+        final code = Localizations.localeOf(context).languageCode;
+        return code == 'es' ? 'Acoso' : 'Harassment';
       // Históricos (para detalle/feed de alertas antiguas)
       case 'STREET ESCORT':              return localizations.emergencyStreetEscort;
       case 'ROBBERY':                    return localizations.emergencyRobbery;

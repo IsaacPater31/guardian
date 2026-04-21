@@ -679,7 +679,7 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final types = EmergencyTypes.allTypes;
+    final types = EmergencyTypes.allTypesForFilters;
     final communityIds = widget.communities
         .map((m) => m['id'] as String?)
         .whereType<String>()

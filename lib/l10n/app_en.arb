@@ -45,6 +45,7 @@
   "emergencyAccompaniment": "Accompaniment",
   "emergencyEnvironmental": "Environmental",
   "emergencyRoadEmergency": "Road Emergency",
+  "emergencyUrgency": "Urgency",
   "emergencyRobbery": "Robbery Reported",
   "emergencyFire": "Fire Reported",
   "emergencyAccident": "Accident Reported",

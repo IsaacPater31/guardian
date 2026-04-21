@@ -12,6 +12,7 @@ class AlertDetailCatalog {
   static const String roadEmergency = 'ROAD_EMERGENCY';
   static const String environmental = 'ENVIRONMENTAL';
   static const String accompaniment = 'ACCOMPANIMENT';
+  static const String harassment = 'HARASSMENT';
   static const String otherSubtypeId = 'OTHER';
 
   static const List<String> supportedAlertTypes = [
@@ -22,6 +23,7 @@ class AlertDetailCatalog {
     roadEmergency,
     environmental,
     accompaniment,
+    harassment,
   ];
 
   static const Map<String, AlertCategoryDetailConfig> categories = {
@@ -129,6 +131,14 @@ class AlertDetailCatalog {
         AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
       ],
     ),
+    harassment: AlertCategoryDetailConfig(
+      alertType: harassment,
+      fallbackTitle: 'Acoso',
+      subtypes: [
+        AlertSubtypeOption(id: 'HARASSMENT', label: 'Acoso'),
+        AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
+      ],
+    ),
   };
 
   static AlertCategoryDetailConfig? getCategory(String alertType) => categories[alertType];
@@ -162,6 +172,8 @@ class AlertDetailCatalog {
         return Icons.nature_people;
       case roadEmergency:
         return Icons.directions_car;
+      case harassment:
+        return Icons.shield_rounded;
       default:
         return Icons.warning;
     }

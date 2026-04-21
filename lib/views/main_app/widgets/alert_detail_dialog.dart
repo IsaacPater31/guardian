@@ -1314,6 +1314,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       case 'ACCOMPANIMENT':return Icons.people_rounded;
       case 'ENVIRONMENTAL':return Icons.eco_rounded;
       case 'ROAD_EMERGENCY': return Icons.directions_car_rounded;
+      case 'URGENCY':      return Icons.emergency_rounded;
+      case 'HARASSMENT':   return Icons.shield_rounded;
       case 'ROBBERY':      return Icons.person_off_rounded;
       case 'ACCIDENT':     return Icons.car_crash_rounded;
       case 'STREET ESCORT':return Icons.people_rounded;
@@ -1336,6 +1338,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       case 'ACCOMPANIMENT':return const Color(0xFF8E24AA);
       case 'ENVIRONMENTAL':return const Color(0xFF43A047);
       case 'ROAD_EMERGENCY':return const Color(0xFFFF7043);
+      case 'URGENCY':     return const Color(0xFFF44336);
+      case 'HARASSMENT':  return const Color(0xFFEC407A);
       case 'ROBBERY':      return const Color(0xFF9C27B0);
       case 'EMERGENCY':    return const Color(0xFFF44336);
       case 'ACCIDENT':     return const Color(0xFFFF9800);

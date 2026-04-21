@@ -171,7 +171,7 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
   @override
   Widget build(BuildContext context) {
     // Lista de tipos únicos del sistema de emergencias
-    final allTypes = EmergencyTypes.allTypes;
+    final allTypes = EmergencyTypes.allTypesForFilters;
 
     return Container(
       decoration: const BoxDecoration(
