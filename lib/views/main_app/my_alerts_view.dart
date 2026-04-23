@@ -225,7 +225,14 @@ class _MyAlertsViewState extends State<MyAlertsView> {
 
   Future<void> _onRefresh() async {
     final fresh = await _repository.getMyAlerts();
-    if (mounted) setState(() => _alerts = fresh);
+    if (!mounted) return;
+
+    // Avoid wiping a valid list due to transient fetch issues.
+    if (fresh.isEmpty && _alerts.isNotEmpty) {
+      _subscribe();
+      return;
+    }
+    setState(() => _alerts = fresh);
   }
 
   @override

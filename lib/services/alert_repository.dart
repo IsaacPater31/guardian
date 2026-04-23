@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
@@ -231,30 +233,115 @@ class AlertRepository {
   /// Requires a Firestore composite index on `alerts`: `userId` + `timestamp`.
   Stream<List<AlertModel>> getMyAlertsStream() {
     final uid = _userService.currentUserId;
-    if (uid == null) return Stream.value([]);
+    final email = _userService.currentUserEmail?.trim().toLowerCase();
+    if (uid == null && (email == null || email.isEmpty)) {
+      return Stream.value([]);
+    }
 
-    return _firestore
-        .collection(FirestoreCollections.alerts)
-        .where(AlertFields.userId, isEqualTo: uid)
-        .orderBy(AlertFields.timestamp, descending: true)
-        .limit(AppFirestoreLimits.myAlerts)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map(AlertModel.fromFirestore).toList());
+    QuerySnapshot<Map<String, dynamic>>? byIdSnapshot;
+    QuerySnapshot<Map<String, dynamic>>? byEmailSnapshot;
+
+    List<AlertModel> mergeSnapshots() {
+      final dedup = <String, AlertModel>{};
+
+      final byIdDocs =
+          byIdSnapshot?.docs ?? const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+      final byEmailDocs = byEmailSnapshot?.docs ??
+          const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+      for (final doc in [...byIdDocs, ...byEmailDocs]) {
+        dedup[doc.id] = AlertModel.fromFirestore(doc);
+      }
+
+      final merged = dedup.values.toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return merged.take(AppFirestoreLimits.myAlerts).toList();
+    }
+
+    return Stream.multi((controller) {
+      final subs = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+
+      if (uid != null) {
+        subs.add(
+          _firestore
+              .collection(FirestoreCollections.alerts)
+              .where(AlertFields.userId, isEqualTo: uid)
+              .orderBy(AlertFields.timestamp, descending: true)
+              .limit(AppFirestoreLimits.myAlerts)
+              .snapshots()
+              .listen(
+            (snapshot) {
+              byIdSnapshot = snapshot;
+              controller.add(mergeSnapshots());
+            },
+            onError: controller.addError,
+          ),
+        );
+      }
+
+      if (email != null && email.isNotEmpty) {
+        subs.add(
+          _firestore
+              .collection(FirestoreCollections.alerts)
+              .where(AlertFields.userEmail, isEqualTo: email)
+              .orderBy(AlertFields.timestamp, descending: true)
+              .limit(AppFirestoreLimits.myAlerts)
+              .snapshots()
+              .listen(
+            (snapshot) {
+              byEmailSnapshot = snapshot;
+              controller.add(mergeSnapshots());
+            },
+            onError: controller.addError,
+          ),
+        );
+      }
+
+      controller.onCancel = () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      };
+    });
   }
 
   /// One-shot fetch of [getMyAlertsStream] shape (same cap).
   Future<List<AlertModel>> getMyAlerts() async {
     final uid = _userService.currentUserId;
-    if (uid == null) return [];
+    final email = _userService.currentUserEmail?.trim().toLowerCase();
+    if (uid == null && (email == null || email.isEmpty)) return [];
 
     try {
-      final snapshot = await _firestore
-          .collection(FirestoreCollections.alerts)
-          .where(AlertFields.userId, isEqualTo: uid)
-          .orderBy(AlertFields.timestamp, descending: true)
-          .limit(AppFirestoreLimits.myAlerts)
-          .get();
-      return snapshot.docs.map(AlertModel.fromFirestore).toList();
+      final byIdFuture = uid == null
+          ? Future.value(const <QueryDocumentSnapshot<Map<String, dynamic>>>[])
+          : _firestore
+              .collection(FirestoreCollections.alerts)
+              .where(AlertFields.userId, isEqualTo: uid)
+              .orderBy(AlertFields.timestamp, descending: true)
+              .limit(AppFirestoreLimits.myAlerts)
+              .get()
+              .then((snapshot) => snapshot.docs);
+
+      final byEmailFuture = (email == null || email.isEmpty)
+          ? Future.value(const <QueryDocumentSnapshot<Map<String, dynamic>>>[])
+          : _firestore
+              .collection(FirestoreCollections.alerts)
+              .where(AlertFields.userEmail, isEqualTo: email)
+              .orderBy(AlertFields.timestamp, descending: true)
+              .limit(AppFirestoreLimits.myAlerts)
+              .get()
+              .then((snapshot) => snapshot.docs);
+
+      final results = await Future.wait([byIdFuture, byEmailFuture]);
+      final dedup = <String, AlertModel>{};
+
+      for (final doc in results.expand((docs) => docs)) {
+        dedup[doc.id] = AlertModel.fromFirestore(doc);
+      }
+
+      final alerts = dedup.values.toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return alerts.take(AppFirestoreLimits.myAlerts).toList();
     } catch (e) {
       AppLogger.e('AlertRepository.getMyAlerts', e);
       return [];
