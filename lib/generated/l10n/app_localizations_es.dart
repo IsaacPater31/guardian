@@ -1404,6 +1404,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get removeAudio => 'Quitar audio';
 
   @override
+  String get attachmentListenPreview => 'Escuchar';
+
+  @override
+  String get attachmentPausePreview => 'Pausar';
+
+  @override
   String get selectSubtypeRequired => 'Selecciona un subtipo para continuar';
 
   @override

@@ -524,6 +524,8 @@
   "stopRecording": "Detener",
   "startRecording": "Grabar",
   "removeAudio": "Quitar audio",
+  "attachmentListenPreview": "Escuchar",
+  "attachmentPausePreview": "Pausar",
   "selectSubtypeRequired": "Selecciona un subtipo para continuar",
   "describeOtherCaseRequired": "Describe el caso para la opción Otro",
 

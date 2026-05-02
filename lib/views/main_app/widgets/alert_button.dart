@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:record/record.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/handlers/alert_handler.dart';
@@ -50,7 +51,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   /// Lienzo amplio: [FittedBox] lo reduce para caber en pantalla → efecto “zoom alejado”
   /// en todas las resoluciones (más aire izquierda/derecha, menos amontonado).
-  static const double _kRadialCanvas = 448.0;
+  /// Lienzo lógico del menú radial; `FittedBox` lo escala al `Expanded` de la home.
+  static const double _kRadialCanvas = 472.0;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -968,19 +970,85 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 ),
                                 if (pickedImages.isNotEmpty) ...[
                                   const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      for (var i = 0; i < pickedImages.length; i++)
-                                        InputChip(
-                                          label: Text(l10n.photoChipLabel(i + 1), style: const TextStyle(fontSize: 12)),
-                                          deleteIcon: const Icon(Icons.close, size: 16),
-                                          onDeleted: () {
-                                            setDialogState(() => pickedImages.removeAt(i));
-                                          },
-                                        ),
-                                    ],
+                                  SizedBox(
+                                    height: 88,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: pickedImages.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                      itemBuilder: (context, i) {
+                                        final path = pickedImages[i].path;
+                                        return Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Material(
+                                              color: Colors.transparent,
+                                              child: InkWell(
+                                                onTap: () {
+                                                  showDialog<void>(
+                                                    context: context,
+                                                    builder: (c) => Dialog(
+                                                      backgroundColor: Colors.black,
+                                                      insetPadding: const EdgeInsets.all(16),
+                                                      child: InteractiveViewer(
+                                                        minScale: 0.5,
+                                                        maxScale: 4,
+                                                        child: Image.file(
+                                                          File(path),
+                                                          fit: BoxFit.contain,
+                                                          errorBuilder: (_, __, ___) => Padding(
+                                                            padding: const EdgeInsets.all(24),
+                                                            child: Icon(Icons.broken_image_outlined,
+                                                                color: Colors.grey[400], size: 48),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                borderRadius: BorderRadius.circular(10),
+                                                child: Tooltip(
+                                                  message: l10n.photoChipLabel(i + 1),
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    child: SizedBox(
+                                                      width: 80,
+                                                      height: 80,
+                                                      child: Image.file(
+                                                        File(path),
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (_, __, ___) => ColoredBox(
+                                                          color: Colors.grey.shade300,
+                                                          child: Icon(Icons.broken_image_outlined,
+                                                              color: Colors.grey.shade600),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: -4,
+                                              right: -4,
+                                              child: Material(
+                                                color: Colors.black87,
+                                                shape: const CircleBorder(),
+                                                clipBehavior: Clip.antiAlias,
+                                                child: InkWell(
+                                                  onTap: () => setDialogState(() => pickedImages.removeAt(i)),
+                                                  customBorder: const CircleBorder(),
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.all(4),
+                                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ],
                                 const SizedBox(height: 12),
@@ -1024,6 +1092,18 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                       ),
                                   ],
                                 ),
+                                if (audioFile != null) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: _LocalAudioPreview(
+                                      key: ValueKey(audioFile!.path),
+                                      file: audioFile!,
+                                      listenLabel: l10n.attachmentListenPreview,
+                                      pauseLabel: l10n.attachmentPausePreview,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1324,10 +1404,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   EdgeInsets _radialSafePadding(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
     final h = MediaQuery.sizeOf(context).height;
-    // Menos margen horizontal → el FittedBox puede usar más ancho útil (más “aire” lateral).
-    final hx = w < 360 ? 6.0 : w < 420 ? 10.0 : 14.0;
-    final vyTop = h < 520 ? 8.0 : 12.0;
-    final vyBottom = 6.0;
+    // Menos margen en pantallas amplias → el radial escala un poco más grande.
+    final hx = w < 360 ? 6.0 : w < 420 ? 9.0 : w < 600 ? 11.0 : 10.0;
+    final vyTop = h < 520 ? 6.0 : h < 700 ? 10.0 : 12.0;
+    final vyBottom = h < 520 ? 4.0 : 8.0;
     return EdgeInsets.fromLTRB(hx, vyTop, hx, vyBottom);
   }
 
@@ -1590,13 +1670,13 @@ class _RadialMenu extends StatelessWidget {
     final isTiny = shortestSide < 340;
     final isCompact = shortestSide >= 340 && shortestSide < 400;
 
-    final btnFrac = isTiny ? 0.195 : (isCompact ? 0.22 : 0.245);
-    final btnSize = (available * btnFrac).clamp(50.0, 112.0);
+    final btnFrac = isTiny ? 0.205 : (isCompact ? 0.235 : 0.265);
+    final btnSize = (available * btnFrac).clamp(52.0, 124.0);
 
     var labelW =
-        (available * (isTiny ? 0.31 : 0.275)).clamp(76.0, 128.0);
+        (available * (isTiny ? 0.32 : 0.285)).clamp(76.0, 134.0);
     final labelH =
-        (available * (isTiny ? 0.265 : 0.235)).clamp(58.0, 96.0);
+        (available * (isTiny ? 0.27 : 0.242)).clamp(58.0, 100.0);
     labelW = math.min(labelW, availableWidth * 0.44);
 
     final innerEdge = btnSize / 2 + 2.0;
@@ -1717,12 +1797,12 @@ class _RadialMenu extends StatelessWidget {
     final dx = orbit * math.cos(angle);
     final dy = orbit * math.sin(angle);
 
-    final iconSz = (labelH * 0.40).clamp(22.0, 36.0);
+    final iconSz = (labelH * 0.40).clamp(22.0, 38.0);
     final textTargetSize = isTinyLayout
         ? 12.0
         : isCompactLayout
-            ? 13.0
-            : 14.5;
+            ? 13.25
+            : 15.0;
     final radius = (labelH * 0.22).clamp(14.0, 22.0);
     final hPad = (labelW * 0.055).clamp(4.0, 8.0);
     // Reserva para borde decorativo (el hijo no debe superar el rect interior).
@@ -2055,6 +2135,66 @@ class _CenterButtonState extends State<_CenterButton>
           ],
         ),
       ),
+    );
+  }
+}
+
+// =============================================================================
+// _LocalAudioPreview — play/stop for recorded attachment before send
+// =============================================================================
+
+class _LocalAudioPreview extends StatefulWidget {
+  final File file;
+  final String listenLabel;
+  final String pauseLabel;
+
+  const _LocalAudioPreview({
+    super.key,
+    required this.file,
+    required this.listenLabel,
+    required this.pauseLabel,
+  });
+
+  @override
+  State<_LocalAudioPreview> createState() => _LocalAudioPreviewState();
+}
+
+class _LocalAudioPreviewState extends State<_LocalAudioPreview> {
+  late final AudioPlayer _player = AudioPlayer();
+  bool _playing = false;
+  StreamSubscription<void>? _completeSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _completeSub = _player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _completeSub?.cancel();
+    unawaited(_player.dispose());
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_playing) {
+      await _player.stop();
+      if (mounted) setState(() => _playing = false);
+    } else {
+      await _player.play(DeviceFileSource(widget.file.path));
+      if (mounted) setState(() => _playing = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: _toggle,
+      icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 20),
+      label: Text(_playing ? widget.pauseLabel : widget.listenLabel),
     );
   }
 }

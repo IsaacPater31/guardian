@@ -140,31 +140,28 @@ class _HomeViewState extends State<HomeView> {
     super.dispose();
   }
 
-  /// Altura del bloque "Alertas recientes": debe caber al menos una tarjeta
-  /// completa (cabecera de sección + fila de título + chips) sin recortes.
+  /// Altura del bloque "Alertas recientes": compacto; cabe cabecera + ~1 tarjeta
+  /// densa y el resto con scroll. Libera espacio para el botón de emergencia.
   double _recentAlertsPanelHeight(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height;
     final w = MediaQuery.sizeOf(context).width;
-    // Fracción del alto útil; en anchos pequeños no se penaliza el panel
-    // (antes 0.18–0.22 dejaba ~130–170 px y la lista quedaba inusable).
     final fraction = w < 360
-        ? 0.34
+        ? 0.24
         : w < 420
-            ? 0.32
+            ? 0.21
             : w < 600
-                ? 0.30
-                : 0.28;
+                ? 0.18
+                : 0.16;
     final desiredMin = w < 360
-        ? 232.0
+        ? 156.0
         : w < 420
-            ? 216.0
-            : 200.0;
+            ? 150.0
+            : 144.0;
     if (h < 520) {
-      // Landscape u orientaciones muy bajas: no forzar más del 38% del alto.
-      final cap = h * 0.38;
-      return math.min(cap, math.max(168.0, h * fraction));
+      final cap = h * 0.32;
+      return math.min(cap, math.max(140.0, h * fraction));
     }
-    final maxPanel = math.min(320.0, h * 0.42);
+    final maxPanel = math.min(232.0, h * 0.28);
     final minPanel = math.min(desiredMin, maxPanel);
     return (h * fraction).clamp(minPanel, maxPanel);
   }
@@ -318,13 +315,15 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildRecentAlertsSection({required double panelHeight}) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmall = screenWidth < 360;
-    final isCompact = isSmall || screenWidth < 420 || panelHeight < 248;
-    final horizontalInset = isSmall ? 10.0 : 20.0;
-    final verticalInset = isCompact ? 8.0 : 20.0;
-    final sectionPaddingH = isSmall ? 12.0 : 18.0;
-    final sectionPaddingV = isCompact ? 10.0 : 16.0;
-    final titleFontSize = isSmall ? 15.0 : (isCompact ? 16.0 : 18.0);
-    final iconSize = isSmall ? 17.0 : 20.0;
+    // Panel siempre “denso”: tipografía pequeña y tarjetas bajas; scroll para el resto.
+    final isCompact = true;
+    final dense = panelHeight < 255;
+    final horizontalInset = isSmall ? 10.0 : 16.0;
+    final verticalInset = dense ? 6.0 : (isSmall ? 8.0 : 12.0);
+    final sectionPaddingH = isSmall ? 10.0 : 14.0;
+    final sectionPaddingV = dense ? 8.0 : 10.0;
+    final titleFontSize = isSmall ? 13.0 : 14.0;
+    final iconSize = isSmall ? 15.0 : 17.0;
     final filtered = _filteredAlerts;
 
     return Container(
@@ -355,7 +354,7 @@ class _HomeViewState extends State<HomeView> {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isSmall ? 6 : 8),
+                padding: EdgeInsets.all(isSmall ? 5 : 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE3F2FD),
                   borderRadius: BorderRadius.circular(8),
@@ -391,7 +390,7 @@ class _HomeViewState extends State<HomeView> {
                     style: const TextStyle(
                       color: Colors.red,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: 11,
                     ),
                   ),
                 ),
@@ -404,8 +403,8 @@ class _HomeViewState extends State<HomeView> {
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeInOut,
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmall ? 8 : 11,
-                    vertical: isSmall ? 6 : 7,
+                    horizontal: isSmall ? 7 : 9,
+                    vertical: isSmall ? 5 : 6,
                   ),
                   decoration: BoxDecoration(
                     color: _showingOwn
@@ -428,7 +427,7 @@ class _HomeViewState extends State<HomeView> {
                               ? Icons.arrow_circle_up_rounded
                               : Icons.arrow_circle_down_rounded,
                           key: ValueKey(_showingOwn),
-                          size: isSmall ? 18 : 20,
+                          size: isSmall ? 16 : 18,
                           color: _showingOwn
                               ? const Color(0xFF007AFF)
                               : Colors.grey[600],
@@ -441,23 +440,23 @@ class _HomeViewState extends State<HomeView> {
             ],
           ),
 
-          SizedBox(height: isCompact ? 8 : 16),
+          SizedBox(height: dense ? 6 : 8),
 
           Expanded(
             child: _isLoading
-                ? _buildLoadingState(compact: isCompact)
+                ? _buildLoadingState(compact: isCompact, dense: dense)
                 : filtered.isEmpty
-                    ? _buildNoAlertsState(compact: isCompact)
-                    : _buildAlertsList(filtered, compact: isCompact),
+                    ? _buildNoAlertsState(compact: isCompact, dense: dense)
+                    : _buildAlertsList(filtered, compact: isCompact, dense: dense),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLoadingState({bool compact = false}) {
+  Widget _buildLoadingState({bool compact = false, bool dense = false}) {
     return Container(
-      padding: EdgeInsets.all(compact ? 14 : 24),
+      padding: EdgeInsets.all(dense ? 10 : (compact ? 12 : 24)),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
@@ -465,17 +464,17 @@ class _HomeViewState extends State<HomeView> {
       ),
       child: Row(
         children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+          SizedBox(
+            width: dense ? 16 : 20,
+            height: dense ? 16 : 20,
+            child: CircularProgressIndicator(strokeWidth: dense ? 1.75 : 2),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: dense ? 8 : 12),
           Expanded(
             child: Text(
               AppLocalizations.of(context)!.loading,
               style: TextStyle(
-                fontSize: compact ? 13 : 14,
+                fontSize: dense ? 11.5 : (compact ? 12.5 : 14),
                 color: const Color(0xFF6B7280),
               ),
               maxLines: 1,
@@ -487,29 +486,29 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildNoAlertsState({bool compact = false}) {
+  Widget _buildNoAlertsState({bool compact = false, bool dense = false}) {
     return Center(
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 8 : 12,
-          vertical: compact ? 4 : 6,
+          horizontal: dense ? 6 : (compact ? 8 : 12),
+          vertical: dense ? 2 : (compact ? 4 : 6),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.check_circle_outline,
-              size: compact ? 22 : 24,
+              size: dense ? 18 : (compact ? 20 : 24),
               color: Colors.grey[400],
             ),
-            const SizedBox(width: 10),
+            SizedBox(width: dense ? 8 : 10),
             Flexible(
               child: Text(
                 _showingOwn
                     ? 'No has enviado alertas recientes'
                     : AppLocalizations.of(context)!.noRecentAlerts,
                 style: TextStyle(
-                  fontSize: compact ? 12 : 13,
+                  fontSize: dense ? 11 : (compact ? 11.5 : 13),
                   fontWeight: FontWeight.w500,
                   color: Colors.grey[500],
                 ),
@@ -524,7 +523,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildAlertsList(List<AlertModel> alerts, {bool compact = false}) {
+  Widget _buildAlertsList(List<AlertModel> alerts, {bool compact = false, bool dense = false}) {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _isLoading = true);
@@ -555,7 +554,7 @@ class _HomeViewState extends State<HomeView> {
             duration: Duration(milliseconds: 200 + (index * 50).clamp(0, 300)),
             curve: Curves.easeOut,
             builder: (context, value, child) => Opacity(opacity: value, child: child),
-            child: _buildAlertCard(alert, compact: compact),
+            child: _buildAlertCard(alert, compact: compact, dense: dense),
           );
         },
       ),
@@ -572,7 +571,7 @@ class _HomeViewState extends State<HomeView> {
 
 
 
-  Widget _buildAlertCard(AlertModel alert, {bool compact = false}) {
+  Widget _buildAlertCard(AlertModel alert, {bool compact = false, bool dense = false}) {
     final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
@@ -580,19 +579,19 @@ class _HomeViewState extends State<HomeView> {
     final statusColor =
         isAttended ? const Color(0xFF34C759) : const Color(0xFFFF9F0A);
 
-    final iconBox = compact ? 6.0 : 8.0;
-    final iconGraphic = compact ? 18.0 : 20.0;
-    final gap = compact ? 8.0 : 12.0;
-    final titleSize = compact ? 13.0 : 14.0;
-    final descSize = compact ? 12.0 : 13.0;
-    final cardPad = compact ? 10.0 : 16.0;
-    final bottomMargin = compact ? 8.0 : 12.0;
+    final iconBox = dense ? 5.0 : (compact ? 6.0 : 8.0);
+    final iconGraphic = dense ? 16.0 : (compact ? 17.5 : 20.0);
+    final gap = dense ? 6.0 : (compact ? 8.0 : 12.0);
+    final titleSize = dense ? 11.5 : (compact ? 12.5 : 14.0);
+    final descSize = dense ? 10.5 : (compact ? 11.5 : 13.0);
+    final cardPad = dense ? 7.0 : (compact ? 9.0 : 16.0);
+    final bottomMargin = dense ? 6.0 : (compact ? 7.0 : 12.0);
 
     Widget statusBadge() {
       return Container(
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 5 : 6,
-          vertical: compact ? 2 : 3,
+          horizontal: dense ? 4 : (compact ? 5 : 6),
+          vertical: dense ? 1.5 : (compact ? 2 : 3),
         ),
         decoration: BoxDecoration(
           color: statusColor.withValues(alpha: 0.12),
@@ -607,14 +606,14 @@ class _HomeViewState extends State<HomeView> {
           children: [
             Icon(
               isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded,
-              size: compact ? 9 : 10,
+              size: dense ? 8 : (compact ? 9 : 10),
               color: statusColor,
             ),
-            SizedBox(width: compact ? 2 : 3),
+            SizedBox(width: dense ? 2 : (compact ? 2 : 3)),
             Text(
               isAttended ? 'Atendida' : 'No atendida',
               style: TextStyle(
-                fontSize: compact ? 9 : 10,
+                fontSize: dense ? 8 : (compact ? 9 : 10),
                 fontWeight: FontWeight.w600,
                 color: statusColor,
               ),
@@ -635,7 +634,7 @@ class _HomeViewState extends State<HomeView> {
           child: Text(
             AppLocalizations.of(context)!.locationTag,
             style: TextStyle(
-              fontSize: compact ? 9 : 10,
+              fontSize: dense ? 8 : (compact ? 9 : 10),
               color: Colors.green,
               fontWeight: FontWeight.w500,
             ),
@@ -651,7 +650,7 @@ class _HomeViewState extends State<HomeView> {
           child: Text(
             AppLocalizations.of(context)!.anonymousTag,
             style: TextStyle(
-              fontSize: compact ? 9 : 10,
+              fontSize: dense ? 8 : (compact ? 9 : 10),
               color: Colors.orange,
               fontWeight: FontWeight.w500,
             ),
@@ -667,7 +666,7 @@ class _HomeViewState extends State<HomeView> {
           child: Text(
             '👁️ ${alert.viewedCount}',
             style: TextStyle(
-              fontSize: compact ? 9 : 10,
+              fontSize: dense ? 8 : (compact ? 9 : 10),
               color: Colors.blue,
               fontWeight: FontWeight.w500,
             ),
@@ -683,12 +682,12 @@ class _HomeViewState extends State<HomeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.forward, size: compact ? 9 : 10, color: Colors.blue[700]),
+              Icon(Icons.forward, size: dense ? 8 : (compact ? 9 : 10), color: Colors.blue[700]),
               const SizedBox(width: 2),
               Text(
                 '${alert.forwardsCount}',
                 style: TextStyle(
-                  fontSize: compact ? 9 : 10,
+                  fontSize: dense ? 8 : (compact ? 9 : 10),
                   color: Colors.blue[700],
                   fontWeight: FontWeight.w500,
                 ),
@@ -706,12 +705,12 @@ class _HomeViewState extends State<HomeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.report, size: compact ? 9 : 10, color: Colors.orange[700]),
+              Icon(Icons.report, size: dense ? 8 : (compact ? 9 : 10), color: Colors.orange[700]),
               const SizedBox(width: 2),
               Text(
                 '${alert.reportsCount}',
                 style: TextStyle(
-                  fontSize: compact ? 9 : 10,
+                  fontSize: dense ? 8 : (compact ? 9 : 10),
                   color: Colors.orange[700],
                   fontWeight: FontWeight.w500,
                 ),
@@ -728,7 +727,7 @@ class _HomeViewState extends State<HomeView> {
         child: Text(
           alert.type.toUpperCase(),
           style: TextStyle(
-            fontSize: compact ? 9 : 10,
+            fontSize: dense ? 8 : (compact ? 9 : 10),
             color: Colors.grey[600],
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -744,7 +743,7 @@ class _HomeViewState extends State<HomeView> {
         padding: EdgeInsets.all(cardPad),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(dense ? 10 : 12),
           border: Border.all(color: alertColor.withValues(alpha: 0.2)),
           boxShadow: [
             BoxShadow(
@@ -786,16 +785,16 @@ class _HomeViewState extends State<HomeView> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: compact ? 4 : 6),
+                    SizedBox(height: dense ? 3 : (compact ? 4 : 6)),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Flexible(child: statusBadge()),
-                        const SizedBox(width: 8),
+                        SizedBox(width: dense ? 6 : 8),
                         Text(
                           timeAgo,
                           style: TextStyle(
-                            fontSize: compact ? 11 : 12,
+                            fontSize: dense ? 10 : (compact ? 11 : 12),
                             color: Colors.grey[500],
                           ),
                         ),
@@ -833,22 +832,22 @@ class _HomeViewState extends State<HomeView> {
                   ],
                   if (alert.description != null &&
                       alert.description!.isNotEmpty) ...[
-                    SizedBox(height: compact ? 4 : 6),
+                    SizedBox(height: dense ? 3 : (compact ? 4 : 6)),
                     Text(
                       alert.description!,
                       style: TextStyle(
                         fontSize: descSize,
                         color: Colors.grey[600],
-                        height: 1.25,
+                        height: dense ? 1.15 : 1.25,
                       ),
-                      maxLines: compact ? 1 : 2,
+                      maxLines: dense ? 1 : (compact ? 1 : 2),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  SizedBox(height: compact ? 6 : 8),
+                  SizedBox(height: dense ? 4 : (compact ? 6 : 8)),
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
+                    spacing: dense ? 4 : 6,
+                    runSpacing: dense ? 3 : 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: metaChips,
                   ),
@@ -876,25 +875,38 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildAlertButtonSection() {
     final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.sizeOf(context).height;
     final isSmall = sw < 360;
+    final isLargePhone = sw >= 420 && sh >= 720;
+    // Más aire alrededor del radial; el Expanded ya recibe más alto al achicar alertas.
+    final titleSize = isSmall
+        ? (sw * 0.048).clamp(15.0, 17.0)
+        : isLargePhone
+            ? (sw * 0.052).clamp(18.0, 24.0)
+            : (sw * 0.05).clamp(16.0, 21.0);
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        isSmall ? 12 : 16,
-        isSmall ? 6 : 10,
-        isSmall ? 12 : 16,
-        isSmall ? 4 : 8,
+        isSmall ? 10 : 14,
+        isSmall ? 10 : (isLargePhone ? 16 : 12),
+        isSmall ? 10 : 14,
+        isSmall ? 8 : (isLargePhone ? 14 : 10),
       ),
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.only(bottom: isSmall ? 4 : 6),
+            padding: EdgeInsets.only(
+              bottom: isSmall ? 8 : (isLargePhone ? 14 : 10),
+              top: isSmall ? 2 : 4,
+            ),
             child: Text(
               AppLocalizations.of(context)!.emergencyButton,
               style: TextStyle(
-                fontSize: (sw * 0.044).clamp(14.0, 20.0),
+                fontSize: titleSize,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF1A1A1A),
+                height: 1.2,
+                letterSpacing: isLargePhone ? 0.2 : 0,
               ),
               textAlign: TextAlign.center,
             ),

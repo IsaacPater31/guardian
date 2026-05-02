@@ -2654,6 +2654,18 @@ abstract class AppLocalizations {
   /// **'Quitar audio'**
   String get removeAudio;
 
+  /// No description provided for @attachmentListenPreview.
+  ///
+  /// In es, this message translates to:
+  /// **'Escuchar'**
+  String get attachmentListenPreview;
+
+  /// No description provided for @attachmentPausePreview.
+  ///
+  /// In es, this message translates to:
+  /// **'Pausar'**
+  String get attachmentPausePreview;
+
   /// No description provided for @selectSubtypeRequired.
   ///
   /// In es, this message translates to:
