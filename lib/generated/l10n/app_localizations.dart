@@ -746,6 +746,30 @@ abstract class AppLocalizations {
   /// **'Enviando alerta...'**
   String get sendingAlert;
 
+  /// No description provided for @alertSendingToOne.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviando a 1 comunidad...'**
+  String get alertSendingToOne;
+
+  /// No description provided for @alertSendingToMany.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviando a {count} comunidades...'**
+  String alertSendingToMany(int count);
+
+  /// No description provided for @alertSentToOneCommunity.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviada a 1 comunidad'**
+  String get alertSentToOneCommunity;
+
+  /// No description provided for @alertSentToManyCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviada a {count} comunidades'**
+  String alertSentToManyCommunities(int count);
+
   /// No description provided for @alertSent.
   ///
   /// In es, this message translates to:
@@ -781,6 +805,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Cancelar'**
   String get cancel;
+
+  /// No description provided for @continueAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar'**
+  String get continueAction;
 
   /// No description provided for @sendAlert.
   ///
@@ -2066,6 +2096,12 @@ abstract class AppLocalizations {
   /// **'Ingresa un link o código'**
   String get enterLinkOrCode;
 
+  /// No description provided for @mapRefreshing.
+  ///
+  /// In es, this message translates to:
+  /// **'Actualizando...'**
+  String get mapRefreshing;
+
   /// No description provided for @anonymousReportMap.
   ///
   /// In es, this message translates to:
@@ -2383,6 +2419,306 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Se muestran como máximo las {n} alertas más recientes enviadas desde este dispositivo.'**
   String myAlertsListCapHint(int n);
+
+  /// No description provided for @reportAlertConfirmTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportar alerta'**
+  String get reportAlertConfirmTitle;
+
+  /// No description provided for @reportAlertConfirmBody.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Deseas reportar esta alerta como inapropiada o con contenido problemático? Solo puedes reportar una vez.'**
+  String get reportAlertConfirmBody;
+
+  /// No description provided for @alertReportedOkSnack.
+  ///
+  /// In es, this message translates to:
+  /// **'Alerta reportada correctamente'**
+  String get alertReportedOkSnack;
+
+  /// No description provided for @noCommunitiesToForward.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay comunidades disponibles para reenviar'**
+  String get noCommunitiesToForward;
+
+  /// No description provided for @alertForwardedToOne.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Alerta reenviada a 1 comunidad'**
+  String get alertForwardedToOne;
+
+  /// No description provided for @alertForwardedToMany.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Alerta reenviada a {count} comunidades'**
+  String alertForwardedToMany(int count);
+
+  /// No description provided for @forwardErrorPrefix.
+  ///
+  /// In es, this message translates to:
+  /// **'Error reenviando:'**
+  String get forwardErrorPrefix;
+
+  /// No description provided for @genericErrorPrefix.
+  ///
+  /// In es, this message translates to:
+  /// **'Error:'**
+  String get genericErrorPrefix;
+
+  /// No description provided for @forwardAlertDialogTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenviar alerta'**
+  String get forwardAlertDialogTitle;
+
+  /// No description provided for @forwardSelectTargetsHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona a qué comunidades reenviar:'**
+  String get forwardSelectTargetsHint;
+
+  /// No description provided for @forwardActionCount.
+  ///
+  /// In es, this message translates to:
+  /// **'Reenviar ({count})'**
+  String forwardActionCount(int count);
+
+  /// No description provided for @detailRelativeNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Ahora mismo'**
+  String get detailRelativeNow;
+
+  /// No description provided for @detailRelativeMinutes.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n}m'**
+  String detailRelativeMinutes(int n);
+
+  /// No description provided for @detailRelativeHours.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n}h'**
+  String detailRelativeHours(int n);
+
+  /// No description provided for @detailRelativeDays.
+  ///
+  /// In es, this message translates to:
+  /// **'Hace {n}d'**
+  String detailRelativeDays(int n);
+
+  /// No description provided for @selectCommunitiesDialogTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar comunidades'**
+  String get selectCommunitiesDialogTitle;
+
+  /// No description provided for @selectCommunitiesSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona una o más comunidades'**
+  String get selectCommunitiesSubtitle;
+
+  /// No description provided for @noCommunitiesAvailableSnack.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes comunidades disponibles'**
+  String get noCommunitiesAvailableSnack;
+
+  /// No description provided for @errorLoadingCommunitiesDetail.
+  ///
+  /// In es, this message translates to:
+  /// **'Error cargando comunidades'**
+  String get errorLoadingCommunitiesDetail;
+
+  /// No description provided for @microphonePermissionSnack.
+  ///
+  /// In es, this message translates to:
+  /// **'Se necesita permiso de micrófono'**
+  String get microphonePermissionSnack;
+
+  /// No description provided for @recordingFailedWithError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo grabar: {error}'**
+  String recordingFailedWithError(String error);
+
+  /// No description provided for @alertDetailSheetTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle de alerta'**
+  String get alertDetailSheetTitle;
+
+  /// No description provided for @selectedCommunitiesPrefix.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidades seleccionadas:'**
+  String get selectedCommunitiesPrefix;
+
+  /// No description provided for @subtypeOrReasonLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Subtipo o motivo'**
+  String get subtypeOrReasonLabel;
+
+  /// No description provided for @describeCaseLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe el caso'**
+  String get describeCaseLabel;
+
+  /// No description provided for @describeCaseHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Especifica el detalle (obligatorio)'**
+  String get describeCaseHint;
+
+  /// No description provided for @sendAsAnonymousTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar como anónima'**
+  String get sendAsAnonymousTitle;
+
+  /// No description provided for @sendAsAnonymousSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu nombre no se mostrará en la alerta'**
+  String get sendAsAnonymousSubtitle;
+
+  /// No description provided for @photosAndAudioSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Fotos y audio'**
+  String get photosAndAudioSection;
+
+  /// No description provided for @photosAndAudioPolicy.
+  ///
+  /// In es, this message translates to:
+  /// **'Puedes añadir hasta {maxPhotos} fotos y un audio de hasta 10 s. El tamaño total de fotos y audio no debe superar aproximadamente 1 MB.'**
+  String photosAndAudioPolicy(int maxPhotos);
+
+  /// No description provided for @photoGallery.
+  ///
+  /// In es, this message translates to:
+  /// **'Galería'**
+  String get photoGallery;
+
+  /// No description provided for @photoCamera.
+  ///
+  /// In es, this message translates to:
+  /// **'Cámara'**
+  String get photoCamera;
+
+  /// No description provided for @photoChipLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Foto {n}'**
+  String photoChipLabel(int n);
+
+  /// No description provided for @recordingProgress.
+  ///
+  /// In es, this message translates to:
+  /// **'Grabando… {elapsed} / 10 s'**
+  String recordingProgress(int elapsed);
+
+  /// No description provided for @audioReadyToSend.
+  ///
+  /// In es, this message translates to:
+  /// **'Audio listo para enviar'**
+  String get audioReadyToSend;
+
+  /// No description provided for @audioOptionalMaxTen.
+  ///
+  /// In es, this message translates to:
+  /// **'Audio opcional (máx. 10 s)'**
+  String get audioOptionalMaxTen;
+
+  /// No description provided for @stopRecording.
+  ///
+  /// In es, this message translates to:
+  /// **'Detener'**
+  String get stopRecording;
+
+  /// No description provided for @startRecording.
+  ///
+  /// In es, this message translates to:
+  /// **'Grabar'**
+  String get startRecording;
+
+  /// No description provided for @removeAudio.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar audio'**
+  String get removeAudio;
+
+  /// No description provided for @selectSubtypeRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona un subtipo para continuar'**
+  String get selectSubtypeRequired;
+
+  /// No description provided for @describeOtherCaseRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe el caso para la opción Otro'**
+  String get describeOtherCaseRequired;
+
+  /// No description provided for @passwordReqMinLength.
+  ///
+  /// In es, this message translates to:
+  /// **'Mínimo 8 caracteres'**
+  String get passwordReqMinLength;
+
+  /// No description provided for @passwordReqUppercase.
+  ///
+  /// In es, this message translates to:
+  /// **'Al menos 1 mayúscula'**
+  String get passwordReqUppercase;
+
+  /// No description provided for @passwordReqLowercase.
+  ///
+  /// In es, this message translates to:
+  /// **'Al menos 1 minúscula'**
+  String get passwordReqLowercase;
+
+  /// No description provided for @passwordReqDigit.
+  ///
+  /// In es, this message translates to:
+  /// **'Al menos 1 número'**
+  String get passwordReqDigit;
+
+  /// No description provided for @passwordReqSymbol.
+  ///
+  /// In es, this message translates to:
+  /// **'Al menos 1 símbolo especial'**
+  String get passwordReqSymbol;
+
+  /// No description provided for @eventualityEnvironmentalTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambiental'**
+  String get eventualityEnvironmentalTitle;
+
+  /// No description provided for @eventualityEnvironmentalSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Eventualidad ambiental'**
+  String get eventualityEnvironmentalSubtitle;
+
+  /// No description provided for @eventualityPoliceTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Policial'**
+  String get eventualityPoliceTitle;
+
+  /// No description provided for @eventualityPoliceSubtitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Eventualidad policial'**
+  String get eventualityPoliceSubtitle;
 }
 
 class _AppLocalizationsDelegate

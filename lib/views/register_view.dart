@@ -264,17 +264,18 @@ class PasswordValidationWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final styleOk = TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold);
     final styleBad = TextStyle(color: Colors.grey[600]);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _RequirementText('Mínimo 8 caracteres', password.length >= 8, styleOk, styleBad),
-        _RequirementText('Al menos 1 mayúscula', password.contains(RegExp(r'[A-Z]')), styleOk, styleBad),
-        _RequirementText('Al menos 1 minúscula', password.contains(RegExp(r'[a-z]')), styleOk, styleBad),
-        _RequirementText('Al menos 1 número', password.contains(RegExp(r'\d')), styleOk, styleBad),
-        _RequirementText('Al menos 1 símbolo especial', password.contains(RegExp(r'[!@#\$&*~_.,;:<>?\[\]()\-+=%]')), styleOk, styleBad),
+        _RequirementText(l10n.passwordReqMinLength, password.length >= 8, styleOk, styleBad),
+        _RequirementText(l10n.passwordReqUppercase, password.contains(RegExp(r'[A-Z]')), styleOk, styleBad),
+        _RequirementText(l10n.passwordReqLowercase, password.contains(RegExp(r'[a-z]')), styleOk, styleBad),
+        _RequirementText(l10n.passwordReqDigit, password.contains(RegExp(r'\d')), styleOk, styleBad),
+        _RequirementText(l10n.passwordReqSymbol, password.contains(RegExp(r'[!@#\$&*~_.,;:<>?\[\]()\-+=%]')), styleOk, styleBad),
       ],
     );
   }

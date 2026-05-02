@@ -426,9 +426,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Link de Invitación',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.inviteLink,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1C1C1E),
@@ -503,8 +503,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                             isSuccess: true, icon: Icons.copy_rounded);
                       },
                       icon: const Icon(Icons.copy_rounded, size: 18),
-                      label: const Text('Copiar',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      label: Text(AppLocalizations.of(context)!.copy,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF1C1C1E),
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -527,8 +527,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                         );
                       },
                       icon: const Icon(Icons.share_rounded, size: 18),
-                      label: const Text('Compartir',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      label: Text(AppLocalizations.of(context)!.share,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1C1C1E),
                         foregroundColor: Colors.white,
@@ -563,16 +563,17 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         });
         _showSnackBar(
           value
-              ? 'Reenvío a entidades habilitado'
-              : 'Reenvío a entidades deshabilitado',
+              ? AppLocalizations.of(context)!.forwardEnabled
+              : AppLocalizations.of(context)!.forwardDisabled,
           isSuccess: true,
         );
       } else {
-        _showSnackBar('Solo el creador puede modificar la configuración',
+        _showSnackBar(AppLocalizations.of(context)!.onlyCreatorCanModify,
             isSuccess: false);
       }
     } catch (e) {
-      _showSnackBar('Error actualizando configuración', isSuccess: false);
+      _showSnackBar(AppLocalizations.of(context)!.errorUpdatingConfig,
+          isSuccess: false);
     }
   }
 
@@ -585,9 +586,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           children: [
             Icon(Icons.warning_rounded, color: Colors.red[400], size: 22),
             const SizedBox(width: 8),
-            const Text(
-              'Eliminar Comunidad',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.deleteCommunityTitle,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
@@ -600,7 +601,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Esta acción es irreversible y eliminará:',
+              AppLocalizations.of(context)!.irreversibleAction,
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[700],
@@ -608,12 +609,12 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               ),
             ),
             const SizedBox(height: 12),
-            _buildBullet('Todos los miembros'),
-            _buildBullet('Todas las invitaciones'),
-            _buildBullet('La comunidad por completo'),
+            _buildBullet(AppLocalizations.of(context)!.allMembersBullet),
+            _buildBullet(AppLocalizations.of(context)!.allInvitationsBullet),
+            _buildBullet(AppLocalizations.of(context)!.entireCommunityBullet),
             const SizedBox(height: 12),
             Text(
-              'Las alertas enviadas permanecerán en el historial.',
+              AppLocalizations.of(context)!.alertsRemainHistory,
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -629,9 +630,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context)!.delete,
+              style: const TextStyle(
                   color: Color(0xFFFF3B30), fontWeight: FontWeight.w600),
             ),
           ),
@@ -661,16 +662,16 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Abandonar Comunidad',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)!.leaveCommunityTitle,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.3,
           ),
         ),
         content: Text(
-          '¿Estás seguro? No podrás ver las alertas ni participar en ella.',
+          AppLocalizations.of(context)!.leaveConfirmation,
           style: TextStyle(
             fontSize: 15,
             color: Colors.grey[700],
@@ -688,9 +689,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Abandonar',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.of(context)!.leave,
+              style: const TextStyle(
                   color: Color(0xFFFF3B30), fontWeight: FontWeight.w600),
             ),
           ),
@@ -752,9 +753,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                     size: 36, color: Color(0xFFFF3B30)),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Error cargando comunidad',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.errorLoadingCommunity,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF1C1C1E),
@@ -786,7 +787,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               icon: Icons.people_outline_rounded,
               iconColor: const Color(0xFF007AFF),
               title: AppLocalizations.of(context)!.viewMembers,
-              subtitle: 'Todos los integrantes',
+              subtitle: AppLocalizations.of(context)!.allMembers,
               onTap: () {
                 Navigator.push(
                   context,
@@ -837,8 +838,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               _buildSettingsTile(
                 icon: Icons.person_search_rounded,
                 iconColor: const Color(0xFF34C759),
-                title: 'Buscar y agregar',
-                subtitle: 'Agrega miembros por email o nombre',
+                title: AppLocalizations.of(context)!.searchAndAdd,
+                subtitle: AppLocalizations.of(context)!.addByEmailOrName,
                 onTap: () {
                   Navigator.push(
                     context,
@@ -858,7 +859,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             _buildSettingsTile(
               icon: Icons.link_rounded,
               iconColor: const Color(0xFF007AFF),
-              title: 'Generar link de invitación',
+              title: AppLocalizations.of(context)!.generateInviteLink,
               subtitle: _isGeneratingLink
                   ? AppLocalizations.of(context)!.generating
                   : AppLocalizations.of(context)!.shareToInvite,
@@ -879,14 +880,14 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
 
           // ─── Admin Section ────────────────────────────
           if (isAdmin) ...[
-            _buildSectionHeader('ADMINISTRACIÓN'),
+            _buildSectionHeader(AppLocalizations.of(context)!.administrationSection),
             const SizedBox(height: 8),
             _buildGroupedCard([
               _buildSwitchTile(
                 icon: Icons.reply_all_rounded,
                 iconColor: const Color(0xFF5856D6),
-                title: 'Reenvío a entidades',
-                subtitle: 'Alertas pueden reenviarse a entidades oficiales',
+                title: AppLocalizations.of(context)!.forwardToEntities,
+                subtitle: AppLocalizations.of(context)!.alertsCanBeForwarded,
                 value: _community!.allowForwardToEntities,
                 onChanged: _updateAllowForward,
               ),
@@ -902,16 +903,16 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               _buildSettingsTile(
                 icon: Icons.delete_forever_rounded,
                 iconColor: const Color(0xFFFF3B30),
-                title: 'Eliminar comunidad',
-                subtitle: 'Elimina permanentemente',
+                title: AppLocalizations.of(context)!.deleteCommunityAction,
+                subtitle: AppLocalizations.of(context)!.deletePermanently,
                 titleColor: const Color(0xFFFF3B30),
                 onTap: _deleteCommunity,
               ),
             _buildSettingsTile(
               icon: Icons.exit_to_app_rounded,
               iconColor: const Color(0xFFFF9500),
-              title: 'Abandonar comunidad',
-              subtitle: 'Dejarás de recibir alertas',
+              title: AppLocalizations.of(context)!.leaveCommunity,
+              subtitle: AppLocalizations.of(context)!.stopReceivingAlerts,
               titleColor: const Color(0xFFFF9500),
               onTap: _leaveCommunity,
             ),
@@ -929,9 +930,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: true,
-      title: const Text(
-        'Configuración',
-        style: TextStyle(
+      title: Text(
+        AppLocalizations.of(context)!.configurationTitle,
+        style: const TextStyle(
           fontSize: 17,
           fontWeight: FontWeight.w600,
           color: Color(0xFF1C1C1E),

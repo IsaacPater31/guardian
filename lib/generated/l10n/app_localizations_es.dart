@@ -334,6 +334,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get sendingAlert => 'Enviando alerta...';
 
   @override
+  String get alertSendingToOne => 'Enviando a 1 comunidad...';
+
+  @override
+  String alertSendingToMany(int count) {
+    return 'Enviando a $count comunidades...';
+  }
+
+  @override
+  String get alertSentToOneCommunity => 'Enviada a 1 comunidad';
+
+  @override
+  String alertSentToManyCommunities(int count) {
+    return 'Enviada a $count comunidades';
+  }
+
+  @override
   String get alertSent => 'Alerta Enviada';
 
   @override
@@ -354,6 +370,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get cancel => 'Cancelar';
+
+  @override
+  String get continueAction => 'Continuar';
 
   @override
   String get sendAlert => 'Enviar Alerta';
@@ -1067,6 +1086,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get enterLinkOrCode => 'Ingresa un link o código';
 
   @override
+  String get mapRefreshing => 'Actualizando...';
+
+  @override
   String get anonymousReportMap => 'Reporte Anónimo';
 
   @override
@@ -1242,4 +1264,176 @@ class AppLocalizationsEs extends AppLocalizations {
   String myAlertsListCapHint(int n) {
     return 'Se muestran como máximo las $n alertas más recientes enviadas desde este dispositivo.';
   }
+
+  @override
+  String get reportAlertConfirmTitle => 'Reportar alerta';
+
+  @override
+  String get reportAlertConfirmBody =>
+      '¿Deseas reportar esta alerta como inapropiada o con contenido problemático? Solo puedes reportar una vez.';
+
+  @override
+  String get alertReportedOkSnack => 'Alerta reportada correctamente';
+
+  @override
+  String get noCommunitiesToForward =>
+      'No hay comunidades disponibles para reenviar';
+
+  @override
+  String get alertForwardedToOne => '✅ Alerta reenviada a 1 comunidad';
+
+  @override
+  String alertForwardedToMany(int count) {
+    return '✅ Alerta reenviada a $count comunidades';
+  }
+
+  @override
+  String get forwardErrorPrefix => 'Error reenviando:';
+
+  @override
+  String get genericErrorPrefix => 'Error:';
+
+  @override
+  String get forwardAlertDialogTitle => 'Reenviar alerta';
+
+  @override
+  String get forwardSelectTargetsHint =>
+      'Selecciona a qué comunidades reenviar:';
+
+  @override
+  String forwardActionCount(int count) {
+    return 'Reenviar ($count)';
+  }
+
+  @override
+  String get detailRelativeNow => 'Ahora mismo';
+
+  @override
+  String detailRelativeMinutes(int n) {
+    return 'Hace ${n}m';
+  }
+
+  @override
+  String detailRelativeHours(int n) {
+    return 'Hace ${n}h';
+  }
+
+  @override
+  String detailRelativeDays(int n) {
+    return 'Hace ${n}d';
+  }
+
+  @override
+  String get selectCommunitiesDialogTitle => 'Seleccionar comunidades';
+
+  @override
+  String get selectCommunitiesSubtitle => 'Selecciona una o más comunidades';
+
+  @override
+  String get noCommunitiesAvailableSnack => 'No tienes comunidades disponibles';
+
+  @override
+  String get errorLoadingCommunitiesDetail => 'Error cargando comunidades';
+
+  @override
+  String get microphonePermissionSnack => 'Se necesita permiso de micrófono';
+
+  @override
+  String recordingFailedWithError(String error) {
+    return 'No se pudo grabar: $error';
+  }
+
+  @override
+  String get alertDetailSheetTitle => 'Detalle de alerta';
+
+  @override
+  String get selectedCommunitiesPrefix => 'Comunidades seleccionadas:';
+
+  @override
+  String get subtypeOrReasonLabel => 'Subtipo o motivo';
+
+  @override
+  String get describeCaseLabel => 'Describe el caso';
+
+  @override
+  String get describeCaseHint => 'Especifica el detalle (obligatorio)';
+
+  @override
+  String get sendAsAnonymousTitle => 'Enviar como anónima';
+
+  @override
+  String get sendAsAnonymousSubtitle => 'Tu nombre no se mostrará en la alerta';
+
+  @override
+  String get photosAndAudioSection => 'Fotos y audio';
+
+  @override
+  String photosAndAudioPolicy(int maxPhotos) {
+    return 'Puedes añadir hasta $maxPhotos fotos y un audio de hasta 10 s. El tamaño total de fotos y audio no debe superar aproximadamente 1 MB.';
+  }
+
+  @override
+  String get photoGallery => 'Galería';
+
+  @override
+  String get photoCamera => 'Cámara';
+
+  @override
+  String photoChipLabel(int n) {
+    return 'Foto $n';
+  }
+
+  @override
+  String recordingProgress(int elapsed) {
+    return 'Grabando… $elapsed / 10 s';
+  }
+
+  @override
+  String get audioReadyToSend => 'Audio listo para enviar';
+
+  @override
+  String get audioOptionalMaxTen => 'Audio opcional (máx. 10 s)';
+
+  @override
+  String get stopRecording => 'Detener';
+
+  @override
+  String get startRecording => 'Grabar';
+
+  @override
+  String get removeAudio => 'Quitar audio';
+
+  @override
+  String get selectSubtypeRequired => 'Selecciona un subtipo para continuar';
+
+  @override
+  String get describeOtherCaseRequired =>
+      'Describe el caso para la opción Otro';
+
+  @override
+  String get passwordReqMinLength => 'Mínimo 8 caracteres';
+
+  @override
+  String get passwordReqUppercase => 'Al menos 1 mayúscula';
+
+  @override
+  String get passwordReqLowercase => 'Al menos 1 minúscula';
+
+  @override
+  String get passwordReqDigit => 'Al menos 1 número';
+
+  @override
+  String get passwordReqSymbol => 'Al menos 1 símbolo especial';
+
+  @override
+  String get eventualityEnvironmentalTitle => 'Ambiental';
+
+  @override
+  String get eventualityEnvironmentalSubtitle => 'Eventualidad ambiental';
+
+  @override
+  String get eventualityPoliceTitle => 'Policial';
+
+  @override
+  String get eventualityPoliceSubtitle => 'Eventualidad policial';
 }

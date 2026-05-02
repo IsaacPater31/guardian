@@ -1227,25 +1227,26 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx)!;
+        return AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Row(children: [
           Icon(Icons.report_problem_rounded, color: Colors.orange[700]),
           const SizedBox(width: 8),
-          const Text('Reportar alerta'),
+          Text(l10n.reportAlertConfirmTitle),
         ]),
-        content: const Text(
-          '¿Deseas reportar esta alerta como inapropiada o con contenido problemático? Solo puedes reportar una vez.',
-        ),
+        content: Text(l10n.reportAlertConfirmBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[700], foregroundColor: Colors.white),
-            child: const Text('Reportar'),
+            child: Text(l10n.report),
           ),
         ],
-      ),
+      );
+      },
     );
 
     if (confirm != true || !mounted) return;
@@ -1263,7 +1264,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           content: Row(children: [
             const Icon(Icons.check_circle_rounded, color: Colors.white),
             const SizedBox(width: 8),
-            const Text('Alerta reportada correctamente'),
+            Text(AppLocalizations.of(context)!.alertReportedOkSnack),
           ]),
           backgroundColor: _kDark,
           duration: const Duration(seconds: 2),
@@ -1314,8 +1315,8 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
       if (availableCommunities.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('No hay comunidades disponibles para reenviar'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.noCommunitiesToForward),
             backgroundColor: _kDark,
           ));
         }
@@ -1347,27 +1348,34 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           targetCommunityIds:  selectedIds.toList(),
         );
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('✅ Alerta reenviada a $count ${count == 1 ? 'comunidad' : 'comunidades'}'),
+            content: Text(
+              count == 1
+                  ? l10n.alertForwardedToOne
+                  : l10n.alertForwardedToMany(count),
+            ),
             backgroundColor: _kDark,
             duration: const Duration(seconds: 3),
           ));
         }
       } catch (e) {
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error reenviando: ${e.toString()}'),
+            content: Text('${l10n.forwardErrorPrefix} ${e.toString()}'),
             backgroundColor: _kError,
           ));
         }
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('${l10n.genericErrorPrefix} ${e.toString()}'),
           backgroundColor: _kError,
         ));
       }
@@ -1426,12 +1434,13 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   }
 
   String _formatDateTime(DateTime dt) {
+    final l10n = AppLocalizations.of(context)!;
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1)  return 'Ahora mismo';
-    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes}m';
-    if (diff.inHours   < 24) return 'Hace ${diff.inHours}h';
-    if (diff.inDays    == 1) return 'Ayer';
-    return 'Hace ${diff.inDays}d';
+    if (diff.inMinutes < 1) return l10n.detailRelativeNow;
+    if (diff.inMinutes < 60) return l10n.detailRelativeMinutes(diff.inMinutes);
+    if (diff.inHours < 24) return l10n.detailRelativeHours(diff.inHours);
+    if (diff.inDays == 1) return l10n.timeYesterday;
+    return l10n.detailRelativeDays(diff.inDays);
   }
 
 }
@@ -1455,15 +1464,16 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final entities   = widget.availableCommunities.where((c) => c['is_entity'] == true).toList();
     final normals    = widget.availableCommunities.where((c) => c['is_entity'] != true).toList();
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Row(children: [
-        Icon(Icons.forward_rounded, color: _kDark),
-        SizedBox(width: 8),
-        Text('Reenviar Alerta'),
+      title: Row(children: [
+        const Icon(Icons.forward_rounded, color: _kDark),
+        const SizedBox(width: 8),
+        Text(l10n.forwardAlertDialogTitle),
       ]),
       content: SizedBox(
         width: double.maxFinite,
@@ -1472,16 +1482,16 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Selecciona a qué comunidades reenviar:', style: TextStyle(fontSize: 14)),
+              Text(l10n.forwardSelectTargetsHint, style: const TextStyle(fontSize: 14)),
               const SizedBox(height: 16),
               if (entities.isNotEmpty && widget.canForwardToEntities) ...[
-                const Text('Entidades Oficiales', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kBluePrim, letterSpacing: 0.5)),
+                Text(l10n.officialEntities, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kBluePrim, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 ...entities.map(_buildCommunityTile),
                 const SizedBox(height: 16),
               ],
               if (normals.isNotEmpty) ...[
-                const Text('Comunidades', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText, letterSpacing: 0.5)),
+                Text(l10n.communities, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 ...normals.map(_buildCommunityTile),
               ],
@@ -1490,17 +1500,18 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         ElevatedButton(
           onPressed: _selectedIds.isEmpty ? null : () => Navigator.pop(context, _selectedIds),
           style: ElevatedButton.styleFrom(backgroundColor: _kDark, foregroundColor: Colors.white),
-          child: Text('Reenviar (${_selectedIds.length})'),
+          child: Text(l10n.forwardActionCount(_selectedIds.length)),
         ),
       ],
     );
   }
 
   Widget _buildCommunityTile(Map<String, dynamic> community) {
+    final l10n = AppLocalizations.of(context)!;
     final id       = community['id'] as String;
     final name     = community['name'] as String;
     final isEntity = community['is_entity'] as bool;
@@ -1530,7 +1541,7 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
                   color:        _kBluePrim.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text('Entidad Oficial', style: TextStyle(fontSize: 10, color: _kBluePrim, fontWeight: FontWeight.w600)),
+                child: Text(l10n.officialEntity, style: TextStyle(fontSize: 10, color: _kBluePrim, fontWeight: FontWeight.w600)),
               )
             : null,
         secondary: Container(

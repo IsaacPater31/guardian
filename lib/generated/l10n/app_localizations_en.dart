@@ -333,6 +333,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sendingAlert => 'Sending alert...';
 
   @override
+  String get alertSendingToOne => 'Sending to 1 community...';
+
+  @override
+  String alertSendingToMany(int count) {
+    return 'Sending to $count communities...';
+  }
+
+  @override
+  String get alertSentToOneCommunity => 'Sent to 1 community';
+
+  @override
+  String alertSentToManyCommunities(int count) {
+    return 'Sent to $count communities';
+  }
+
+  @override
   String get alertSent => 'Alert Sent';
 
   @override
@@ -352,6 +368,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancel => 'Cancel';
+
+  @override
+  String get continueAction => 'Continue';
 
   @override
   String get sendAlert => 'Send Alert';
@@ -1060,6 +1079,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterLinkOrCode => 'Enter a link or code';
 
   @override
+  String get mapRefreshing => 'Updating...';
+
+  @override
   String get anonymousReportMap => 'Anonymous Report';
 
   @override
@@ -1234,4 +1256,176 @@ class AppLocalizationsEn extends AppLocalizations {
   String myAlertsListCapHint(int n) {
     return 'Up to the $n most recent alerts you sent are shown.';
   }
+
+  @override
+  String get reportAlertConfirmTitle => 'Report alert';
+
+  @override
+  String get reportAlertConfirmBody =>
+      'Do you want to report this alert as inappropriate or problematic content? You can only report once.';
+
+  @override
+  String get alertReportedOkSnack => 'Alert reported successfully';
+
+  @override
+  String get noCommunitiesToForward => 'No communities available to forward to';
+
+  @override
+  String get alertForwardedToOne => '✅ Alert forwarded to 1 community';
+
+  @override
+  String alertForwardedToMany(int count) {
+    return '✅ Alert forwarded to $count communities';
+  }
+
+  @override
+  String get forwardErrorPrefix => 'Error forwarding:';
+
+  @override
+  String get genericErrorPrefix => 'Error:';
+
+  @override
+  String get forwardAlertDialogTitle => 'Forward alert';
+
+  @override
+  String get forwardSelectTargetsHint =>
+      'Select which communities to forward to:';
+
+  @override
+  String forwardActionCount(int count) {
+    return 'Forward ($count)';
+  }
+
+  @override
+  String get detailRelativeNow => 'Just now';
+
+  @override
+  String detailRelativeMinutes(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String detailRelativeHours(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String detailRelativeDays(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get selectCommunitiesDialogTitle => 'Select communities';
+
+  @override
+  String get selectCommunitiesSubtitle => 'Select one or more communities';
+
+  @override
+  String get noCommunitiesAvailableSnack => 'You have no communities available';
+
+  @override
+  String get errorLoadingCommunitiesDetail => 'Error loading communities';
+
+  @override
+  String get microphonePermissionSnack => 'Microphone permission is required';
+
+  @override
+  String recordingFailedWithError(String error) {
+    return 'Could not record: $error';
+  }
+
+  @override
+  String get alertDetailSheetTitle => 'Alert details';
+
+  @override
+  String get selectedCommunitiesPrefix => 'Selected communities:';
+
+  @override
+  String get subtypeOrReasonLabel => 'Subtype or reason';
+
+  @override
+  String get describeCaseLabel => 'Describe the situation';
+
+  @override
+  String get describeCaseHint => 'Required detail';
+
+  @override
+  String get sendAsAnonymousTitle => 'Send anonymously';
+
+  @override
+  String get sendAsAnonymousSubtitle =>
+      'Your name will not be shown on the alert';
+
+  @override
+  String get photosAndAudioSection => 'Photos and audio';
+
+  @override
+  String photosAndAudioPolicy(int maxPhotos) {
+    return 'You can add up to $maxPhotos photos and one audio clip up to 10 s. Total size for photos and audio must stay under about 1 MB.';
+  }
+
+  @override
+  String get photoGallery => 'Gallery';
+
+  @override
+  String get photoCamera => 'Camera';
+
+  @override
+  String photoChipLabel(int n) {
+    return 'Photo $n';
+  }
+
+  @override
+  String recordingProgress(int elapsed) {
+    return 'Recording… $elapsed / 10 s';
+  }
+
+  @override
+  String get audioReadyToSend => 'Audio ready to send';
+
+  @override
+  String get audioOptionalMaxTen => 'Optional audio (max. 10 s)';
+
+  @override
+  String get stopRecording => 'Stop';
+
+  @override
+  String get startRecording => 'Record';
+
+  @override
+  String get removeAudio => 'Remove audio';
+
+  @override
+  String get selectSubtypeRequired => 'Select a subtype to continue';
+
+  @override
+  String get describeOtherCaseRequired =>
+      'Describe the case for the “Other” option';
+
+  @override
+  String get passwordReqMinLength => 'At least 8 characters';
+
+  @override
+  String get passwordReqUppercase => 'At least 1 uppercase letter';
+
+  @override
+  String get passwordReqLowercase => 'At least 1 lowercase letter';
+
+  @override
+  String get passwordReqDigit => 'At least 1 number';
+
+  @override
+  String get passwordReqSymbol => 'At least 1 special character';
+
+  @override
+  String get eventualityEnvironmentalTitle => 'Environmental';
+
+  @override
+  String get eventualityEnvironmentalSubtitle => 'Environmental incident';
+
+  @override
+  String get eventualityPoliceTitle => 'Police';
+
+  @override
+  String get eventualityPoliceSubtitle => 'Police incident';
 }

@@ -55,12 +55,12 @@ class AlertAttachmentsService {
       if (bytes.isEmpty) continue;
       final enc = base64Encode(bytes);
       if (enc.length > maxTotalBase64Chars) {
-        notes.add('Una imagen genera más de 1 MB en base64 y se omitió');
+        notes.add('Una foto es demasiado grande y no se pudo incluir');
         continue;
       }
       if (usedChars + enc.length > maxTotalBase64Chars) {
         notes.add(
-          'Algunas imágenes se omitieron: límite total base64 1 MB (fotos + audio)',
+          'Algunas fotos no se incluyeron: el tamaño total máximo es 1 MB (fotos y audio)',
         );
         break;
       }
@@ -76,10 +76,10 @@ class AlertAttachmentsService {
       } else {
         final enc = base64Encode(aBytes);
         if (enc.length > maxTotalBase64Chars) {
-          notes.add('El audio supera 1 MB en base64 y no se envió');
+          notes.add('El audio es demasiado grande y no se pudo incluir');
         } else if (usedChars + enc.length > maxTotalBase64Chars) {
           notes.add(
-            'Audio omitido: no cabe junto con las fotos dentro del límite de 1 MB en base64',
+            'No se pudo incluir el audio junto con las fotos: superan el tamaño máximo (1 MB)',
           );
         } else {
           audioBase64 = enc;

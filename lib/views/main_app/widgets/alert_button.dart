@@ -277,7 +277,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         // Mostrar diag de confirmación con las comunidades pre-seleccionadas
         final selected =
             await _showCommunitySelectionDialog(emergencyType, preSelectedIds: configuredIds.toSet());
-        if (selected != null && selected.isNotEmpty && mounted) {
+        if (!mounted) return;
+        if (selected != null && selected.isNotEmpty) {
           _showFinalConfirmationDialog(emergencyType, selected);
         } else {
           _hideEmergencyOptions();
@@ -301,7 +302,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       if (!mounted) return;
       final selected = await _showCommunitySelectionDialog(
           emergencyType, preSelectedIds: initialIds);
-      if (selected != null && selected.isNotEmpty && mounted) {
+      if (!mounted) return;
+      if (selected != null && selected.isNotEmpty) {
         _showFinalConfirmationDialog(emergencyType, selected);
       } else {
         _hideEmergencyOptions();
@@ -369,11 +371,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       if (communities.isEmpty) {
         if (!mounted) return null;
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No tienes comunidades disponibles'),
+          SnackBar(
+            content: Text(l10n.noCommunitiesAvailableSnack),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
         return null;
@@ -389,6 +392,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         barrierDismissible: false,
         builder: (context) => StatefulBuilder(
           builder: (context, setState) {
+            final l10n = AppLocalizations.of(context)!;
             final sw = MediaQuery.of(context).size.width;
             final sh = MediaQuery.of(context).size.height;
             final isSmall = sw < 360;
@@ -445,7 +449,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         SizedBox(width: isSmall ? 8 : 12),
                         Expanded(
                           child: Text(
-                            'Seleccionar Comunidades',
+                            l10n.selectCommunitiesDialogTitle,
                             style: TextStyle(
                               fontSize: titleFontSize,
                               fontWeight: FontWeight.bold,
@@ -467,7 +471,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     ),
                     SizedBox(height: isSmall ? 8 : 12),
                     Text(
-                      'Selecciona una o más comunidades',
+                      l10n.selectCommunitiesSubtitle,
                       style: TextStyle(
                         fontSize: subtitleFontSize,
                         color: Colors.grey[600],
@@ -616,7 +620,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               icon: Icon(Icons.arrow_forward,
                                   size: isSmall ? 16 : 18),
                               label: Text(
-                                'Continuar',
+                                l10n.continueAction,
                                 style: TextStyle(
                                   fontSize: isSmall ? 13 : 14,
                                   fontWeight: FontWeight.bold,
@@ -649,10 +653,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       return selectedCommunities;
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error cargando comunidades: $e'),
+            content: Text('${l10n.errorLoadingCommunitiesDetail}: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -715,7 +720,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           await r.dispose();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Se necesita permiso de micrófono')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.microphonePermissionSnack)),
           );
           return;
         }
@@ -741,7 +746,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         await r.dispose();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo grabar: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.recordingFailedWithError('$e'))),
         );
       }
     }
@@ -751,6 +756,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final l10n = AppLocalizations.of(ctx)!;
           final requiresOtherDetail = selectedSubtype != null &&
               AlertDetailCatalog.subtypeRequiresDetail(emergencyType, selectedSubtype!);
 
@@ -773,7 +779,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             otherFocus.dispose();
                             otherController.dispose();
                             _showCommunitySelectionDialog(emergencyType).then((selection) {
-                              if (selection != null && selection.isNotEmpty && mounted) {
+                              if (!mounted) return;
+                              if (selection != null && selection.isNotEmpty) {
                                 _showFinalConfirmationDialog(emergencyType, selection);
                               } else {
                                 _hideEmergencyOptions();
@@ -782,11 +789,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           },
                           icon: const Icon(Icons.arrow_back),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'Detalle de alerta',
+                            l10n.alertDetailSheetTitle,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
                           ),
                         ),
                         const SizedBox(width: 40),
@@ -828,12 +835,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               border: Border.all(color: _primary.withValues(alpha: 0.18)),
                             ),
                             child: Text(
-                              'Comunidades seleccionadas: ${selectedCommunities.map((c) => c['name']).join(', ')}',
+                              '${l10n.selectedCommunitiesPrefix} ${selectedCommunities.map((c) => c['name']).join(', ')}',
                               style: const TextStyle(fontSize: 13.5),
                             ),
                           ),
                           const SizedBox(height: 14),
-                          const Text('Subtipo o motivo', style: TextStyle(fontWeight: FontWeight.w700)),
+                          Text(l10n.subtypeOrReasonLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             value: selectedSubtype,
@@ -875,8 +882,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               keyboardType: TextInputType.multiline,
                               textCapitalization: TextCapitalization.sentences,
                               decoration: InputDecoration(
-                                labelText: 'Describe el caso',
-                                hintText: 'Especifica el detalle (obligatorio)',
+                                labelText: l10n.describeCaseLabel,
+                                hintText: l10n.describeCaseHint,
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -888,8 +895,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           const SizedBox(height: 14),
                           SwitchListTile.adaptive(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                            title: const Text('Enviar como anónima'),
-                            subtitle: const Text('Tu nombre no se mostrará en la alerta'),
+                            title: Text(l10n.sendAsAnonymousTitle),
+                            subtitle: Text(l10n.sendAsAnonymousSubtitle),
                             value: isAnonymous,
                             onChanged: (value) => setDialogState(() => isAnonymous = value),
                           ),
@@ -905,14 +912,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Fotos y audio',
-                                  style: TextStyle(fontWeight: FontWeight.w700, color: _primary),
+                                Text(
+                                  l10n.photosAndAudioSection,
+                                  style: const TextStyle(fontWeight: FontWeight.w700, color: _primary),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Hasta ${AlertAttachmentsService.maxImages} fotos y un audio de hasta 10 s. '
-                                  'La suma en base64 de fotos + audio no puede superar 1 MB; se guarda en Firestore hasta tener almacenamiento de archivos.',
+                                  l10n.photosAndAudioPolicy(AlertAttachmentsService.maxImages),
                                   style: TextStyle(fontSize: 12.5, color: Colors.grey[800]),
                                 ),
                                 const SizedBox(height: 10),
@@ -937,7 +943,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                               });
                                             },
                                       icon: const Icon(Icons.photo_library_outlined, size: 18),
-                                      label: const Text('Galería'),
+                                      label: Text(l10n.photoGallery),
                                     ),
                                     OutlinedButton.icon(
                                       onPressed: pickedImages.length >= AlertAttachmentsService.maxImages
@@ -956,7 +962,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                               });
                                             },
                                       icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                                      label: const Text('Cámara'),
+                                      label: Text(l10n.photoCamera),
                                     ),
                                   ],
                                 ),
@@ -968,7 +974,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     children: [
                                       for (var i = 0; i < pickedImages.length; i++)
                                         InputChip(
-                                          label: Text('Foto ${i + 1}', style: const TextStyle(fontSize: 12)),
+                                          label: Text(l10n.photoChipLabel(i + 1), style: const TextStyle(fontSize: 12)),
                                           deleteIcon: const Icon(Icons.close, size: 16),
                                           onDeleted: () {
                                             setDialogState(() => pickedImages.removeAt(i));
@@ -989,10 +995,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     Expanded(
                                       child: Text(
                                         isRecording
-                                            ? 'Grabando… $recordElapsedSec / 10 s'
+                                            ? l10n.recordingProgress(recordElapsedSec)
                                             : (audioFile != null
-                                                ? 'Audio listo para enviar'
-                                                : 'Audio opcional (máx. 10 s)'),
+                                                ? l10n.audioReadyToSend
+                                                : l10n.audioOptionalMaxTen),
                                         style: const TextStyle(fontSize: 13),
                                       ),
                                     ),
@@ -1007,14 +1013,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                             ? () => stopRecording(setDialogState)
                                             : () => startRecording(setDialogState),
                                         icon: Icon(isRecording ? Icons.stop : Icons.mic),
-                                        label: Text(isRecording ? 'Detener' : 'Grabar'),
+                                        label: Text(isRecording ? l10n.stopRecording : l10n.startRecording),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     if (audioFile != null)
                                       TextButton(
                                         onPressed: () => setDialogState(() => audioFile = null),
-                                        child: const Text('Quitar audio'),
+                                        child: Text(l10n.removeAudio),
                                       ),
                                   ],
                                 ),
@@ -1037,7 +1043,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               Navigator.of(ctx).pop();
                               otherFocus.dispose();
                               otherController.dispose();
-                              _hideEmergencyOptions();
+                              if (mounted) _hideEmergencyOptions();
                             },
                             child: Text(AppLocalizations.of(context)!.cancel),
                           ),
@@ -1048,13 +1054,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             onPressed: () async {
                               if (selectedSubtype == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Selecciona un subtipo para continuar')),
+                                  SnackBar(content: Text(l10n.selectSubtypeRequired)),
                                 );
                                 return;
                               }
                               if (requiresOtherDetail && otherController.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Describe el caso para la opción Otro')),
+                                  SnackBar(content: Text(l10n.describeOtherCaseRequired)),
                                 );
                                 return;
                               }
@@ -1072,7 +1078,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               Navigator.of(ctx).pop();
                               otherFocus.dispose();
                               otherController.dispose();
-                              _hideEmergencyOptions();
+                              if (mounted) _hideEmergencyOptions();
                               await _showSuccessSnackBar(
                                 emergencyType,
                                 selectedCommunities,
@@ -1111,6 +1117,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     String? audioBase64,
   }) async {
     final alertType = emergencyType;
+    final l10n = AppLocalizations.of(context)!;
+    final n = selectedCommunities.length;
+    final sendingLine = n == 1
+        ? l10n.alertSendingToOne
+        : l10n.alertSendingToMany(n);
     
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1127,9 +1138,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                'Enviando a ${selectedCommunities.length} comunidad${selectedCommunities.length > 1 ? 'es' : ''}...',
-              ),
+              child: Text(sendingLine),
             ),
           ],
         ),
@@ -1167,6 +1176,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
     if (successCount > 0) {
       final screenWidth = MediaQuery.of(context).size.width;
+      final okL10n = AppLocalizations.of(context)!;
+      final sentLine = successCount == 1
+          ? okL10n.alertSentToOneCommunity
+          : okL10n.alertSentToManyCommunities(successCount);
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1193,7 +1206,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppLocalizations.of(context)!.alertSent,
+                        okL10n.alertSent,
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -1201,7 +1214,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                       ),
                       Text(
-                        'Enviada a $successCount comunidad${successCount > 1 ? 'es' : ''}',
+                        sentLine,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
@@ -1239,6 +1252,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   void _hideEmergencyOptions() {
+    if (!mounted) return;
     setState(() {
       _showEmergencyOptions = false;
       _currentEmergencyType = '';
@@ -1408,6 +1422,7 @@ class _EventualityBottomStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     final hx = w < 360 ? 14.0 : w < 420 ? 18.0 : 22.0;
@@ -1422,8 +1437,8 @@ class _EventualityBottomStrip extends StatelessWidget {
           Expanded(
             child: _AppleCategoryCard(
               icon: Icons.eco_rounded,
-              title: 'Ambiental',
-              subtitle: 'Eventualidad ambiental',
+              title: l10n.eventualityEnvironmentalTitle,
+              subtitle: l10n.eventualityEnvironmentalSubtitle,
               accent: _AppleEmergencyUX.accentGreen,
               onTap: onAmbiental,
             ),
@@ -1432,8 +1447,8 @@ class _EventualityBottomStrip extends StatelessWidget {
           Expanded(
             child: _AppleCategoryCard(
               icon: Icons.local_police_rounded,
-              title: 'Policial',
-              subtitle: 'Eventualidad policial',
+              title: l10n.eventualityPoliceTitle,
+              subtitle: l10n.eventualityPoliceSubtitle,
               accent: _AppleEmergencyUX.accentBlue,
               onTap: onPolicial,
             ),

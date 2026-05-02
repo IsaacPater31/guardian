@@ -52,10 +52,11 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
 
   /// Valida el token y obtiene preview de la comunidad
   Future<void> _validateToken(String input) async {
+    final l10n = AppLocalizations.of(context)!;
     final token = _deepLinkService.parseTokenFromInput(input);
     if (token == null) {
       setState(() {
-        _errorMessage = 'Token o link inválido';
+        _errorMessage = l10n.invalidToken;
         _communityPreview = null;
         _currentToken = null;
       });
@@ -75,7 +76,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
       
       if (inviteInfo == null) {
         setState(() {
-          _errorMessage = 'Invitación no válida o expirada';
+          _errorMessage = l10n.inviteExpiredOrInvalid;
           _isValidating = false;
         });
         return;
@@ -84,7 +85,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
       final communityId = inviteInfo['community_id'] as String?;
       if (communityId == null) {
         setState(() {
-          _errorMessage = 'Datos de invitación inválidos';
+          _errorMessage = l10n.invalidInviteData;
           _isValidating = false;
         });
         return;
@@ -102,7 +103,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error validando invitación';
+        _errorMessage = l10n.errorValidatingInvite;
         _isValidating = false;
       });
     }
@@ -125,10 +126,11 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
           setState(() => _isLoading = false);
 
           // Mostrar mensaje apropiado según el resultado
+          final l10n = AppLocalizations.of(context)!;
           final message = result.message ??
               (_communityPreview != null
-                  ? '¡Te has unido a ${_communityPreview!.name}!'
-                  : '¡Te has unido a la comunidad!');
+                  ? l10n.joinedCommunityName(_communityPreview!.name)
+                  : l10n.joinedCommunity);
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -176,9 +178,10 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.joinCommunityTitle),
+        title: Text(l10n.joinCommunityTitle),
         backgroundColor: const Color(0xFF1F2937),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -195,9 +198,9 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
               color: Color(0xFF1F2937),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Únete a una comunidad',
-              style: TextStyle(
+            Text(
+              l10n.joinACommunity,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
@@ -206,7 +209,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ingresa el link o código de invitación que te compartieron',
+              l10n.enterInviteLinkOrCode,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -221,8 +224,8 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
               child: TextFormField(
                 controller: _tokenController,
                 decoration: InputDecoration(
-                  labelText: 'Link o código de invitación',
-                  hintText: 'guardian.app/join/xxx o código',
+                  labelText: l10n.inviteLinkOrCode,
+                  hintText: l10n.inviteLinkHint,
                   prefixIcon: const Icon(Icons.link),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -245,7 +248,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                 onFieldSubmitted: _validateToken,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Ingresa un link o código';
+                    return l10n.enterLinkOrCode;
                   }
                   return null;
                 },
@@ -262,7 +265,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                   }
                 },
                 icon: const Icon(Icons.verified),
-                label: const Text('Validar invitación'),
+                label: Text(l10n.validateInvitation),
               ),
 
             // Error message
@@ -318,7 +321,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                       )
                     : const Icon(Icons.check),
                 label: Text(
-                  _isLoading ? 'Uniéndose...' : 'Unirse a la comunidad',
+                  _isLoading ? l10n.joining : l10n.joinCommunityAction,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -342,7 +345,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                       Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '¿Cómo funciona?',
+                        l10n.howItWorks,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: Colors.blue[700],
@@ -352,9 +355,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '• Los links de invitación expiran en 12 horas\n'
-                    '• Puedes pegar el link completo o solo el código\n'
-                    '• Una vez unido, recibirás las alertas de la comunidad',
+                    l10n.howItWorksDetails,
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[700],
@@ -371,6 +372,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
   }
 
   Widget _buildCommunityPreview() {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(
@@ -435,7 +437,7 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                   Icon(Icons.verified, color: Colors.green[700], size: 16),
                   const SizedBox(width: 4),
                   Text(
-                    'Invitación válida',
+                    l10n.validInvitation,
                     style: TextStyle(
                       color: Colors.green[700],
                       fontWeight: FontWeight.w500,

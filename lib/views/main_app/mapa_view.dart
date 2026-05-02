@@ -426,10 +426,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 12,
                       height: 12,
                       child: CircularProgressIndicator(
@@ -437,8 +437,11 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Text('Actualizando...', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppLocalizations.of(context)!.mapRefreshing,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
