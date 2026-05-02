@@ -279,7 +279,9 @@ class GuardianBackgroundService : Service() {
     }
     
     private fun handleNewAlert(alertData: Map<String, Any>, documentId: String) {
-        val alertType = alertData["alertType"] as? String ?: return
+        val rawAlertType = alertData["alertType"] as? String ?: return
+        val flowType = alertData["type"] as? String ?: ""
+        val alertType = EmergencyTypes.normalizeAlertTypeForNotification(rawAlertType, flowType)
         val description = alertData["description"] as? String
         val isAnonymous = alertData["isAnonymous"] as? Boolean ?: false
         val shareLocation = alertData["shareLocation"] as? Boolean ?: false

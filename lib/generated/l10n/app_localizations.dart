@@ -2666,6 +2666,12 @@ abstract class AppLocalizations {
   /// **'Pausar'**
   String get attachmentPausePreview;
 
+  /// No description provided for @audioPreviewFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo reproducir la vista previa del audio.'**
+  String get audioPreviewFailed;
+
   /// No description provided for @selectSubtypeRequired.
   ///
   /// In es, this message translates to:

@@ -1402,6 +1402,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attachmentPausePreview => 'Pause';
 
   @override
+  String get audioPreviewFailed => 'Could not play the audio preview.';
+
+  @override
   String get selectSubtypeRequired => 'Select a subtype to continue';
 
   @override

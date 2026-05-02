@@ -1410,6 +1410,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get attachmentPausePreview => 'Pausar';
 
   @override
+  String get audioPreviewFailed =>
+      'No se pudo reproducir la vista previa del audio.';
+
+  @override
   String get selectSubtypeRequired => 'Selecciona un subtipo para continuar';
 
   @override

@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:record/record.dart';
+import 'package:guardian/services/audio_preview_service.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/handlers/alert_handler.dart';
 import 'package:guardian/models/emergency_types.dart';
@@ -2160,32 +2160,41 @@ class _LocalAudioPreview extends StatefulWidget {
 }
 
 class _LocalAudioPreviewState extends State<_LocalAudioPreview> {
-  late final AudioPlayer _player = AudioPlayer();
   bool _playing = false;
-  StreamSubscription<void>? _completeSub;
 
   @override
   void initState() {
     super.initState();
-    _completeSub = _player.onPlayerComplete.listen((_) {
+    AudioPreviewService.setCompletionHandler(() {
       if (mounted) setState(() => _playing = false);
     });
   }
 
   @override
   void dispose() {
-    _completeSub?.cancel();
-    unawaited(_player.dispose());
+    unawaited(AudioPreviewService.stop());
+    AudioPreviewService.clearCompletionHandler();
     super.dispose();
   }
 
   Future<void> _toggle() async {
     if (_playing) {
-      await _player.stop();
+      await AudioPreviewService.stop();
       if (mounted) setState(() => _playing = false);
     } else {
-      await _player.play(DeviceFileSource(widget.file.path));
-      if (mounted) setState(() => _playing = true);
+      try {
+        await AudioPreviewService.play(widget.file.path);
+        if (mounted) setState(() => _playing = true);
+      } on PlatformException {
+        if (mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.audioPreviewFailed),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 

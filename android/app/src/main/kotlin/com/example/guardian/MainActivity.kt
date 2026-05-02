@@ -3,7 +3,10 @@ package com.example.guardian
 import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
+import android.media.MediaPlayer
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -12,9 +15,61 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "guardian_background_service"
-    
+    private val AUDIO_PREVIEW_CHANNEL = "guardian/audio_preview"
+    private lateinit var audioPreviewChannel: MethodChannel
+    private var audioPreviewPlayer: MediaPlayer? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        audioPreviewChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AUDIO_PREVIEW_CHANNEL,
+        )
+        audioPreviewChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "play" -> {
+                    val path = (call.arguments as? Map<*, *>)?.get("path") as? String
+                    if (path.isNullOrEmpty()) {
+                        result.error("BAD_ARGS", "path required", null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        audioPreviewPlayer?.release()
+                        audioPreviewPlayer = MediaPlayer().apply {
+                            setDataSource(path)
+                            setOnCompletionListener {
+                                Handler(Looper.getMainLooper()).post {
+                                    try {
+                                        audioPreviewChannel.invokeMethod("completed", null)
+                                    } catch (_: Exception) { }
+                                }
+                                try {
+                                    release()
+                                } catch (_: Exception) { }
+                                audioPreviewPlayer = null
+                            }
+                            prepare()
+                            start()
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("PLAY_FAILED", e.message, null)
+                    }
+                }
+                "stop" -> {
+                    try {
+                        audioPreviewPlayer?.stop()
+                    } catch (_: Exception) { }
+                    try {
+                        audioPreviewPlayer?.release()
+                    } catch (_: Exception) { }
+                    audioPreviewPlayer = null
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
 
         syncFlutterLocaleToNative()
         

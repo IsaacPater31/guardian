@@ -526,6 +526,7 @@
   "removeAudio": "Quitar audio",
   "attachmentListenPreview": "Escuchar",
   "attachmentPausePreview": "Pausar",
+  "audioPreviewFailed": "No se pudo reproducir la vista previa del audio.",
   "selectSubtypeRequired": "Selecciona un subtipo para continuar",
   "describeOtherCaseRequired": "Describe el caso para la opción Otro",
 

@@ -4,103 +4,116 @@ import android.content.Context
 import android.graphics.Color
 
 /**
- * Clase centralizada para manejar todos los tipos de emergencia en Android
- * Elimina la duplicación de datos entre GuardianBackgroundService y otros componentes
+ * Tipos de emergencia alineados con [lib/core/alert_detail_catalog.dart] y
+ * [lib/models/emergency_types.dart] (Firestore `alertType` y gesto radial).
+ * Las notificaciones en segundo plano usan las mismas claves y títulos que la app.
  */
 object EmergencyTypes {
-    
+
     private var context: Context? = null
-    
+
     fun initialize(context: Context) {
         this.context = context
     }
-    
+
     /**
-     * Mapa con todos los tipos de emergencia y sus configuraciones
+     * Catálogo canónico: claves = valor `alertType` en Firestore (mismo que Flutter).
      */
-    val types = mapOf(
-        "up" to EmergencyType(
-            type = "STREET ESCORT",
-            icon = "👥",
-            color = Color.BLUE,
-            title = "👥 Acompañamiento Solicitado"
+    val catalogTypes: Map<String, EmergencyType> = mapOf(
+        "HEALTH" to EmergencyType(
+            type = "HEALTH",
+            icon = "🏥",
+            color = Color.parseColor("#26C6DA"),
+            title = "HEALTH",
         ),
-        "upLeft" to EmergencyType(
-            type = "ROBBERY",
-            icon = "🚨",
-            color = Color.RED,
-            title = "🚨 Robo Reportado"
+        "HOME_HELP" to EmergencyType(
+            type = "HOME_HELP",
+            icon = "🏠",
+            color = Color.parseColor("#66BB6A"),
+            title = "HOME_HELP",
         ),
-        "left" to EmergencyType(
-            type = "UNSAFETY",
-            icon = "⚠️",
-            color = Color.parseColor("#FF9800"), // Orange
-            title = "⚠️ Zona Insegura"
+        "POLICE" to EmergencyType(
+            type = "POLICE",
+            icon = "🚔",
+            color = Color.parseColor("#1565C0"),
+            title = "POLICE",
         ),
-        "downLeft" to EmergencyType(
-            type = "PHYSICAL RISK",
-            icon = "🚨",
-            color = Color.parseColor("#9C27B0"), // Purple
-            title = "🚨 Riesgo Físico"
-        ),
-        "down" to EmergencyType(
-            type = "PUBLIC SERVICES EMERGENCY",
-            icon = "🏗️",
-            color = Color.parseColor("#FFC107"), // Yellow
-            title = "🏗️ Emergencia Servicios Públicos"
-        ),
-        "downRight" to EmergencyType(
-            type = "VIAL EMERGENCY",
-            icon = "🚦",
-            color = Color.parseColor("#00BCD4"), // Cyan
-            title = "🚦 Emergencia Vial"
-        ),
-        "right" to EmergencyType(
-            type = "ASSISTANCE",
-            icon = "🆘",
-            color = Color.parseColor("#4CAF50"), // Green
-            title = "🆘 Asistencia Necesaria"
-        ),
-        "upRight" to EmergencyType(
+        "FIRE" to EmergencyType(
             type = "FIRE",
             icon = "🔥",
-            color = Color.parseColor("#F44336"), // Red
-            title = "🔥 Incendio Reportado"
+            color = Color.parseColor("#E53935"),
+            title = "FIRE",
         ),
-        "center" to EmergencyType(
-            type = "EMERGENCY",
+        "SECURITY_BREACH" to EmergencyType(
+            type = "SECURITY_BREACH",
+            icon = "🛡️",
+            color = Color.parseColor("#C62828"),
+            title = "SECURITY_BREACH",
+        ),
+        "ROAD_EMERGENCY" to EmergencyType(
+            type = "ROAD_EMERGENCY",
+            icon = "🚗",
+            color = Color.parseColor("#FF7043"),
+            title = "ROAD_EMERGENCY",
+        ),
+        "ENVIRONMENTAL" to EmergencyType(
+            type = "ENVIRONMENTAL",
+            icon = "🌿",
+            color = Color.parseColor("#43A047"),
+            title = "ENVIRONMENTAL",
+        ),
+        "ACCOMPANIMENT" to EmergencyType(
+            type = "ACCOMPANIMENT",
+            icon = "👥",
+            color = Color.parseColor("#8E24AA"),
+            title = "ACCOMPANIMENT",
+        ),
+        "HARASSMENT" to EmergencyType(
+            type = "HARASSMENT",
+            icon = "🛡️",
+            color = Color.parseColor("#EC407A"),
+            title = "HARASSMENT",
+        ),
+        "URGENCY" to EmergencyType(
+            type = "URGENCY",
             icon = "🚨",
-            color = Color.parseColor("#E91E63"), // Pink
-            title = "🚨 Emergencia General"
-        )
+            color = Color.parseColor("#F44336"),
+            title = "URGENCY",
+        ),
     )
-    
+
     /**
-     * Obtiene el tipo de emergencia por dirección del gesto
+     * Gesto radial (5 direcciones) + centro toque rápido — misma asignación que
+     * [EmergencyTypes.radialDirectionToType] en Dart.
      */
-    fun getTypeByDirection(direction: String): EmergencyType? {
-        return types[direction]
-    }
-    
+    val types: Map<String, EmergencyType> = mapOf(
+        "up" to catalogTypes.getValue("HARASSMENT"),
+        "left" to catalogTypes.getValue("HEALTH"),
+        "downLeft" to catalogTypes.getValue("HOME_HELP"),
+        "downRight" to catalogTypes.getValue("SECURITY_BREACH"),
+        "right" to catalogTypes.getValue("ROAD_EMERGENCY"),
+        "center" to catalogTypes.getValue("URGENCY"),
+    )
+
+    fun getTypeByDirection(direction: String): EmergencyType? = types[direction]
+
     /**
-     * Obtiene el tipo de emergencia por nombre
+     * Resuelve por `alertType` de Firestore; acepta alias heredados.
      */
     fun getTypeByName(typeName: String): EmergencyType? {
-        return types.values.find { it.type == typeName }
+        val key = normalizeAliasToCanonicalKey(typeName)
+        return catalogTypes[key]
     }
-    
-    /**
-     * Función para obtener el idioma actual
-     */
+
     private fun getCurrentLanguage(): String {
         val ctx = context ?: return "es"
         return try {
             val flutterPrefs = ctx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
             var lang = flutterPrefs.getString("flutter.selected_language", null)
             if (lang == null) {
-                for (key in flutterPrefs.all.keys) {
-                    if (key.contains("selected_language")) {
-                        lang = flutterPrefs.getString(key, null)
+                for (k in flutterPrefs.all.keys) {
+                    if (k.contains("selected_language")) {
+                        lang = flutterPrefs.getString(k, null)
                         break
                     }
                 }
@@ -116,74 +129,86 @@ object EmergencyTypes {
             "es"
         }
     }
-    
+
     /**
-     * Títulos en español
+     * Misma lógica que [AlertModel.fromFirestore]: quick + HEALTH antiguo → URGENCY.
+     * Unifica alias viejos (p. ej. vial) con claves actuales.
      */
+    fun normalizeAlertTypeForNotification(alertType: String, flowType: String): String {
+        var t = alertType.trim()
+        if (flowType == "quick" && t == "HEALTH") return "URGENCY"
+        t = when (t) {
+            "VIAL EMERGENCY" -> "ROAD_EMERGENCY"
+            else -> t
+        }
+        return t
+    }
+
+    private fun normalizeAliasToCanonicalKey(typeName: String): String {
+        val t = typeName.trim()
+        if (t == "VIAL EMERGENCY") return "ROAD_EMERGENCY"
+        return t
+    }
+
     private val spanishTitles = mapOf(
-        "HEALTH" to "🏥 Alerta sanitaria",
+        "HEALTH" to "🏥 Sanitaria",
         "HOME_HELP" to "🏠 Ayuda en casa",
         "POLICE" to "🚔 Policía",
-        "FIRE" to "🔥 Bomberos / incendio",
+        "FIRE" to "🔥 Bomberos",
         "SECURITY_BREACH" to "🛡️ Brecha de seguridad",
-        "ACCOMPANIMENT" to "👥 Acompañamiento",
-        "ENVIRONMENTAL" to "🌿 Emergencia ambiental",
         "ROAD_EMERGENCY" to "🚗 Emergencia vial",
-        "URGENCY" to "🚨 Urgencia",
+        "ENVIRONMENTAL" to "🌿 Ambiental",
+        "ACCOMPANIMENT" to "👥 Acompañamiento",
         "HARASSMENT" to "🛡️ Acoso",
-        "ROBBERY" to "🚨 Robo Reportado",
-        "ACCIDENT" to "🚗 Accidente Reportado",
-        "STREET ESCORT" to "👥 Acompañamiento Solicitado",
-        "UNSAFETY" to "⚠️ Zona Insegura",
-        "PHYSICAL RISK" to "🚨 Riesgo Físico",
-        "PUBLIC SERVICES EMERGENCY" to "🏗️ Emergencia Servicios Públicos",
-        "VIAL EMERGENCY" to "🚦 Emergencia Vial",
-        "ASSISTANCE" to "🆘 Asistencia Necesaria",
-        "EMERGENCY" to "🚨 Emergencia General"
+        "URGENCY" to "🚨 Urgencia",
+        // Legacy / datos antiguos en Firestore (conviven con clientes viejos)
+        "ROBBERY" to "🚨 Robo reportado",
+        "ACCIDENT" to "🚗 Accidente reportado",
+        "UNSAFETY" to "⚠️ Zona insegura",
+        "PHYSICAL RISK" to "🚨 Riesgo físico",
+        "PUBLIC SERVICES EMERGENCY" to "🏗️ Emergencia servicios públicos",
+        "STREET ESCORT" to "👥 Acompañamiento solicitado",
+        "ASSISTANCE" to "🆘 Asistencia necesaria",
+        "EMERGENCY" to "🚨 Emergencia general",
+        "VIAL EMERGENCY" to "🚗 Emergencia vial",
     )
-    
-    /**
-     * Títulos en inglés
-     */
+
     private val englishTitles = mapOf(
         "HEALTH" to "🏥 Health emergency",
         "HOME_HELP" to "🏠 Home help",
         "POLICE" to "🚔 Police",
-        "FIRE" to "🔥 Fire department",
+        "FIRE" to "🔥 Firefighters",
         "SECURITY_BREACH" to "🛡️ Security breach",
-        "ACCOMPANIMENT" to "👥 Escort / accompaniment",
-        "ENVIRONMENTAL" to "🌿 Environmental emergency",
         "ROAD_EMERGENCY" to "🚗 Road emergency",
-        "URGENCY" to "🚨 Urgency",
+        "ENVIRONMENTAL" to "🌿 Environmental",
+        "ACCOMPANIMENT" to "👥 Accompaniment",
         "HARASSMENT" to "🛡️ Harassment",
-        "ROBBERY" to "🚨 Robbery Reported",
-        "ACCIDENT" to "🚗 Accident Reported",
-        "STREET ESCORT" to "👥 Street Escort Requested",
-        "UNSAFETY" to "⚠️ Unsafe Area",
-        "PHYSICAL RISK" to "🚨 Physical Risk",
-        "PUBLIC SERVICES EMERGENCY" to "🏗️ Public Services Emergency",
-        "VIAL EMERGENCY" to "🚦 Traffic Emergency",
-        "ASSISTANCE" to "🆘 Assistance Needed",
-        "EMERGENCY" to "🚨 General Emergency"
+        "URGENCY" to "🚨 Urgency",
+        "ROBBERY" to "🚨 Robbery reported",
+        "ACCIDENT" to "🚗 Accident reported",
+        "UNSAFETY" to "⚠️ Unsafe area",
+        "PHYSICAL RISK" to "🚨 Physical risk",
+        "PUBLIC SERVICES EMERGENCY" to "🏗️ Public services emergency",
+        "STREET ESCORT" to "👥 Street escort requested",
+        "ASSISTANCE" to "🆘 Assistance needed",
+        "EMERGENCY" to "🚨 General emergency",
+        "VIAL EMERGENCY" to "🚗 Traffic emergency",
     )
-    
-    /**
-     * Obtiene el título de notificación por tipo de alerta
-     */
+
     fun getNotificationTitle(alertType: String): String {
         val language = getCurrentLanguage()
         val titles = if (language == "es") spanishTitles else englishTitles
-        return titles[alertType] ?: if (language == "es") "🚨 Alerta de Emergencia" else "🚨 Emergency Alert"
+        val key = normalizeAliasToCanonicalKey(alertType)
+        return titles[key]
+            ?: titles[alertType.trim()]
+            ?: if (language == "es") "🚨 Alerta de emergencia" else "🚨 Emergency alert"
     }
-    
-    /**
-     * Construye el cuerpo de la notificación
-     */
+
     fun buildNotificationBody(
         alertType: String,
         description: String?,
         isAnonymous: Boolean,
-        shareLocation: Boolean
+        shareLocation: Boolean,
     ): String {
         val language = getCurrentLanguage()
         val body = StringBuilder()
@@ -207,11 +232,10 @@ object EmergencyTypes {
         return body.toString().trim()
     }
 
-    /** Short single-line summary for collapsed notification view. */
     fun buildNotificationSummary(
         description: String?,
         isAnonymous: Boolean,
-        shareLocation: Boolean
+        shareLocation: Boolean,
     ): String {
         val language = getCurrentLanguage()
         val parts = mutableListOf<String>()
@@ -232,12 +256,9 @@ object EmergencyTypes {
     }
 }
 
-/**
- * Clase de datos para representar un tipo de emergencia
- */
 data class EmergencyType(
     val type: String,
     val icon: String,
     val color: Int,
-    val title: String
+    val title: String,
 )
