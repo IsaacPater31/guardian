@@ -5,13 +5,13 @@ import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/community_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:guardian/controllers/alert_controller.dart';
+import 'package:guardian/handlers/alert_handler.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/services/community_service.dart';
-import 'package:guardian/services/community_repository.dart';
+import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
 // ─── Shared design constants ───────────────────────────────────────────────────
 const Color _kAttended  = Color(0xFF34C759); // Apple green
@@ -85,7 +85,7 @@ class AlertDetailDialog extends StatefulWidget {
 }
 
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
-  final AlertController      _alertController      = AlertController();
+  final AlertHandler      _alertHandler      = AlertHandler();
   final CommunityService     _communityService     = CommunityService();
   final CommunityRepository  _communityRepository  = CommunityRepository();
   final UserService          _userService          = UserService();
@@ -106,7 +106,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   void initState() {
     super.initState();
     if (widget.alert.id != null) {
-      _alertController.markAlertAsViewed(widget.alert.id!);
+      _alertHandler.markAlertAsViewed(widget.alert.id!);
     }
     _scheduleCommunityNameLoad();
   }
@@ -1182,7 +1182,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
     setState(() => _isReporting = true);
     try {
-      await _alertController.reportAlert(widget.alert.id!);
+      await _alertHandler.reportAlert(widget.alert.id!);
       if (mounted) {
         setState(() {
           _userHasReported = true;
@@ -1272,7 +1272,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       );
 
       try {
-        final count = await _alertController.forwardAlert(
+        final count = await _alertHandler.forwardAlert(
           alertId:             widget.alert.id!,
           targetCommunityIds:  selectedIds.toList(),
         );

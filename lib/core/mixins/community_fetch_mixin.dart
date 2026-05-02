@@ -4,10 +4,8 @@ import '../app_constants.dart';
 /// Mixin that provides a reusable helper for fetching the communities
 /// a given user belongs to from Firestore.
 ///
-/// The same fetch-memberships → batch-fetch-communities → sort pattern
-/// was previously duplicated in [CommunityService], [QuickAlertConfigService],
-/// and [SwipeAlertConfigService]. This mixin is the single canonical
-/// implementation.
+/// The fetch-memberships → batch-fetch-communities → sort pattern lives on
+/// [CommunityRepository] via this mixin so all callers share one implementation.
 ///
 /// Classes that use this mixin gain access to [fetchUserCommunities] and the
 /// private batch-fetching helpers.

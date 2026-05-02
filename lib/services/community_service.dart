@@ -1,63 +1,46 @@
 import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
 import '../core/entity_definitions.dart';
-import '../core/mixins/community_fetch_mixin.dart';
-import 'alert_repository.dart';
+import '../models/join_result.dart';
 import '../models/member_report_model.dart';
+import '../repositories/community_repository.dart';
+import 'alert_service.dart';
 
-/// Result returned by operations that join a community.
-class JoinResult {
-  final bool success;
-  final bool alreadyMember;
-  final String? role;
-  final String? message;
-
-  JoinResult({
-    required this.success,
-    this.alreadyMember = false,
-    this.role,
-    this.message,
-  });
-}
-
-/// Service responsible for all community-related business logic.
+/// Business rules for communities, memberships, invites, and moderation.
 ///
-/// Optimised for Firebase Spark (free) plan: minimises read/write operations
-/// through batching and selective queries.
-class CommunityService with CommunityFetchMixin {
+/// **Why a service:** applies authz (admin vs member, entity constraints) and
+/// coordinates several repository calls; [CommunityRepository] stays Firestore-only.
+class CommunityService {
   static final CommunityService _instance = CommunityService._internal();
   factory CommunityService() => _instance;
   CommunityService._internal();
 
-  @override
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final CommunityRepository _repo = CommunityRepository();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // ─── Entity Bootstrapping ────────────────────────────────────────────────
+  void _invalidateAlertCommunityCache() {
+    AlertService().invalidateCommunityCache();
+  }
 
-  /// Seeds the four built-in entity communities if they do not yet exist.
-  ///
-  /// Safe to call multiple times (idempotent). Returns [true] if any new
-  /// entities were created.
+  // ─── Entity bootstrap ────────────────────────────────────────────────────
+
   Future<bool> initializeEntityCommunities() async {
     try {
       bool createdAny = false;
 
       for (final entity in EntityDefinitions.defaultEntities) {
-        final existing = await firestore
-            .collection(FirestoreCollections.communities)
-            .where(CommunityFields.name, isEqualTo: entity[CommunityFields.name])
-            .where(CommunityFields.isEntity, isEqualTo: true)
-            .limit(1)
-            .get();
+        final existing = await _repo.queryCommunitiesByNameAndEntity(
+          entity[CommunityFields.name] as String,
+          true,
+        );
 
         if (existing.docs.isEmpty) {
-          await firestore
-              .collection(FirestoreCollections.communities)
-              .add(EntityDefinitions.toFirestore(entity));
+          await _repo.addCommunity(EntityDefinitions.toFirestore(entity));
           AppLogger.d('Entity created: ${entity[CommunityFields.name]}');
           createdAny = true;
         } else {
@@ -72,10 +55,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Ensures the current user is a member of every entity community.
-  ///
-  /// Called after login/registration to provide automatic entity membership.
-  /// Uses a Firestore batch to minimise write operations.
   Future<void> ensureUserInEntities() async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -84,18 +63,12 @@ class CommunityService with CommunityFetchMixin {
         return;
       }
 
-      var entitiesSnap = await firestore
-          .collection(FirestoreCollections.communities)
-          .where(CommunityFields.isEntity, isEqualTo: true)
-          .get();
+      var entitiesSnap = await _repo.fetchAllEntityCommunities();
 
       if (entitiesSnap.docs.isEmpty) {
         AppLogger.w('No entities found — seeding now');
         await initializeEntityCommunities();
-        entitiesSnap = await firestore
-            .collection(FirestoreCollections.communities)
-            .where(CommunityFields.isEntity, isEqualTo: true)
-            .get();
+        entitiesSnap = await _repo.fetchAllEntityCommunities();
 
         if (entitiesSnap.docs.isEmpty) {
           AppLogger.e('Could not seed entities');
@@ -111,23 +84,18 @@ class CommunityService with CommunityFetchMixin {
 
   Future<void> _addUserToEntities(
     String userId,
-    List<QueryDocumentSnapshot> entities,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> entities,
   ) async {
-    final batch = firestore.batch();
+    final batch = _repo.createBatch();
     int added = 0;
 
     for (final entityDoc in entities) {
       final communityId = entityDoc.id;
 
-      final existingMember = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: userId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final existingMember = await _repo.findMembership(userId, communityId);
 
       if (existingMember.docs.isEmpty) {
-        final ref = firestore.collection(FirestoreCollections.communityMembers).doc();
+        final ref = _repo.firestore.collection(FirestoreCollections.communityMembers).doc();
         batch.set(ref, {
           MemberFields.userId: userId,
           MemberFields.communityId: communityId,
@@ -140,70 +108,50 @@ class CommunityService with CommunityFetchMixin {
 
     if (added > 0) {
       await batch.commit();
-      AlertRepository().invalidateCommunityCache();
+      _invalidateAlertCommunityCache();
       AppLogger.d('User added to $added entities');
     } else {
       AppLogger.d('User already belongs to all entities');
     }
   }
 
-  // ─── Community Queries ───────────────────────────────────────────────────
+  // ─── Community queries ───────────────────────────────────────────────────
 
-  /// Returns all communities the current user belongs to.
   Future<List<Map<String, dynamic>>> getMyCommunities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-      return fetchUserCommunities(userId);
+      return _repo.fetchUserCommunities(userId);
     } catch (e) {
       AppLogger.e('getMyCommunities', e);
       return [];
     }
   }
 
-  /// Reactive stream of the current user's communities.
   Stream<List<Map<String, dynamic>>> getMyCommunitiesStream() {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return Stream.value([]);
 
-    return firestore
-        .collection(FirestoreCollections.communityMembers)
-        .where(MemberFields.userId, isEqualTo: userId)
-        .snapshots()
-        .asyncMap((_) => getMyCommunities());
+    return _repo.watchMembershipsForUser(userId).asyncMap((_) => getMyCommunities());
   }
 
-  // ─── Alert Recipients ────────────────────────────────────────────────────
+  // ─── Alert recipients ────────────────────────────────────────────────────
 
-  /// Returns the user IDs that should receive alerts for [communityId].
-  ///
-  /// Entities → only `official` members.
-  /// Normal communities → all members.
   Future<List<String>> getAlertRecipients(String communityId) async {
     try {
-      final communityDoc = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
+      final community = await _repo.getCommunityById(communityId);
+      if (community == null) return [];
 
-      if (!communityDoc.exists) return [];
-
-      final isEntity = communityDoc.data()?[CommunityFields.isEntity] ?? false;
-
-      Query query = firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.communityId, isEqualTo: communityId);
-
-      if (isEntity) {
-        query = query.where(MemberFields.role, isEqualTo: MemberFields.roleOfficial);
-      }
-
-      final snap = await query.get();
+      final isEntity = community.isEntity;
+      final snap = await _repo.queryMembersInCommunity(
+        communityId,
+        roleIs: isEntity ? MemberFields.roleOfficial : null,
+      );
 
       return snap.docs
           .map((doc) {
-            final data = doc.data() as Map<String, dynamic>?;
-            return data?[MemberFields.userId] as String? ?? '';
+            final data = doc.data();
+            return data[MemberFields.userId] as String? ?? '';
           })
           .where((id) => id.isNotEmpty)
           .toList();
@@ -213,38 +161,29 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Official Members ────────────────────────────────────────────────────
+  // ─── Official members ────────────────────────────────────────────────────
 
-  /// Adds or promotes [userId] as an `official` member of [communityId].
   Future<bool> addOfficialMember(String userId, String communityId) async {
     try {
-      final communityDoc = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
-
-      if (!communityDoc.exists) {
+      final community = await _repo.getCommunityById(communityId);
+      if (community == null) {
         AppLogger.e('addOfficialMember: community not found');
         return false;
       }
-
-      if (!(communityDoc.data()?[CommunityFields.isEntity] ?? false)) {
+      if (!community.isEntity) {
         AppLogger.e('addOfficialMember: target is not an entity');
         return false;
       }
 
-      final existing = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: userId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final existing = await _repo.findMembership(userId, communityId);
 
       if (existing.docs.isNotEmpty) {
-        await existing.docs.first.reference.update({MemberFields.role: MemberFields.roleOfficial});
+        await _repo.updateMemberDoc(existing.docs.first.reference, {
+          MemberFields.role: MemberFields.roleOfficial,
+        });
         AppLogger.d('Updated user to official member');
       } else {
-        await firestore.collection(FirestoreCollections.communityMembers).add({
+        await _repo.addMember({
           MemberFields.userId: userId,
           MemberFields.communityId: communityId,
           MemberFields.joinedAt: Timestamp.now(),
@@ -260,10 +199,8 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Create / Update / Delete Community ─────────────────────────────────
+  // ─── Create / update / delete community ─────────────────────────────────
 
-  /// Creates a new (non-entity) community. The creator is automatically added
-  /// as `admin`.
   Future<String?> createCommunity({
     required String name,
     String? description,
@@ -289,16 +226,16 @@ class CommunityService with CommunityFetchMixin {
       if (iconCodePoint != null) data[CommunityFields.iconCodePoint] = iconCodePoint;
       if (iconColor != null) data[CommunityFields.iconColor] = iconColor;
 
-      final ref = await firestore.collection(FirestoreCollections.communities).add(data);
+      final ref = await _repo.addCommunity(data);
 
-      await firestore.collection(FirestoreCollections.communityMembers).add({
+      await _repo.addMember({
         MemberFields.userId: userId,
         MemberFields.communityId: ref.id,
         MemberFields.joinedAt: Timestamp.now(),
         MemberFields.role: MemberFields.roleAdmin,
       });
 
-      AlertRepository().invalidateCommunityCache();
+      _invalidateAlertCommunityCache();
       AppLogger.d('Community created: $name (${ref.id})');
       return ref.id;
     } catch (e) {
@@ -307,20 +244,14 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Generates a time-limited invite link for [communityId].
   Future<String?> generateInviteLink(String communityId) async {
     try {
-      final communityDoc = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
-
-      if (!communityDoc.exists) {
+      final community = await _repo.getCommunityById(communityId);
+      if (community == null) {
         AppLogger.e('generateInviteLink: community not found');
         return null;
       }
-
-      if (communityDoc.data()?[CommunityFields.isEntity] ?? false) {
+      if (community.isEntity) {
         AppLogger.e('generateInviteLink: entities cannot have invite links');
         return null;
       }
@@ -328,7 +259,7 @@ class CommunityService with CommunityFetchMixin {
       final token = _generateToken();
       final expiresAt = DateTime.now().add(AppDurations.inviteExpiry);
 
-      await firestore.collection(FirestoreCollections.invites).doc(token).set({
+      await _repo.setInvite(token, {
         InviteFields.communityId: communityId,
         InviteFields.expiresAt: Timestamp.fromDate(expiresAt),
       });
@@ -340,14 +271,9 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Verifies that a user with [email] exists in the `users` collection.
   Future<bool> validateUserExists(String email) async {
     try {
-      final snap = await firestore
-          .collection(FirestoreCollections.users)
-          .where('email', isEqualTo: email.toLowerCase().trim())
-          .limit(1)
-          .get();
+      final snap = await _repo.queryUsersByEmail(email.toLowerCase().trim());
       return snap.docs.isNotEmpty;
     } catch (e) {
       AppLogger.e('validateUserExists', e);
@@ -355,9 +281,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Searches users by email (exact) or name (substring, client-side).
-  ///
-  /// Excludes the current user and existing members of [excludeCommunityId].
   Future<List<Map<String, dynamic>>> searchUsers(
     String query, {
     String? excludeCommunityId,
@@ -372,23 +295,14 @@ class CommunityService with CommunityFetchMixin {
 
       Set<String> existingMemberIds = {};
       if (excludeCommunityId != null) {
-        final membersSnap = await firestore
-            .collection(FirestoreCollections.communityMembers)
-            .where(MemberFields.communityId, isEqualTo: excludeCommunityId)
-            .get();
+        final membersSnap = await _repo.queryMembersByCommunity(excludeCommunityId);
         existingMemberIds = membersSnap.docs
             .map((d) => d.data()[MemberFields.userId] as String? ?? '')
             .where((id) => id.isNotEmpty)
             .toSet();
       }
 
-      // Exact email match.
-      final emailSnap = await firestore
-          .collection(FirestoreCollections.users)
-          .where('email', isEqualTo: trimmed)
-          .limit(5)
-          .get();
-
+      final emailSnap = await _repo.queryUsersByEmail(trimmed, limit: 5);
       for (final doc in emailSnap.docs) {
         final uid = doc.id;
         if (uid == userId || existingMemberIds.contains(uid) || addedIds.contains(uid)) continue;
@@ -397,12 +311,8 @@ class CommunityService with CommunityFetchMixin {
         results.add(_userMapFrom(uid, data));
       }
 
-      // Name/email substring — client-side filter on a bounded batch.
       if (results.length < 10) {
-        final nameSnap = await firestore
-            .collection(FirestoreCollections.users)
-            .limit(100)
-            .get();
+        final nameSnap = await _repo.queryUsersLimited(100);
 
         for (final doc in nameSnap.docs) {
           if (results.length >= 10) break;
@@ -427,19 +337,14 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// In-app welcome pipeline: Firestore doc consumed by clients (snackbar / future push).
   Future<void> emitMemberAddedWelcomeSignal({
     required String targetUserId,
     required String communityId,
   }) async {
     try {
-      final commSnap = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
-      final commName =
-          commSnap.data()?[CommunityFields.name] as String? ?? '';
-      await firestore.collection(FirestoreCollections.memberAddedSignals).add({
+      final commSnap = await _repo.getCommunitySnapshot(communityId);
+      final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+      await _repo.addMemberAddedSignal({
         MemberAddedSignalFields.targetUserId: targetUserId,
         MemberAddedSignalFields.communityId: communityId,
         MemberAddedSignalFields.communityName: commName,
@@ -450,7 +355,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Adds [targetUserId] directly to [communityId] (admin only).
   Future<JoinResult> addMemberDirectly(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -462,23 +366,16 @@ class CommunityService with CommunityFetchMixin {
         return JoinResult(success: false, message: 'Solo administradores pueden agregar miembros');
       }
 
-      final targetDoc = await firestore
-          .collection(FirestoreCollections.users)
-          .doc(targetUserId)
-          .get();
+      final targetDoc = await _repo.getUserProfile(targetUserId);
       if (!targetDoc.exists) {
         return JoinResult(success: false, message: 'Usuario no encontrado');
       }
 
-      final existing = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: targetUserId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final existing = await _repo.findMembership(targetUserId, communityId);
 
       if (existing.docs.isNotEmpty) {
-        final role = existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+        final role =
+            existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
         return JoinResult(
           success: true,
           alreadyMember: true,
@@ -487,7 +384,7 @@ class CommunityService with CommunityFetchMixin {
         );
       }
 
-      await firestore.collection(FirestoreCollections.communityMembers).add({
+      await _repo.addMember({
         MemberFields.userId: targetUserId,
         MemberFields.communityId: communityId,
         MemberFields.joinedAt: Timestamp.now(),
@@ -513,15 +410,11 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Invite Handling ─────────────────────────────────────────────────────
+  // ─── Invites ─────────────────────────────────────────────────────────────
 
-  /// Returns invite metadata without consuming the token.
   Future<Map<String, dynamic>?> getInviteInfo(String token) async {
     try {
-      final inviteDoc = await firestore
-          .collection(FirestoreCollections.invites)
-          .doc(token)
-          .get();
+      final inviteDoc = await _repo.getInvite(token);
 
       if (!inviteDoc.exists) {
         AppLogger.e('Invite token not found');
@@ -553,7 +446,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Joins the current user to the community identified by [token].
   Future<JoinResult> joinCommunityByToken(String token) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -561,10 +453,7 @@ class CommunityService with CommunityFetchMixin {
         return JoinResult(success: false, message: 'No hay usuario autenticado');
       }
 
-      final inviteDoc = await firestore
-          .collection(FirestoreCollections.invites)
-          .doc(token)
-          .get();
+      final inviteDoc = await _repo.getInvite(token);
       if (!inviteDoc.exists) {
         return JoinResult(success: false, message: 'Token de invitación no válido');
       }
@@ -581,15 +470,11 @@ class CommunityService with CommunityFetchMixin {
         return JoinResult(success: false, message: 'El link de invitación ha expirado');
       }
 
-      final existing = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: userId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final existing = await _repo.findMembership(userId, communityId);
 
       if (existing.docs.isNotEmpty) {
-        final role = existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+        final role =
+            existing.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
         return JoinResult(
           success: true,
           alreadyMember: true,
@@ -600,14 +485,14 @@ class CommunityService with CommunityFetchMixin {
         );
       }
 
-      await firestore.collection(FirestoreCollections.communityMembers).add({
+      await _repo.addMember({
         MemberFields.userId: userId,
         MemberFields.communityId: communityId,
         MemberFields.joinedAt: Timestamp.now(),
         MemberFields.role: MemberFields.roleMember,
       });
 
-      AlertRepository().invalidateCommunityCache();
+      _invalidateAlertCommunityCache();
       AppLogger.d('User joined community via token');
 
       await emitMemberAddedWelcomeSignal(
@@ -627,20 +512,14 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Role Queries ────────────────────────────────────────────────────────
+  // ─── Roles ───────────────────────────────────────────────────────────────
 
-  /// Returns the current user's role in [communityId], or `null` if not a member.
   Future<String?> getUserRole(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return null;
 
-      final snap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: userId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final snap = await _repo.findMembership(userId, communityId);
 
       if (snap.docs.isEmpty) return null;
       return snap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
@@ -650,56 +529,38 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Leave / Delete ──────────────────────────────────────────────────────
+  // ─── Leave / delete ─────────────────────────────────────────────────────
 
-  /// Removes the current user from [communityId].
-  ///
-  /// Throws if the community is an entity, if the user is not a member, or if
-  /// they are the sole admin.
   Future<bool> leaveCommunity(String communityId) async {
     final userId = _auth.currentUser?.uid;
     if (userId == null) throw Exception('Usuario no autenticado');
 
-    final communityDoc = await firestore
-        .collection(FirestoreCollections.communities)
-        .doc(communityId)
-        .get();
+    final communityDoc = await _repo.getCommunitySnapshot(communityId);
 
     if (!communityDoc.exists) throw Exception('La comunidad no existe');
     if (communityDoc.data()?[CommunityFields.isEntity] ?? false) {
       throw Exception('No se puede abandonar una entidad oficial');
     }
 
-    final memberSnap = await firestore
-        .collection(FirestoreCollections.communityMembers)
-        .where(MemberFields.userId, isEqualTo: userId)
-        .where(MemberFields.communityId, isEqualTo: communityId)
-        .limit(1)
-        .get();
+    final memberSnap = await _repo.findMembership(userId, communityId);
 
     if (memberSnap.docs.isEmpty) throw Exception('No eres miembro de esta comunidad');
 
-    final role = memberSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
+    final role =
+        memberSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
     if (role == MemberFields.roleAdmin) {
-      final adminsSnap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .where(MemberFields.role, isEqualTo: MemberFields.roleAdmin)
-          .get();
+      final adminsSnap = await _repo.queryAdminsInCommunity(communityId);
 
       if (adminsSnap.docs.length <= 1) {
         throw Exception('Eres el único administrador. Promueve a otro miembro antes de salir.');
       }
     }
 
-    await memberSnap.docs.first.reference.delete();
-    AlertRepository().invalidateCommunityCache();
+    await _repo.deleteMemberDoc(memberSnap.docs.first.reference);
+    _invalidateAlertCommunityCache();
     return true;
   }
 
-  /// Deletes [communityId] along with all its members and invites.
-  ///
-  /// Only the community creator may perform this action.
   Future<bool> deleteCommunity(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -708,10 +569,7 @@ class CommunityService with CommunityFetchMixin {
         return false;
       }
 
-      final communityDoc = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
+      final communityDoc = await _repo.getCommunitySnapshot(communityId);
 
       if (!communityDoc.exists) {
         AppLogger.e('deleteCommunity: community not found');
@@ -728,20 +586,14 @@ class CommunityService with CommunityFetchMixin {
         return false;
       }
 
-      final batch = firestore.batch();
+      final batch = _repo.createBatch();
 
-      final membersSnap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .get();
+      final membersSnap = await _repo.queryMembersByCommunity(communityId);
       for (final doc in membersSnap.docs) {
         batch.delete(doc.reference);
       }
 
-      final invitesSnap = await firestore
-          .collection(FirestoreCollections.invites)
-          .where(InviteFields.communityId, isEqualTo: communityId)
-          .get();
+      final invitesSnap = await _repo.queryInvitesForCommunity(communityId);
       for (final doc in invitesSnap.docs) {
         batch.delete(doc.reference);
       }
@@ -749,7 +601,7 @@ class CommunityService with CommunityFetchMixin {
       batch.delete(communityDoc.reference);
       await batch.commit();
 
-      AlertRepository().invalidateCommunityCache();
+      _invalidateAlertCommunityCache();
       AppLogger.d('Community deleted: $communityId');
       return true;
     } catch (e) {
@@ -758,16 +610,12 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Returns `true` if the current user is the creator of [communityId].
   Future<bool> isCreator(String communityId) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      final doc = await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .get();
+      final doc = await _repo.getCommunitySnapshot(communityId);
 
       if (!doc.exists) return false;
       return (doc.data()?[CommunityFields.createdBy] as String?) == userId;
@@ -777,7 +625,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Updates mutable fields of [communityId]. Only the creator may do this.
   Future<bool> updateCommunity(
     String communityId, {
     String? name,
@@ -809,28 +656,20 @@ class CommunityService with CommunityFetchMixin {
 
       if (updateData.isEmpty) return true;
 
-      await firestore
-          .collection(FirestoreCollections.communities)
-          .doc(communityId)
-          .update(updateData);
-
-      AppLogger.d('Community updated: $communityId');
-      return true;
+      final ok = await _repo.patchCommunity(communityId, updateData);
+      if (ok) AppLogger.d('Community updated: $communityId');
+      return ok;
     } catch (e) {
       AppLogger.e('updateCommunity', e);
       return false;
     }
   }
 
-  // ─── Member Management ───────────────────────────────────────────────────
+  // ─── Members ─────────────────────────────────────────────────────────────
 
-  /// Returns the list of members of [communityId] enriched with user data.
   Future<List<Map<String, dynamic>>> getCommunityMembers(String communityId) async {
     try {
-      final membersSnap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .get();
+      final membersSnap = await _repo.queryMembersByCommunity(communityId);
 
       if (membersSnap.docs.isEmpty) return [];
 
@@ -838,17 +677,14 @@ class CommunityService with CommunityFetchMixin {
 
       for (final memberDoc in membersSnap.docs) {
         final memberData = memberDoc.data();
-        final userId = memberData[MemberFields.userId] as String? ?? '';
-        if (userId.isEmpty) continue;
+        final uid = memberData[MemberFields.userId] as String? ?? '';
+        if (uid.isEmpty) continue;
 
         String? userName;
         String? userEmail;
 
         try {
-          final userDoc = await firestore
-              .collection(FirestoreCollections.users)
-              .doc(userId)
-              .get();
+          final userDoc = await _repo.getUserProfile(uid);
           if (userDoc.exists) {
             final data = userDoc.data()!;
             userName = _displayName(data);
@@ -856,18 +692,19 @@ class CommunityService with CommunityFetchMixin {
           }
         } catch (_) {}
 
-        if (userName == null && userId == _auth.currentUser?.uid) {
+        if (userName == null && uid == _auth.currentUser?.uid) {
           userName = _auth.currentUser?.displayName;
           userEmail ??= _auth.currentUser?.email;
         }
 
         members.add({
           'member_id': memberDoc.id,
-          MemberFields.userId: userId,
+          MemberFields.userId: uid,
           'user_name': userName ?? userEmail?.split('@')[0] ?? 'Usuario',
           'user_email': userEmail ?? '',
           MemberFields.role: memberData[MemberFields.role] as String? ?? MemberFields.roleMember,
-          'joined_at': (memberData[MemberFields.joinedAt] as Timestamp?)?.toDate() ?? DateTime.now(),
+          'joined_at':
+              (memberData[MemberFields.joinedAt] as Timestamp?)?.toDate() ?? DateTime.now(),
         });
       }
 
@@ -891,8 +728,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Removes [targetUserId] from [communityId]. Admins only; cannot remove
-  /// other admins or self.
   Future<bool> removeMember(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -907,12 +742,7 @@ class CommunityService with CommunityFetchMixin {
         return false;
       }
 
-      final targetSnap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: targetUserId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final targetSnap = await _repo.findMembership(targetUserId, communityId);
 
       if (targetSnap.docs.isEmpty) {
         AppLogger.w('removeMember: target is not a member');
@@ -926,7 +756,7 @@ class CommunityService with CommunityFetchMixin {
         return false;
       }
 
-      await targetSnap.docs.first.reference.delete();
+      await _repo.deleteMemberDoc(targetSnap.docs.first.reference);
       AppLogger.d('Member removed from $communityId');
       return true;
     } catch (e) {
@@ -935,7 +765,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Promotes [targetUserId] to admin in [communityId]. Admins only.
   Future<bool> promoteToAdmin(String communityId, String targetUserId) async {
     try {
       final userId = _auth.currentUser?.uid;
@@ -946,12 +775,7 @@ class CommunityService with CommunityFetchMixin {
         return false;
       }
 
-      final targetSnap = await firestore
-          .collection(FirestoreCollections.communityMembers)
-          .where(MemberFields.userId, isEqualTo: targetUserId)
-          .where(MemberFields.communityId, isEqualTo: communityId)
-          .limit(1)
-          .get();
+      final targetSnap = await _repo.findMembership(targetUserId, communityId);
 
       if (targetSnap.docs.isEmpty) {
         AppLogger.w('promoteToAdmin: target is not a member');
@@ -965,7 +789,9 @@ class CommunityService with CommunityFetchMixin {
         return true;
       }
 
-      await targetSnap.docs.first.reference.update({MemberFields.role: MemberFields.roleAdmin});
+      await _repo.updateMemberDoc(targetSnap.docs.first.reference, {
+        MemberFields.role: MemberFields.roleAdmin,
+      });
       AppLogger.d('Member promoted to admin');
       return true;
     } catch (e) {
@@ -974,9 +800,8 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  // ─── Member Reports ──────────────────────────────────────────────────────
+  // ─── Member reports ─────────────────────────────────────────────────────
 
-  /// Creates a report against [reportedUserId] in [communityId].
   Future<bool> reportMember({
     required String communityId,
     required String reportedUserId,
@@ -1003,9 +828,7 @@ class CommunityService with CommunityFetchMixin {
         status: ReportFields.statusPending,
       );
 
-      await firestore
-          .collection(FirestoreCollections.memberReports)
-          .add(report.toFirestore());
+      await _repo.addMemberReport(report.toFirestore());
       AppLogger.d('Member report created');
       return true;
     } catch (e) {
@@ -1014,7 +837,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Returns pending member reports for [communityId]. Admins only.
   Future<List<Map<String, dynamic>>> getReportsForCommunity(String communityId) async {
     try {
       if (await getUserRole(communityId) != MemberFields.roleAdmin) {
@@ -1022,12 +844,7 @@ class CommunityService with CommunityFetchMixin {
         return [];
       }
 
-      final reportsSnap = await firestore
-          .collection(FirestoreCollections.memberReports)
-          .where(ReportFields.communityId, isEqualTo: communityId)
-          .where(ReportFields.status, isEqualTo: ReportFields.statusPending)
-          .orderBy(ReportFields.createdAt, descending: true)
-          .get();
+      final reportsSnap = await _repo.queryPendingReportsForCommunity(communityId);
 
       final reports = <Map<String, dynamic>>[];
 
@@ -1059,13 +876,9 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Marks [reportId] as dismissed.
   Future<bool> dismissReport(String reportId) async {
     try {
-      await firestore
-          .collection(FirestoreCollections.memberReports)
-          .doc(reportId)
-          .update({ReportFields.status: ReportFields.statusDismissed});
+      await _repo.updateReport(reportId, {ReportFields.status: ReportFields.statusDismissed});
       AppLogger.d('Report dismissed: $reportId');
       return true;
     } catch (e) {
@@ -1074,31 +887,21 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Returns the count of pending reports for [communityId].
   Future<int> getPendingReportsCount(String communityId) async {
     try {
-      final snap = await firestore
-          .collection(FirestoreCollections.memberReports)
-          .where(ReportFields.communityId, isEqualTo: communityId)
-          .where(ReportFields.status, isEqualTo: ReportFields.statusPending)
-          .get();
+      final snap = await _repo.queryPendingReportsForCount(communityId);
       return snap.docs.length;
     } catch (e) {
       return 0;
     }
   }
 
-  // ─── Private helpers ─────────────────────────────────────────────────────
+  // ─── Helpers ─────────────────────────────────────────────────────────────
 
-  /// Resolves the display name for [userId] from Firestore, or returns a
-  /// generic fallback.
   Future<String> _getDisplayNameForUser(String userId) async {
     if (userId.isEmpty) return 'Usuario';
     try {
-      final doc = await firestore
-          .collection(FirestoreCollections.users)
-          .doc(userId)
-          .get();
+      final doc = await _repo.getUserProfile(userId);
       if (!doc.exists) return 'Usuario';
       return _displayName(doc.data()!);
     } catch (_) {
@@ -1106,7 +909,6 @@ class CommunityService with CommunityFetchMixin {
     }
   }
 
-  /// Extracts a human-readable name from a Firestore user document.
   String _displayName(Map<String, dynamic> data) =>
       data['name'] as String? ??
       data['displayName'] as String? ??
@@ -1119,7 +921,6 @@ class CommunityService with CommunityFetchMixin {
         'email': data['email'] as String? ?? '',
       };
 
-  /// Generates a cryptographically secure 32-character alphanumeric token.
   String _generateToken() {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random.secure();

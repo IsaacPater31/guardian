@@ -7,7 +7,7 @@ import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
-import 'package:guardian/services/alert_repository.dart';
+import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
 import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
@@ -22,7 +22,7 @@ class ComunidadesView extends StatefulWidget {
 class _ComunidadesViewState extends State<ComunidadesView>
     with SingleTickerProviderStateMixin {
   final CommunityService _communityService = CommunityService();
-  final AlertRepository _alertRepository = AlertRepository();
+  final AlertService _alertService = AlertService();
   List<Map<String, dynamic>> _communities = [];
   Map<String, int> _unreadByCommunity = {};
   bool _isLoading = true;
@@ -94,7 +94,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
     setState(() => _isLoading = true);
     try {
       final communities = await _communityService.getMyCommunities();
-      final unread = await _alertRepository.getUnreadCountByCommunity();
+      final unread = await _alertService.getUnreadCountByCommunity();
       if (!mounted) return;
       setState(() {
         _communities = communities;

@@ -1,17 +1,15 @@
 import '../core/app_logger.dart';
 import '../models/alert_model.dart';
-import '../services/alert_repository.dart';
+import '../services/alert_service.dart';
 
-class MapController {
-  final AlertRepository _alertRepository = AlertRepository();
-  
-  Stream<List<AlertModel>> getAlertsStream() {
-    return _alertRepository.getMapAlertsStream();
-  }
+/// Map screen adapter: subscribes to filtered alert streams from [AlertService].
+///
+/// **Why a handler:** isolates map widget code from service/repository types.
+class MapHandler {
+  final AlertService _alertService = AlertService();
 
-  /// Stream de alertas con filtros activos.
-  ///
-  /// Delega a [AlertRepository.getMapAlertsStreamFiltered].
+  Stream<List<AlertModel>> getAlertsStream() => _alertService.getMapAlertsStream();
+
   Stream<List<AlertModel>> getAlertsStreamFiltered({
     List<String> selectedTypes = const [],
     String filterStatus = 'all',
@@ -19,7 +17,7 @@ class MapController {
     DateTime? customStart,
     DateTime? customEnd,
   }) {
-    return _alertRepository.getMapAlertsStreamFiltered(
+    return _alertService.getMapAlertsStreamFiltered(
       selectedTypes: selectedTypes,
       filterStatus: filterStatus,
       filterDateRange: filterDateRange,
@@ -30,9 +28,9 @@ class MapController {
 
   Future<List<AlertModel>> getAlertsOnce() async {
     try {
-      return await _alertRepository.getMapAlerts();
+      return await _alertService.getMapAlerts();
     } catch (e) {
-      AppLogger.e('MapController.getAlertsOnce', e);
+      AppLogger.e('MapHandler.getAlertsOnce', e);
       return [];
     }
   }

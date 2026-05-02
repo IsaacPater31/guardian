@@ -4,7 +4,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
-import 'package:guardian/services/alert_repository.dart';
+import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
@@ -31,7 +31,7 @@ class CommunityFeedView extends StatefulWidget {
 
 class _CommunityFeedViewState extends State<CommunityFeedView>
     with SingleTickerProviderStateMixin {
-  final AlertRepository _alertRepository = AlertRepository();
+  final AlertService _alertService = AlertService();
   final CommunityService _communityService = CommunityService();
   final UserService _userService = UserService();
   String? _userRole;
@@ -192,7 +192,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         ],
       ),
       body: StreamBuilder<List<AlertModel>>(
-        stream: _alertRepository.getCommunityAlertsStream(widget.communityId),
+        stream: _alertService.getCommunityAlertsStream(widget.communityId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -676,7 +676,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       onTap: () async {
         Navigator.pop(context);
         try {
-          await _alertRepository.updateAlertStatus(alert.id!, status);
+          await _alertService.updateAlertStatus(alert.id!, status);
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(

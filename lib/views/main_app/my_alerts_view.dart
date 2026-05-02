@@ -6,7 +6,7 @@ import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/emergency_types.dart';
-import 'package:guardian/services/alert_repository.dart';
+import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/utils/alert_date_range_presets.dart';
@@ -88,7 +88,7 @@ class MyAlertsView extends StatefulWidget {
 }
 
 class _MyAlertsViewState extends State<MyAlertsView> {
-  final AlertRepository _repository = AlertRepository();
+  final AlertService _alertService = AlertService();
   final CommunityService _communityService = CommunityService();
   final UserService _userService = UserService();
   final TextEditingController _searchController = TextEditingController();
@@ -125,7 +125,7 @@ class _MyAlertsViewState extends State<MyAlertsView> {
 
   void _subscribe() {
     _sub?.cancel();
-    _sub = _repository.getMyAlertsStream().listen(
+    _sub = _alertService.getMyAlertsStream().listen(
       (list) {
         if (mounted) setState(() => _alerts = list);
       },
@@ -224,7 +224,7 @@ class _MyAlertsViewState extends State<MyAlertsView> {
   }
 
   Future<void> _onRefresh() async {
-    final fresh = await _repository.getMyAlerts();
+    final fresh = await _alertService.getMyAlerts();
     if (!mounted) return;
 
     // Avoid wiping a valid list due to transient fetch issues.

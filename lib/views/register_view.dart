@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:guardian/controllers/login_controller.dart';
+import 'package:guardian/handlers/login_handler.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class RegisterView extends StatefulWidget {
@@ -13,7 +13,7 @@ class _RegisterViewState extends State<RegisterView> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final LoginController _loginController = LoginController();
+  final LoginHandler _loginHandler = LoginHandler();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -87,7 +87,7 @@ class _RegisterViewState extends State<RegisterView> {
     }
 
     setState(() => _isLoading = true);
-    final error = await _loginController.registerWithEmail(
+    final error = await _loginHandler.registerWithEmail(
       email,
       password,
       fullName: fullName,

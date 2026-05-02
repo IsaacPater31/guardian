@@ -1,10 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
-import '../core/mixins/community_fetch_mixin.dart';
 import '../models/emergency_types.dart';
+import '../repositories/community_repository.dart';
 
 /// Manages the per-alert-type community configuration for swipe alerts.
 ///
@@ -13,23 +13,16 @@ import '../models/emergency_types.dart';
 ///
 /// Defaults are seeded from [EmergencyTypes.defaultCommunityKeyword] the first
 /// time a type is accessed without prior configuration.
-class SwipeAlertConfigService with CommunityFetchMixin {
-  static final SwipeAlertConfigService _instance =
-      SwipeAlertConfigService._internal();
+class SwipeAlertConfigService {
+  static final SwipeAlertConfigService _instance = SwipeAlertConfigService._internal();
   factory SwipeAlertConfigService() => _instance;
   SwipeAlertConfigService._internal();
 
-  @override
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CommunityRepository _communities = CommunityRepository();
 
-  // In-memory cache to avoid repeated SharedPreferences reads per swipe.
   final Map<String, List<String>?> _cache = {};
 
-  // ─── Getters ─────────────────────────────────────────────────────────────
-
-  /// Returns the configured community IDs for [alertType], or `null` if none
-  /// have been set (signals the UI to redirect to settings).
   Future<List<String>?> getCommunitiesForType(String alertType) async {
     if (_cache.containsKey(alertType)) return _cache[alertType];
 
@@ -42,7 +35,7 @@ class SwipeAlertConfigService with CommunityFetchMixin {
         return null;
       }
 
-      final valid = await validateCommunityIds(saved);
+      final valid = await _communities.validateCommunityIds(saved);
       _cache[alertType] = valid.isEmpty ? null : valid;
       return _cache[alertType];
     } catch (e) {
@@ -51,9 +44,6 @@ class SwipeAlertConfigService with CommunityFetchMixin {
     }
   }
 
-  // ─── Setters ─────────────────────────────────────────────────────────────
-
-  /// Persists the given [communityIds] for [alertType].
   Future<bool> setCommunitiesForType(
     String alertType,
     List<String> communityIds,
@@ -70,13 +60,6 @@ class SwipeAlertConfigService with CommunityFetchMixin {
     }
   }
 
-  // ─── Defaults ────────────────────────────────────────────────────────────
-
-  /// Seeds default community associations for alert types that declare a
-  /// [defaultCommunityKeyword] in [EmergencyTypes].
-  ///
-  /// Only runs for types that have no saved configuration. Safe to call
-  /// multiple times.
   Future<void> initDefaults(List<Map<String, dynamic>> communities) async {
     for (final entry in EmergencyTypes.types.entries) {
       final typeName = entry.value['type'] as String;
@@ -101,23 +84,16 @@ class SwipeAlertConfigService with CommunityFetchMixin {
     }
   }
 
-  // ─── Available communities ────────────────────────────────────────────────
-
-  /// Returns all communities the current user belongs to (for the config UI).
   Future<List<Map<String, dynamic>>> getAvailableCommunities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-      return fetchUserCommunities(userId);
+      return _communities.fetchUserCommunities(userId);
     } catch (e) {
       AppLogger.e('SwipeAlertConfigService.getAvailableCommunities', e);
       return [];
     }
   }
 
-  // ─── Cache ────────────────────────────────────────────────────────────────
-
-  /// Clears the in-memory cache. Call this when the user's community
-  /// membership changes.
   void invalidateCache() => _cache.clear();
 }

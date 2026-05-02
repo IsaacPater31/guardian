@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:guardian/controllers/main_app/main_controller.dart';
+import 'package:guardian/handlers/main_handler.dart';
 import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/views/main_app/shared/menu_nav.dart';
@@ -18,7 +18,7 @@ class MainView extends StatefulWidget {
 }
 
 class _MainViewState extends State<MainView> {
-  final MainController _controller = MainController();
+  final MainHandler _controller = MainHandler();
 
   final List<Widget> _views = const [
     HomeView(),

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
-import 'package:guardian/controllers/alert_controller.dart';
+import 'package:guardian/handlers/alert_handler.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/swipe_alert_config_service.dart';
@@ -38,7 +38,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   String? _currentDragDirection;
   bool _showDragFeedback = false;
   
-  final AlertController _alertController = AlertController();
+  final AlertHandler _alertHandler = AlertHandler();
   final CommunityService _communityService = CommunityService();
   final SwipeAlertConfigService _swipeConfig = SwipeAlertConfigService();
 
@@ -165,9 +165,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       ),
     );
 
-    // AlertController.sendQuickAlert fetches destinations from QuickAlertConfigService
+    // AlertHandler → AlertService → QuickAlertConfigService for destinations
     // internally and sends to all of them in a single batch — just call it once.
-    final ok = await _alertController.sendQuickAlert(
+    final ok = await _alertHandler.sendQuickAlert(
       alertType: EmergencyTypes.quickAlertType,
       isAnonymous: false,
     );
@@ -943,7 +943,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
     // ── ONE call → ONE Firestore document with all destinations ───────────────
     final communityIds = selectedCommunities.map((c) => c['id'] as String).toList();
-    final success = await _alertController.sendSwipedAlert(
+    final success = await _alertHandler.sendSwipedAlert(
       alertType: alertType,
       isAnonymous: isAnonymous,
       communityIds: communityIds,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
-import 'package:guardian/services/community_repository.dart';
+import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/services/deep_link_service.dart';
 import 'package:guardian/models/community_model.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';

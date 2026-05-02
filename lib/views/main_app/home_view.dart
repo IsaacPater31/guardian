@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
-import 'package:guardian/controllers/main_app/home_controller.dart';
+import 'package:guardian/handlers/home_handler.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
@@ -21,7 +21,7 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  final HomeController _homeController = HomeController();
+  final HomeHandler _homeHandler = HomeHandler();
   final UserService _userService = UserService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
@@ -62,14 +62,14 @@ class _HomeViewState extends State<HomeView> {
 
   Future<void> _initializeController() async {
     // Configurar callbacks
-    _homeController.onAlertsUpdated = (alerts) {
+    _homeHandler.onAlertsUpdated = (alerts) {
       setState(() {
         _recentAlerts = alerts;
         _isLoading = false;
       });
     };
 
-    _homeController.onNewAlertReceived = (alert) {
+    _homeHandler.onNewAlertReceived = (alert) {
       // Mostrar un snackbar adicional para alertas nuevas
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -102,8 +102,8 @@ class _HomeViewState extends State<HomeView> {
     };
 
     try {
-      await _homeController.initialize();
-      await _homeController.refreshRecentAlerts();
+      await _homeHandler.initialize();
+      await _homeHandler.refreshRecentAlerts();
     } catch (e) {
       AppLogger.e('HomeView._initializeController', e);
       if (mounted) {
@@ -121,7 +121,7 @@ class _HomeViewState extends State<HomeView> {
 
   Future<void> _checkServiceStatus() async {
     try {
-      final isRunning = await _homeController.isServiceRunning();
+      final isRunning = await _homeHandler.isServiceRunning();
       AppLogger.d('Background service running: $isRunning');
     } catch (e) {
       AppLogger.e('HomeView._checkServiceStatus', e);
@@ -530,7 +530,7 @@ class _HomeViewState extends State<HomeView> {
       onRefresh: () async {
         setState(() => _isLoading = true);
         try {
-          await _homeController.refreshRecentAlerts();
+          await _homeHandler.refreshRecentAlerts();
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(

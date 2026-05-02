@@ -8,7 +8,7 @@ import 'dart:math';
 import '../../core/app_logger.dart';
 import '../../models/alert_model.dart';
 import '../../models/emergency_types.dart';
-import '../../controllers/map_controller.dart' as map_data;
+import '../../handlers/map_handler.dart' as map_data;
 import '../../generated/l10n/app_localizations.dart';
 import 'widgets/map_filter_sheet.dart';
 
@@ -23,7 +23,7 @@ class MapaView extends StatefulWidget {
 
 class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   final flutter_map.MapController _mapController = flutter_map.MapController();
-  final map_data.MapController _mapDataController = map_data.MapController();
+  final map_data.MapHandler _mapDataController = map_data.MapHandler();
 
   List<AlertModel> _alerts = [];
   AlertModel? _selectedAlertForDetails;

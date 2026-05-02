@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:guardian/controllers/login_controller.dart';
+import 'package:guardian/handlers/login_handler.dart';
 import 'package:guardian/views/register_view.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
@@ -13,7 +13,7 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final LoginController _loginController = LoginController();
+  final LoginHandler _loginHandler = LoginHandler();
   bool _obscurePassword = true;
   bool _isLoadingEmail = false;  
   bool _isLoadingGoogle = false;  
@@ -50,7 +50,7 @@ class _LoginViewState extends State<LoginView> {
     }
 
     setState(() => _isLoadingEmail = true);
-    final error = await _loginController.signInWithEmail(email, password);
+    final error = await _loginHandler.signInWithEmail(email, password);
     if (!mounted) return;
     setState(() => _isLoadingEmail = false);
 
@@ -65,7 +65,7 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _handleGoogleLogin() async {
   setState(() => _isLoadingGoogle = true);
-  final error = await _loginController.signInWithGoogle();
+  final error = await _loginHandler.signInWithGoogle();
   if (!mounted) return;
   setState(() => _isLoadingGoogle = false);
 

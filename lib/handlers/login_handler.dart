@@ -1,22 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:guardian/core/app_logger.dart';
-import 'package:guardian/core/app_constants.dart';
-import 'package:guardian/services/community_service.dart';
 
-/// Handles user authentication (email/password and Google Sign-In).
+import '../core/app_logger.dart';
+import '../repositories/user_profile_repository.dart';
+import '../services/community_service.dart';
+
+/// Auth entry points from the UI (email, Google). Persists profile via
+/// [UserProfileRepository] and triggers entity membership in the background.
 ///
-/// After a successful login or registration the controller also ensures the
-/// user is enrolled in all entity communities in the background, so this
-/// step never delays the UI transition.
-class LoginController {
+/// **Why a handler:** maps SDK/auth results to app services without putting
+/// FirebaseAuth calls inside widgets.
+class LoginHandler {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserProfileRepository _userProfileRepository = UserProfileRepository();
 
-  /// Signs in with [email] and [password]. Returns an error message on
-  /// failure, or `null` on success.
   Future<String?> signInWithEmail(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
@@ -28,8 +26,6 @@ class LoginController {
     }
   }
 
-  /// Signs in with Google. Returns an error message on failure, or `null`
-  /// on success.
   Future<String?> signInWithGoogle() async {
     try {
       final googleSignIn = GoogleSignIn();
@@ -58,7 +54,7 @@ class LoginController {
       return _handleAuthError(e);
     } on PlatformException catch (e) {
       AppLogger.e(
-        'LoginController.signInWithGoogle PlatformException '
+        'LoginHandler.signInWithGoogle PlatformException '
         '[code=${e.code}] [message=${e.message}]',
         e,
       );
@@ -68,13 +64,11 @@ class LoginController {
       }
       return 'No se pudo completar el inicio de sesión con Google. Intenta nuevamente.';
     } catch (e) {
-      AppLogger.e('LoginController.signInWithGoogle', e);
+      AppLogger.e('LoginHandler.signInWithGoogle', e);
       return 'Error inesperado al iniciar sesión con Google.';
     }
   }
 
-  /// Registers a new user with [email] and [password]. Returns an error
-  /// message on failure, or `null` on success.
   Future<String?> registerWithEmail(
     String email,
     String password, {
@@ -102,18 +96,13 @@ class LoginController {
     }
   }
 
-  /// Signs out the current user from both Firebase and Google.
   Future<void> signOut() async {
     await _auth.signOut();
     await GoogleSignIn().signOut();
   }
 
-  /// The currently authenticated user, or `null` if not signed in.
   User? get currentUser => _auth.currentUser;
 
-  // ─── Private helpers ──────────────────────────────────────────────────────
-
-  /// Enrolls the user in entity communities without blocking sign-in flow.
   void _ensureEntitiesInBackground() {
     CommunityService().ensureUserInEntities().catchError((error) {
       AppLogger.w('ensureUserInEntities failed after auth: $error');
@@ -129,14 +118,11 @@ class LoginController {
             ? user.displayName!.trim()
             : (user.email?.split('@').first ?? 'Usuario');
 
-    await _firestore.collection(FirestoreCollections.users).doc(user.uid).set({
-      'name': resolvedName,
-      'displayName': resolvedName,
-      'full_name': resolvedName,
-      'email': user.email,
-      'updated_at': FieldValue.serverTimestamp(),
-      'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await _userProfileRepository.mergeProfile(
+      uid: user.uid,
+      resolvedName: resolvedName,
+      email: user.email,
+    );
   }
 
   String _handleAuthError(FirebaseAuthException e) {

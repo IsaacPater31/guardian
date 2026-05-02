@@ -107,7 +107,7 @@ abstract final class PrefKeys {
 // ─── Durations ───────────────────────────────────────────────────────────────
 
 abstract final class AppDurations {
-  /// How long community-ID cache stays valid in [AlertRepository].
+  /// How long community-ID cache stays valid in [AlertService].
   static const Duration communityIdCache = Duration(minutes: 5);
 
   /// Window for the recent-alerts feed (home & community views).
