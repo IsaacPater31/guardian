@@ -57,6 +57,9 @@
 		<!-- Ubicación (Foreground) -->
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Guardian needs access to your location to provide community features and services near you.</string>
+
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Guardian puede grabar un audio corto opcional para describir la emergencia al enviar una alerta.</string>
 		
 		<!-- Modos en segundo plano -->
 		<key>UIBackgroundModes</key>

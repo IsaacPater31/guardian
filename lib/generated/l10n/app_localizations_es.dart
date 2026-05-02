@@ -129,6 +129,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emergencyFireNew => 'Bomberos';
 
   @override
+  String get emergencySecurityBreach => 'Brecha de seguridad';
+
+  @override
   String get emergencyAccompaniment => 'Acompañamiento';
 
   @override

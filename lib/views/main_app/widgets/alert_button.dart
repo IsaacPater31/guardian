@@ -1,15 +1,37 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/handlers/alert_handler.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/services/alert_attachments_service.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/swipe_alert_config_service.dart';
 import 'package:guardian/services/quick_alert_config_service.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+
+/// Paleta y métricas tipo iOS (legibilidad, aire, profesional).
+abstract final class _AppleEmergencyUX {
+  static const Color labelPrimary = Color(0xFF1C1C1E);
+  static const Color labelSecondary = Color(0xFF8E8E93);
+  static const Color separator = Color(0xFFE5E5EA);
+  static const Color cardSurface = Color(0xFFFFFFFF);
+  static const Color accentGreen = Color(0xFF34C759);
+  static const Color accentBlue = Color(0xFF007AFF);
+  static const List<BoxShadow> cardShadow = [
+    BoxShadow(
+      color: Color(0x14000000),
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
+}
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -25,6 +47,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   static const Color _primaryDark = Color(0xFF1C1C1E);
   static const Color _danger = Color(0xFFFF3B30);
   static const Color _surface = Color(0xFFF8F9FA);
+
+  /// Lienzo amplio: [FittedBox] lo reduce para caber en pantalla → efecto “zoom alejado”
+  /// en todas las resoluciones (más aire izquierda/derecha, menos amontonado).
+  static const double _kRadialCanvas = 448.0;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -645,7 +671,80 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     bool isAnonymous = false;
     final TextEditingController otherController = TextEditingController();
     final FocusNode otherFocus = FocusNode();
-    final List<String> photoPlaceholders = [];
+    final pickedImages = <XFile>[];
+    File? audioFile;
+    var isRecording = false;
+    var recordElapsedSec = 0;
+    Timer? recordCapTimer;
+    Timer? recordUiTimer;
+    AudioRecorder? recorder;
+    final picker = ImagePicker();
+    final attachments = AlertAttachmentsService.instance;
+
+    Future<void> stopRecording(StateSetter setDialogState) async {
+      recordCapTimer?.cancel();
+      recordUiTimer?.cancel();
+      recordCapTimer = null;
+      recordUiTimer = null;
+      final r = recorder;
+      recorder = null;
+      if (r == null) {
+        setDialogState(() => isRecording = false);
+        return;
+      }
+      try {
+        final path = await r.stop();
+        await r.dispose();
+        if (path != null && path.isNotEmpty) {
+          audioFile = File(path);
+        }
+      } catch (_) {
+        await r.dispose();
+      }
+      setDialogState(() {
+        isRecording = false;
+        recordElapsedSec = 0;
+      });
+    }
+
+    Future<void> startRecording(StateSetter setDialogState) async {
+      if (isRecording) return;
+      final r = AudioRecorder();
+      try {
+        if (!await r.hasPermission()) {
+          await r.dispose();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Se necesita permiso de micrófono')),
+          );
+          return;
+        }
+        final dir = await getTemporaryDirectory();
+        final path =
+            '${dir.path}/alert_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await r.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000),
+          path: path,
+        );
+        recorder = r;
+        setDialogState(() {
+          isRecording = true;
+          recordElapsedSec = 0;
+        });
+        recordUiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          setDialogState(() => recordElapsedSec++);
+        });
+        recordCapTimer = Timer(const Duration(seconds: 10), () {
+          stopRecording(setDialogState);
+        });
+      } catch (e) {
+        await r.dispose();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo grabar: $e')),
+        );
+      }
+    }
 
     showDialog(
       context: context,
@@ -667,7 +766,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                     child: Row(
                       children: [
                         IconButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            await stopRecording(setDialogState);
+                            if (!ctx.mounted) return;
                             Navigator.of(ctx).pop();
                             otherFocus.dispose();
                             otherController.dispose();
@@ -805,32 +906,116 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Fotos (boceto visual)',
+                                  'Fotos y audio',
                                   style: TextStyle(fontWeight: FontWeight.w700, color: _primary),
                                 ),
                                 const SizedBox(height: 6),
-                                const Text(
-                                  'La carga real al servidor se habilitará en una siguiente fase.',
-                                  style: TextStyle(fontSize: 12.5, color: Color(0xFF4B5563)),
+                                Text(
+                                  'Hasta ${AlertAttachmentsService.maxImages} fotos y un audio de hasta 10 s. '
+                                  'La suma en base64 de fotos + audio no puede superar 1 MB; se guarda en Firestore hasta tener almacenamiento de archivos.',
+                                  style: TextStyle(fontSize: 12.5, color: Colors.grey[800]),
                                 ),
                                 const SizedBox(height: 10),
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 8,
                                   children: [
-                                    ...photoPlaceholders.map((p) => Chip(
-                                          avatar: const Icon(Icons.image, size: 16),
-                                          label: Text(p, style: const TextStyle(fontSize: 12)),
-                                        )),
-                                    ActionChip(
-                                      avatar: const Icon(Icons.add_a_photo, size: 16),
-                                      label: const Text('Agregar placeholder'),
-                                      onPressed: () {
-                                        setDialogState(() {
-                                          photoPlaceholders.add('Foto ${photoPlaceholders.length + 1}');
-                                        });
-                                      },
+                                    OutlinedButton.icon(
+                                      onPressed: pickedImages.length >= AlertAttachmentsService.maxImages
+                                          ? null
+                                          : () async {
+                                              final x = await picker.pickImage(
+                                                source: ImageSource.gallery,
+                                                maxWidth: 1400,
+                                                imageQuality: 78,
+                                              );
+                                              if (x == null) return;
+                                              setDialogState(() {
+                                                if (pickedImages.length < AlertAttachmentsService.maxImages) {
+                                                  pickedImages.add(x);
+                                                }
+                                              });
+                                            },
+                                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                                      label: const Text('Galería'),
                                     ),
+                                    OutlinedButton.icon(
+                                      onPressed: pickedImages.length >= AlertAttachmentsService.maxImages
+                                          ? null
+                                          : () async {
+                                              final x = await picker.pickImage(
+                                                source: ImageSource.camera,
+                                                maxWidth: 1400,
+                                                imageQuality: 78,
+                                              );
+                                              if (x == null) return;
+                                              setDialogState(() {
+                                                if (pickedImages.length < AlertAttachmentsService.maxImages) {
+                                                  pickedImages.add(x);
+                                                }
+                                              });
+                                            },
+                                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                                      label: const Text('Cámara'),
+                                    ),
+                                  ],
+                                ),
+                                if (pickedImages.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (var i = 0; i < pickedImages.length; i++)
+                                        InputChip(
+                                          label: Text('Foto ${i + 1}', style: const TextStyle(fontSize: 12)),
+                                          deleteIcon: const Icon(Icons.close, size: 16),
+                                          onDeleted: () {
+                                            setDialogState(() => pickedImages.removeAt(i));
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isRecording ? Icons.fiber_manual_record : Icons.mic_none_rounded,
+                                      color: isRecording ? Colors.red : _primary,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        isRecording
+                                            ? 'Grabando… $recordElapsedSec / 10 s'
+                                            : (audioFile != null
+                                                ? 'Audio listo para enviar'
+                                                : 'Audio opcional (máx. 10 s)'),
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: isRecording
+                                            ? () => stopRecording(setDialogState)
+                                            : () => startRecording(setDialogState),
+                                        icon: Icon(isRecording ? Icons.stop : Icons.mic),
+                                        label: Text(isRecording ? 'Detener' : 'Grabar'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (audioFile != null)
+                                      TextButton(
+                                        onPressed: () => setDialogState(() => audioFile = null),
+                                        child: const Text('Quitar audio'),
+                                      ),
                                   ],
                                 ),
                               ],
@@ -846,7 +1031,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {
+                            onPressed: () async {
+                              await stopRecording(setDialogState);
+                              if (!ctx.mounted) return;
                               Navigator.of(ctx).pop();
                               otherFocus.dispose();
                               otherController.dispose();
@@ -858,7 +1045,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         const SizedBox(width: 10),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
                               if (selectedSubtype == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Selecciona un subtipo para continuar')),
@@ -871,18 +1058,31 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 );
                                 return;
                               }
+                              await stopRecording(setDialogState);
+                              if (!ctx.mounted) return;
+
                               final customDetailValue = otherController.text.trim();
+                              final prepared = await attachments.prepareForFirestore(
+                                pickedImages,
+                                audioFile,
+                              );
+                              final ph = List<String>.from(prepared.notes);
+
+                              if (!ctx.mounted) return;
                               Navigator.of(ctx).pop();
                               otherFocus.dispose();
                               otherController.dispose();
                               _hideEmergencyOptions();
-                              _showSuccessSnackBar(
+                              await _showSuccessSnackBar(
                                 emergencyType,
                                 selectedCommunities,
                                 isAnonymous: isAnonymous,
                                 subtype: selectedSubtype!,
                                 customDetail: customDetailValue,
-                                attachmentPlaceholders: List<String>.from(photoPlaceholders),
+                                attachmentPlaceholders: ph,
+                                imageBase64:
+                                    prepared.imageBase64.isEmpty ? null : prepared.imageBase64,
+                                audioBase64: prepared.audioBase64,
                               );
                             },
                             child: Text(AppLocalizations.of(context)!.sendAlert),
@@ -900,13 +1100,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     );
   }
 
-  void _showSuccessSnackBar(
+  Future<void> _showSuccessSnackBar(
     String emergencyType,
     List<Map<String, dynamic>> selectedCommunities, {
     required bool isAnonymous,
     required String subtype,
     required String customDetail,
     required List<String> attachmentPlaceholders,
+    List<String>? imageBase64,
+    String? audioBase64,
   }) async {
     final alertType = emergencyType;
     
@@ -950,6 +1152,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       subtype: subtype,
       customDetail: customDetail.isEmpty ? null : customDetail,
       attachmentPlaceholders: attachmentPlaceholders,
+      imageBase64: imageBase64,
+      audioBase64: audioBase64,
     );
     final int successCount = success ? communityIds.length : 0;
 
@@ -1046,43 +1250,56 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   // ---------------------------------------------------------------------------
-  // Direction detection — corrects Flutter's Y-axis (positive = down)
-  // so that swiping UP maps to 'up', swiping DOWN maps to 'down', etc.
+  // Cinco direcciones (estrella): la más cercana en ángulo al gesto corregido.
   // ---------------------------------------------------------------------------
   String _getDirection(Offset offset) {
     final distance = offset.distance;
-    if (distance < 25) return '';
+    if (distance < 22) return '';
 
-    // Negate dy: Flutter's Y axis is positive-downward, so dy<0 means UP.
-    // Without correction atan2(dy,dx) maps swipe-up to 'down' and vice-versa.
+    // Misma convención que al pintar chips, pero con Y invertida respecto a la
+    // pantalla: hacia abajo-izquierda en pantalla → ángulo -3π/4 (no +3π/4).
     final corrected = Offset(offset.dx, -offset.dy);
-    final angle = corrected.direction;
-    final deg = (angle * 180 / math.pi + 360) % 360;
+    final a = corrected.direction;
 
-    if (deg >= 337.5 || deg < 22.5)   return 'right';
-    if (deg >= 22.5  && deg < 67.5)   return 'upRight';
-    if (deg >= 67.5  && deg < 112.5)  return 'up';
-    if (deg >= 112.5 && deg < 157.5)  return 'upLeft';
-    if (deg >= 157.5 && deg < 202.5)  return 'left';
-    if (deg >= 202.5 && deg < 247.5)  return 'downLeft';
-    if (deg >= 247.5 && deg < 292.5)  return 'down';
-    if (deg >= 292.5 && deg < 337.5)  return 'downRight';
-    return '';
+    const centers = <String, double>{
+      'right': 0,
+      'downRight': -math.pi / 4,
+      'downLeft': -3 * math.pi / 4,
+      'left': math.pi,
+      'up': math.pi / 2,
+    };
+
+    double normDelta(double x, double c) {
+      var d = x - c;
+      while (d > math.pi) {
+        d -= 2 * math.pi;
+      }
+      while (d < -math.pi) {
+        d += 2 * math.pi;
+      }
+      return d.abs();
+    }
+
+    var best = '';
+    var bestDiff = 999.0;
+    for (final e in centers.entries) {
+      final d = normDelta(a, e.value);
+      if (d < bestDiff) {
+        bestDiff = d;
+        best = e.key;
+      }
+    }
+    if (bestDiff > 0.72) return '';
+    return best;
   }
 
-  // ---------------------------------------------------------------------------
-  // Radial angle map: direction key → angle in radians (for label placement)
-  // These are SCREEN angles (positive Y = down in Flutter canvas)
-  // ---------------------------------------------------------------------------
+  /// Ángulos en radianes para posicionar chips (Y hacia abajo en pantalla).
   static const Map<String, double> _dirAngles = {
-    'up':        -math.pi / 2,       // -90° (top)
-    'upRight':   -math.pi / 4,       // -45°
-    'right':      0.0,               //   0° (right)
-    'downRight':  math.pi / 4,       //  45°
-    'down':       math.pi / 2,       //  90° (bottom)
-    'downLeft':   3 * math.pi / 4,   // 135°
-    'left':       math.pi,           // 180° (left)
-    'upLeft':    -3 * math.pi / 4,   // -135°
+    'up': -math.pi / 2,
+    'right': 0.0,
+    'downRight': math.pi / 4,
+    'downLeft': 3 * math.pi / 4,
+    'left': math.pi,
   };
 
 
@@ -1090,51 +1307,229 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // BUILD — Premium radial swipe menu
   // ===========================================================================
 
+  EdgeInsets _radialSafePadding(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final h = MediaQuery.sizeOf(context).height;
+    // Menos margen horizontal → el FittedBox puede usar más ancho útil (más “aire” lateral).
+    final hx = w < 360 ? 6.0 : w < 420 ? 10.0 : 14.0;
+    final vyTop = h < 520 ? 8.0 : 12.0;
+    final vyBottom = 6.0;
+    return EdgeInsets.fromLTRB(hx, vyTop, hx, vyBottom);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onPanStart: (_) {
-        HapticFeedback.lightImpact();
-        setState(() {
-          _dragOffset = Offset.zero;
-          _isGestureActive = false;
-          _showDragFeedback = false;
-          _currentDragDirection = null;
-        });
-      },
-      onPanUpdate: (details) {
-        _dragOffset += details.delta;
-        final dir = _getDirection(_dragOffset);
-        if (dir != _currentDragDirection) {
-          if (dir.isNotEmpty) HapticFeedback.selectionClick();
-          setState(() {
-            _currentDragDirection = dir;
-            _showDragFeedback = dir.isNotEmpty;
-          });
-        }
-      },
-      onPanEnd: (_) {
-        if (_currentDragDirection != null && _currentDragDirection!.isNotEmpty) {
-          _handleGesture(_currentDragDirection!);
-        }
-        setState(() {
-          _dragOffset = Offset.zero;
-          _showDragFeedback = false;
-          _currentDragDirection = null;
-        });
-      },
-      child: LayoutBuilder(
-        builder: (ctx, constraints) => _RadialMenu(
-          availableWidth: constraints.maxWidth.isFinite ? constraints.maxWidth : 320,
-          availableHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 320,
-          dirAngles: _dirAngles,
-          currentDragDirection: _currentDragDirection,
-          showDragFeedback: _showDragFeedback,
-          showEmergencyOptions: _showEmergencyOptions,
-          currentEmergencyType: _currentEmergencyType,
-          scaleAnimation: _scaleAnimation,
-          onTapCenter: _sendQuickAlert,
+    final radialPad = _radialSafePadding(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: radialPad,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: _kRadialCanvas,
+                height: _kRadialCanvas,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (_) {
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _dragOffset = Offset.zero;
+                      _isGestureActive = false;
+                      _showDragFeedback = false;
+                      _currentDragDirection = null;
+                    });
+                  },
+                  onPanUpdate: (details) {
+                    _dragOffset += details.delta;
+                    final dir = _getDirection(_dragOffset);
+                    if (dir != _currentDragDirection) {
+                      if (dir.isNotEmpty) HapticFeedback.selectionClick();
+                      setState(() {
+                        _currentDragDirection = dir;
+                        _showDragFeedback = dir.isNotEmpty;
+                      });
+                    }
+                  },
+                  onPanEnd: (_) {
+                    if (_currentDragDirection != null &&
+                        _currentDragDirection!.isNotEmpty) {
+                      _handleGesture(_currentDragDirection!);
+                    }
+                    setState(() {
+                      _dragOffset = Offset.zero;
+                      _showDragFeedback = false;
+                      _currentDragDirection = null;
+                    });
+                  },
+                  child: _RadialMenu(
+                    availableWidth: _kRadialCanvas,
+                    availableHeight: _kRadialCanvas,
+                    dirAngles: _dirAngles,
+                    currentDragDirection: _currentDragDirection,
+                    showDragFeedback: _showDragFeedback,
+                    showEmergencyOptions: _showEmergencyOptions,
+                    currentEmergencyType: _currentEmergencyType,
+                    scaleAnimation: _scaleAnimation,
+                    onTapCenter: _sendQuickAlert,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        _EventualityBottomStrip(
+          onAmbiental: () {
+            if (_showEmergencyOptions) return;
+            _showEmergencyDialog(AlertDetailCatalog.environmental);
+          },
+          onPolicial: () {
+            if (_showEmergencyOptions) return;
+            _showEmergencyDialog(AlertDetailCatalog.police);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// Dos categorías inferiores — tarjetas blancas, borde fino y acento sistema (estilo iOS).
+class _EventualityBottomStrip extends StatelessWidget {
+  final VoidCallback onAmbiental;
+  final VoidCallback onPolicial;
+
+  const _EventualityBottomStrip({
+    required this.onAmbiental,
+    required this.onPolicial,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    final hx = w < 360 ? 14.0 : w < 420 ? 18.0 : 22.0;
+    final gap = w < 360 ? 10.0 : 12.0;
+    final bottomExtra = mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hx, 4, hx, bottomExtra),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _AppleCategoryCard(
+              icon: Icons.eco_rounded,
+              title: 'Ambiental',
+              subtitle: 'Eventualidad ambiental',
+              accent: _AppleEmergencyUX.accentGreen,
+              onTap: onAmbiental,
+            ),
+          ),
+          SizedBox(width: gap),
+          Expanded(
+            child: _AppleCategoryCard(
+              icon: Icons.local_police_rounded,
+              title: 'Policial',
+              subtitle: 'Eventualidad policial',
+              accent: _AppleEmergencyUX.accentBlue,
+              onTap: onPolicial,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AppleCategoryCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _AppleCategoryCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final circle = Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: accent, size: 19),
+    );
+
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.28,
+            color: _AppleEmergencyUX.labelPrimary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11,
+            height: 1.2,
+            letterSpacing: -0.08,
+            color: _AppleEmergencyUX.labelSecondary,
+          ),
+        ),
+      ],
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _AppleEmergencyUX.cardSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _AppleEmergencyUX.separator,
+          width: 0.5,
+        ),
+        boxShadow: _AppleEmergencyUX.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: accent.withValues(alpha: 0.15),
+          highlightColor: accent.withValues(alpha: 0.06),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                circle,
+                const SizedBox(width: 10),
+                Expanded(child: text),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1146,10 +1541,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 //
 // Sizing strategy:
 //   1. Take the smaller of available width/height as `available`
-//   2. Button = 28% of available (clamped 56–110) — deliberately compact
-//   3. Labels = 20%/15% of available (clamped) — readable first
-//   4. Orbit = 72% of the gap between button edge and widget edge
-//   5. ClipRect prevents any visual overlay with adjacent sections
+//   2. Lienzo fijo 320 + FittedBox: misma composición en todos los tamaños (solo escala).
 // =============================================================================
 
 class _RadialMenu extends StatelessWidget {
@@ -1177,23 +1569,52 @@ class _RadialMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ── Responsive sizing ─────────────────────────────────────────────────
-    // Use the SMALLER dimension so nothing can ever overflow.
-    final available = math.min(availableWidth, availableHeight).clamp(140.0, 420.0);
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    final canvas = math.min(availableWidth, availableHeight);
+    final available = canvas.clamp(148.0, 520.0);
+    final isTiny = shortestSide < 340;
+    final isCompact = shortestSide >= 340 && shortestSide < 400;
 
-    // Central button: compact — 28% of available space, deliberately small
-    // so labels get more room and the drag gesture feels intentional.
-    final btnSize = (available * 0.28).clamp(56.0, 110.0);
+    final btnFrac = isTiny ? 0.195 : (isCompact ? 0.22 : 0.245);
+    final btnSize = (available * btnFrac).clamp(50.0, 112.0);
 
-    // Label chip dimensions — slightly larger relative to space for readability
-    final labelW = (available * 0.20).clamp(48.0, 84.0);
-    final labelH = (available * 0.15).clamp(36.0, 62.0);
+    var labelW =
+        (available * (isTiny ? 0.31 : 0.275)).clamp(76.0, 128.0);
+    final labelH =
+        (available * (isTiny ? 0.265 : 0.235)).clamp(58.0, 96.0);
+    labelW = math.min(labelW, availableWidth * 0.44);
 
-    // Orbit radius: push labels outward. Use 70% of the distance between
-    // button edge and widget edge so labels sit nearer the perimeter.
-    final innerEdge = btnSize / 2 + 4.0;
-    final outerEdge = (available / 2) - (labelH * 0.58);
-    final orbit = innerEdge + (outerEdge - innerEdge) * 0.72;
+    final innerEdge = btnSize / 2 + 2.0;
+    const edgePad = 7.0;
+    // Órbita máx. por dirección: para cada ángulo, el chip alineado al eje debe caber
+    // en el rectángulo (evita overflow diagonal y en “Emergencia Vial” a la derecha).
+    double maxOrbitFromAngles() {
+      var cap = double.infinity;
+      for (final a in dirAngles.values) {
+        final ca = math.cos(a).abs();
+        final sa = math.sin(a).abs();
+        var lim = double.infinity;
+        if (ca > 1e-9) {
+          lim = math.min(
+            lim,
+            (availableWidth / 2 - labelW / 2 - edgePad) / ca,
+          );
+        }
+        if (sa > 1e-9) {
+          lim = math.min(
+            lim,
+            (availableHeight / 2 - labelH / 2 - edgePad) / sa,
+          );
+        }
+        cap = math.min(cap, lim);
+      }
+      if (!cap.isFinite || cap < innerEdge) return innerEdge;
+      return cap.clamp(innerEdge, canvas);
+    }
+
+    final maxOrbit = maxOrbitFromAngles();
+    final orbit =
+        (innerEdge + (maxOrbit - innerEdge) * 0.93).clamp(innerEdge, maxOrbit);
 
     final cx = availableWidth / 2;
     final cy = availableHeight / 2;
@@ -1202,6 +1623,7 @@ class _RadialMenu extends StatelessWidget {
       width: availableWidth,
       height: availableHeight,
       child: ClipRect(
+        clipBehavior: Clip.hardEdge,
         child: Stack(
           clipBehavior: Clip.hardEdge,
           alignment: Alignment.center,
@@ -1220,19 +1642,7 @@ class _RadialMenu extends StatelessWidget {
                 ),
               ),
 
-            // ── 2. Radial labels — always visible, never under the finger ─
-            ...dirAngles.entries.map((e) => _buildLabel(
-                  context: context,
-                  dir: e.key,
-                  angle: e.value,
-                  orbit: orbit,
-                  cx: cx,
-                  cy: cy,
-                  labelW: labelW,
-                  labelH: labelH,
-                )),
-
-            // ── 3. Central HELP button ────────────────────────────────────
+            // ── 2. Central HELP (debajo) — los chips van encima si hay solape ─
             Center(
               child: AnimatedBuilder(
                 animation: scaleAnimation,
@@ -1249,6 +1659,20 @@ class _RadialMenu extends StatelessWidget {
                 ),
               ),
             ),
+
+            // ── 3. Cinco categorías (encima del centro para leer nombres) ───
+            ...dirAngles.entries.map((e) => _buildLabel(
+                  context: context,
+                  dir: e.key,
+                  angle: e.value,
+                  orbit: orbit,
+                  cx: cx,
+                  cy: cy,
+                  labelW: labelW,
+                  labelH: labelH,
+                  isTinyLayout: isTiny,
+                  isCompactLayout: isCompact,
+                )),
           ],
         ),
       ),
@@ -1264,6 +1688,8 @@ class _RadialMenu extends StatelessWidget {
     required double cy,
     required double labelW,
     required double labelH,
+    required bool isTinyLayout,
+    required bool isCompactLayout,
   }) {
     final typeData = EmergencyTypes.getTypeByDirection(dir);
     if (typeData == null) return const SizedBox.shrink();
@@ -1276,9 +1702,16 @@ class _RadialMenu extends StatelessWidget {
     final dx = orbit * math.cos(angle);
     final dy = orbit * math.sin(angle);
 
-    final iconSz = (labelH * 0.30).clamp(11.0, 20.0);
-    final fontSize = (labelW * 0.12).clamp(7.0, 11.0);
-    final radius = labelH * 0.26;
+    final iconSz = (labelH * 0.40).clamp(22.0, 36.0);
+    final textTargetSize = isTinyLayout
+        ? 12.0
+        : isCompactLayout
+            ? 13.0
+            : 14.5;
+    final radius = (labelH * 0.22).clamp(14.0, 22.0);
+    final hPad = (labelW * 0.055).clamp(4.0, 8.0);
+    // Reserva para borde decorativo (el hijo no debe superar el rect interior).
+    const innerInset = 2.0;
 
     return Positioned(
       left: cx + dx - labelW / 2,
@@ -1289,63 +1722,89 @@ class _RadialMenu extends StatelessWidget {
           curve: Curves.easeOut,
           width: labelW,
           height: labelH,
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: isSelected
-                ? baseColor.withValues(alpha: 0.14)
-                : Colors.white.withValues(alpha: 0.95),
+                ? baseColor.withValues(alpha: 0.12)
+                : _AppleEmergencyUX.cardSurface,
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(
               color: isSelected
-                  ? baseColor.withValues(alpha: 0.8)
-                  : const Color(0xFFE0E0E5),
-              width: isSelected ? 1.8 : 0.8,
+                  ? baseColor.withValues(alpha: 0.65)
+                  : _AppleEmergencyUX.separator,
+              width: isSelected ? 1.75 : 0.5,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: baseColor.withValues(alpha: 0.30),
-                      blurRadius: 14,
-                      spreadRadius: 1,
+                      color: baseColor.withValues(alpha: 0.22),
+                      blurRadius: 12,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4),
                     )
                   ]
                 : [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, 1.5),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     )
                   ],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 150),
-                child: Icon(
-                  icon,
-                  key: ValueKey('$dir-$isSelected'),
-                  size: iconSz,
-                  color: isSelected ? baseColor : const Color(0xFF8E8E93),
-                ),
-              ),
-              SizedBox(height: labelH * 0.04),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: labelW * 0.06),
-                child: Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? baseColor : const Color(0xFF636366),
-                    height: 1.1,
-                    letterSpacing: -0.15,
+          child: Padding(
+            padding: const EdgeInsets.all(innerInset),
+            child: LayoutBuilder(
+              builder: (context, bc) {
+                final innerW = bc.maxWidth;
+                return FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: innerW),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 150),
+                          child: Icon(
+                            icon,
+                            key: ValueKey('$dir-$isSelected'),
+                            size: iconSz,
+                            color: isSelected
+                                ? baseColor
+                                : _AppleEmergencyUX.labelSecondary,
+                          ),
+                        ),
+                        SizedBox(height: math.max(2.0, labelH * 0.028)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: math.max(0.0, hPad - innerInset),
+                          ),
+                          child: Text(
+                            name,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: textTargetSize,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isSelected
+                                  ? baseColor
+                                  : _AppleEmergencyUX.labelPrimary,
+                              height: 1.12,
+                              letterSpacing: -0.22,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -1475,28 +1934,35 @@ class _CenterButtonState extends State<_CenterButton>
     if (widget.showEmergencyOptions && widget.currentEmergencyType.isNotEmpty) {
       final td = EmergencyTypes.getTypeByDirection(widget.currentEmergencyType);
       if (td != null) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(td['icon'] as IconData, color: Colors.white, size: size * 0.26),
-            SizedBox(height: size * 0.03),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: size * 0.1),
-              child: Text(
-                EmergencyTypes.getTranslatedType(td['type'] as String, context),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: size * 0.94),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  td['icon'] as IconData,
                   color: Colors.white,
-                  fontSize: size * 0.09,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.3,
-                  height: 1.1,
+                  size: math.max(18.0, size * 0.28),
                 ),
-              ),
+                SizedBox(height: size * 0.028),
+                Text(
+                  EmergencyTypes.getTranslatedType(td['type'] as String, context),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: math.max(11.0, size * 0.095),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.15,
+                    height: 1.12,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         );
       }
     }
@@ -1511,49 +1977,69 @@ class _CenterButtonState extends State<_CenterButton>
             td['icon'] as IconData,
             key: ValueKey(widget.currentDragDirection),
             color: Colors.white,
-            size: size * 0.32,
+            size: math.max(24.0, size * 0.36),
           ),
         );
       }
     }
 
-    // ── Idle: HELP text with swipe hint ───────────────────────────────────
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          AppLocalizations.of(context)!.help,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-            height: 1.0,
-          ),
-        ),
-        SizedBox(height: size * 0.035),
-        Row(
+    // ── Idle: HELP + swipe (doble FittedBox: el hub puede medir ~50px y el Row
+    //    icono+texto no debe pedir más ancho que el círculo) ───────────────────
+    final innerMaxW = size * 0.92;
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: innerMaxW),
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.swipe_rounded,
-              color: Colors.white.withValues(alpha: 0.55),
-              size: size * 0.11,
-            ),
-            SizedBox(width: size * 0.02),
             Text(
-              AppLocalizations.of(context)!.drag,
+              AppLocalizations.of(context)!.help,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.55),
-                fontSize: size * 0.075,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.3,
+                color: Colors.white,
+                fontSize: math.max(11.0, size * 0.17),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+                height: 1.0,
+              ),
+            ),
+            SizedBox(height: math.max(2.0, size * 0.028)),
+            SizedBox(
+              width: innerMaxW,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.swipe_rounded,
+                      color: Colors.white.withValues(alpha: 0.58),
+                      size: math.max(10.0, size * 0.11),
+                    ),
+                    SizedBox(width: math.max(2.0, size * 0.016)),
+                    Text(
+                      AppLocalizations.of(context)!.drag,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.58),
+                        fontSize: math.max(9.5, size * 0.072),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
 }

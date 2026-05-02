@@ -37,15 +37,11 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   // Usar el sistema centralizado de tipos de emergencia
   Map<String, Map<String, dynamic>> get _alertTypes {
     final Map<String, Map<String, dynamic>> alertTypes = {};
-    for (final direction in EmergencyTypes.allDirections) {
-      final typeData = EmergencyTypes.getTypeByDirection(direction);
-      if (typeData != null) {
-        final typeName = typeData['type'] as String;
-        alertTypes[typeName] = {
-          'icon': typeData['icon'],
-          'color': typeData['color'],
-        };
-      }
+    for (final typeName in EmergencyTypes.allTypesForFilters) {
+      alertTypes[typeName] = {
+        'icon': EmergencyTypes.getIcon(typeName),
+        'color': EmergencyTypes.getColor(typeName),
+      };
     }
     return alertTypes;
   }

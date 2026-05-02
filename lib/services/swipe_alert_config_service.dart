@@ -61,7 +61,7 @@ class SwipeAlertConfigService {
   }
 
   Future<void> initDefaults(List<Map<String, dynamic>> communities) async {
-    for (final entry in EmergencyTypes.types.entries) {
+    for (final entry in EmergencyTypes.typeMetadata.entries) {
       final typeName = entry.value['type'] as String;
       final keyword = entry.value['defaultCommunityKeyword'] as String?;
       if (keyword == null) continue;

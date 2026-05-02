@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:guardian/core/app_constants.dart';
 
 /// Domain model representing a single alert.
 class AlertModel {
@@ -21,6 +22,8 @@ class AlertModel {
   final String? userEmail;
   final String? userName;
   final List<String>? imageBase64;
+  /// Nota corta en base64 (p. ej. AAC); tamaño debe mantenerse bajo el límite de Firestore.
+  final String? audioBase64;
   final List<String> attachmentPlaceholders;
   final int viewedCount;
   final List<String> viewedBy;
@@ -56,6 +59,7 @@ class AlertModel {
     this.userEmail,
     this.userName,
     this.imageBase64,
+    this.audioBase64,
     this.attachmentPlaceholders = const [],
     this.viewedCount = 0,
     this.viewedBy = const [],
@@ -124,6 +128,7 @@ class AlertModel {
       imageBase64: data['imageBase64'] != null
           ? List<String>.from(data['imageBase64'] as List)
           : null,
+      audioBase64: data[AlertFields.audioBase64] as String?,
       attachmentPlaceholders: data['attachment_placeholders'] != null
           ? List<String>.from(data['attachment_placeholders'] as List)
           : const [],
@@ -155,6 +160,7 @@ class AlertModel {
         'userEmail': userEmail,
         'userName': userName,
         'imageBase64': imageBase64,
+        AlertFields.audioBase64: audioBase64,
         'attachment_placeholders': attachmentPlaceholders,
         'viewedCount': viewedCount,
         'viewedBy': viewedBy,
@@ -182,6 +188,7 @@ class AlertModel {
     String? userEmail,
     String? userName,
     List<String>? imageBase64,
+    String? audioBase64,
     List<String>? attachmentPlaceholders,
     int? viewedCount,
     List<String>? viewedBy,
@@ -206,6 +213,7 @@ class AlertModel {
       userEmail: userEmail ?? this.userEmail,
       userName: userName ?? this.userName,
       imageBase64: imageBase64 ?? this.imageBase64,
+      audioBase64: audioBase64 ?? this.audioBase64,
       attachmentPlaceholders: attachmentPlaceholders ?? this.attachmentPlaceholders,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,

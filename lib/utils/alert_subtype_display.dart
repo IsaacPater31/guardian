@@ -36,6 +36,14 @@ class AlertSubtypeDisplay {
       'TREE_OR_STRUCTURE_FALL': 'Fallen tree or structure',
       AlertDetailCatalog.otherSubtypeId: 'Other',
     },
+    AlertDetailCatalog.securityBreach: {
+      'UNAUTHORIZED_ACCESS': 'Unauthorized access / intrusion',
+      'PERIMETER_BREACH': 'Perimeter or fencing breach',
+      'ALARM_OR_SURVEILLANCE': 'Alarm or CCTV failure',
+      'SENSITIVE_ASSET': 'Sensitive asset or data exposed',
+      'CYBER_OR_SYSTEMS': 'Systems or cybersecurity incident',
+      AlertDetailCatalog.otherSubtypeId: 'Other',
+    },
     AlertDetailCatalog.health: {
       'FIRST_AID': 'First aid',
       'MEDICATIONS': 'Medications',

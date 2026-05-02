@@ -12,6 +12,8 @@ class AlertDetailCatalog {
   static const String homeHelp = 'HOME_HELP';
   static const String police = 'POLICE';
   static const String fire = 'FIRE';
+  /// Brecha de seguridad (física, perimetral, sistemas, etc.) — distinto de bomberos/incendio.
+  static const String securityBreach = 'SECURITY_BREACH';
   static const String roadEmergency = 'ROAD_EMERGENCY';
   static const String environmental = 'ENVIRONMENTAL';
   static const String accompaniment = 'ACCOMPANIMENT';
@@ -23,6 +25,7 @@ class AlertDetailCatalog {
     homeHelp,
     police,
     fire,
+    securityBreach,
     roadEmergency,
     environmental,
     accompaniment,
@@ -58,20 +61,17 @@ class AlertDetailCatalog {
     ),
     police: AlertCategoryDetailConfig(
       alertType: police,
-      fallbackTitle: 'Policia',
+      fallbackTitle: 'Eventualidad policial',
       subtypes: [
-        AlertSubtypeOption(id: 'ROBBERY', label: 'Robo'),
-        AlertSubtypeOption(id: 'SUSPICIOUS_ACTIVITY', label: 'Actividad sospechosa'),
-        AlertSubtypeOption(id: 'GENDER_VIOLENCE', label: 'Violencia de genero'),
-        AlertSubtypeOption(id: 'PUBLIC_ORDER', label: 'Orden publico'),
-        AlertSubtypeOption(id: 'EXTORTION', label: 'Extorsion'),
-        AlertSubtypeOption(id: 'SICARIATO', label: 'Sicariato'),
-        AlertSubtypeOption(id: 'FLETEO', label: 'Fleteo'),
-        AlertSubtypeOption(id: 'KIDNAPPING', label: 'Secuestro'),
-        AlertSubtypeOption(id: 'ANIMAL_ABUSE', label: 'Maltrato animal'),
-        AlertSubtypeOption(id: 'PREVENTIVE_PATROL', label: 'Patrullaje preventivo'),
-        AlertSubtypeOption(id: 'MISSING_PERSONS', label: 'Personas perdidas'),
-        AlertSubtypeOption(id: 'NOISE', label: 'Ruido'),
+        AlertSubtypeOption(id: 'THEFTS', label: 'Hurtos'),
+        AlertSubtypeOption(id: 'EXTORTION_KIDNAPPING', label: 'Extorsión y secuestro'),
+        AlertSubtypeOption(id: 'INJURIES_THREATS', label: 'Lesiones y amenazas'),
+        AlertSubtypeOption(id: 'PUBLIC_CONSUMPTION', label: 'Consumo en espacio público'),
+        AlertSubtypeOption(id: 'FIGHTS', label: 'Riñas y confrontaciones'),
+        AlertSubtypeOption(id: 'VANDALISM', label: 'Vandalismo'),
+        AlertSubtypeOption(id: 'SUSPICIOUS_PRESENCE', label: 'Presencia de sospechosos'),
+        AlertSubtypeOption(id: 'MINOR_AT_RISK', label: 'Menor en riesgo'),
+        AlertSubtypeOption(id: 'MISSING_PERSON', label: 'Persona desaparecida'),
         AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
       ],
     ),
@@ -92,6 +92,18 @@ class AlertDetailCatalog {
         AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
       ],
     ),
+    securityBreach: AlertCategoryDetailConfig(
+      alertType: securityBreach,
+      fallbackTitle: 'Brecha de seguridad',
+      subtypes: [
+        AlertSubtypeOption(id: 'UNAUTHORIZED_ACCESS', label: 'Acceso no autorizado / intrusión'),
+        AlertSubtypeOption(id: 'PERIMETER_BREACH', label: 'Brecha en perímetro o cerramiento'),
+        AlertSubtypeOption(id: 'ALARM_OR_SURVEILLANCE', label: 'Falla de alarma o videovigilancia'),
+        AlertSubtypeOption(id: 'SENSITIVE_ASSET', label: 'Activo o información sensible expuesta'),
+        AlertSubtypeOption(id: 'CYBER_OR_SYSTEMS', label: 'Incidente en sistemas o ciberseguridad'),
+        AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
+      ],
+    ),
     roadEmergency: AlertCategoryDetailConfig(
       alertType: roadEmergency,
       fallbackTitle: 'Transito',
@@ -107,17 +119,17 @@ class AlertDetailCatalog {
     ),
     environmental: AlertCategoryDetailConfig(
       alertType: environmental,
-      fallbackTitle: 'Ambiental',
+      fallbackTitle: 'Eventualidad ambiental',
       subtypes: [
-        AlertSubtypeOption(id: 'NOISE_POLLUTION', label: 'Contaminacion auditiva'),
-        AlertSubtypeOption(id: 'ILLEGAL_DUMPS', label: 'Basureros satelites'),
-        AlertSubtypeOption(id: 'TREE_LOGGING', label: 'Tala de arboles'),
-        AlertSubtypeOption(id: 'WATER_POLLUTION', label: 'Contaminacion hidrica'),
-        AlertSubtypeOption(id: 'INVASIVE_SPECIES', label: 'Especies invasoras'),
-        AlertSubtypeOption(id: 'HAZARDOUS_WASTE', label: 'Residuos peligrosos'),
-        AlertSubtypeOption(id: 'DANGEROUS_ANIMALS', label: 'Animales peligrosos'),
-        AlertSubtypeOption(id: 'ANIMAL_IN_DANGER', label: 'Animal en peligro'),
-        AlertSubtypeOption(id: 'AIR_POLLUTION', label: 'Contaminacion del aire'),
+        AlertSubtypeOption(id: 'ILLEGAL_GARBAGE_DUMP', label: 'Acopio ilegal de basura'),
+        AlertSubtypeOption(id: 'WATER_SOURCE_POLLUTION', label: 'Contaminación de fuentes hídricas'),
+        AlertSubtypeOption(id: 'HAZARDOUS_SPILL', label: 'Derrame de sustancias peligrosas'),
+        AlertSubtypeOption(id: 'WILDLIFE_RISK', label: 'Riesgos con fauna'),
+        AlertSubtypeOption(id: 'OFFENSIVE_ODORS', label: 'Olores ofensivos'),
+        AlertSubtypeOption(id: 'FIRES_AIR_QUALITY', label: 'Incendios y calidad del aire'),
+        AlertSubtypeOption(id: 'NOISE_POLLUTION', label: 'Ruido'),
+        AlertSubtypeOption(id: 'NATURAL_DISASTERS', label: 'Desastres naturales'),
+        AlertSubtypeOption(id: 'FLORA_RISK', label: 'Riesgo con flora'),
         AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
       ],
     ),
@@ -168,6 +180,8 @@ class AlertDetailCatalog {
         return Icons.local_police;
       case fire:
         return Icons.local_fire_department;
+      case securityBreach:
+        return Icons.security_update_warning_rounded;
       case accompaniment:
         return Icons.people;
       case environmental:

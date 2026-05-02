@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:guardian/core/app_logger.dart';
@@ -259,7 +261,13 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     if (widget.alert.imageBase64 != null &&
                         widget.alert.imageBase64!.isNotEmpty) ...[
                       SizedBox(height: isSmall ? 12 : 16),
-                      _buildImageAttachmentNotice(isSmall),
+                      _buildImageAttachmentsGallery(isSmall),
+                    ],
+
+                    if (widget.alert.audioBase64 != null &&
+                        widget.alert.audioBase64!.isNotEmpty) ...[
+                      SizedBox(height: isSmall ? 12 : 16),
+                      _buildAudioAttachmentNotice(isSmall),
                     ],
 
                     SizedBox(height: isSmall ? 8 : 16),
@@ -944,10 +952,9 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           if (widget.alert.attachmentPlaceholders.isNotEmpty) ...[
             const SizedBox(height: 10),
             _buildInfoRow(
-              icon: Icons.photo_library_rounded,
-              color: _kBluePrim,
-              label:
-                  '${widget.alert.attachmentPlaceholders.length} ${widget.alert.attachmentPlaceholders.length == 1 ? 'foto referenciada' : 'fotos referenciadas'}',
+              icon: Icons.info_outline_rounded,
+              color: _kTextSub,
+              label: widget.alert.attachmentPlaceholders.join(' · '),
             ),
           ],
         ],
@@ -971,25 +978,56 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  Widget _buildImageAttachmentNotice(bool isSmall) {
-    final l10n = AppLocalizations.of(context)!;
+  Widget _buildAudioAttachmentNotice(bool isSmall) {
     return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.mic_rounded, color: Colors.deepPurple.shade700, size: isSmall ? 22 : 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Esta alerta incluye un clip de audio adjunto.',
+              style: TextStyle(
+                fontSize: isSmall ? 14 : 15,
+                fontWeight: FontWeight.w600,
+                color: _kText,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageAttachmentsGallery(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    final list = widget.alert.imageBase64!;
+    final maxH = isSmall ? 200.0 : 260.0;
+
+    return Container(
+      width: double.infinity,
       padding: EdgeInsets.all(isSmall ? 14 : 16),
       decoration: BoxDecoration(
         color: _kBluePrim.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _kBluePrim.withValues(alpha: 0.2)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.photo_outlined, color: _kBluePrim, size: isSmall ? 22 : 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Icon(Icons.photo_outlined, color: _kBluePrim, size: isSmall ? 22 : 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   l10n.imagesAttached,
                   style: TextStyle(
                     fontSize: isSmall ? 14 : 15,
@@ -997,18 +1035,50 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     color: _kText,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.comingSoon,
-                  style: TextStyle(
-                    fontSize: isSmall ? 12 : 13,
-                    color: _kTextSub,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) SizedBox(height: isSmall ? 10 : 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  try {
+                    final bytes = base64Decode(list[i]);
+                    return Image.memory(
+                      bytes,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      width: c.maxWidth,
+                      height: maxH,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: double.infinity,
+                        height: 80,
+                        alignment: Alignment.center,
+                        color: _kSurface,
+                        child: Text(
+                          'Error al cargar imagen ${i + 1}',
+                          style: TextStyle(color: _kTextSub, fontSize: 13),
+                        ),
+                      ),
+                    );
+                  } catch (_) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      color: _kSurface,
+                      child: Text(
+                        'No se pudo mostrar la imagen ${i + 1}.',
+                        style: TextStyle(color: _kTextSub, fontSize: isSmall ? 13 : 14),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1311,6 +1381,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       case 'HOME_HELP':    return Icons.home_rounded;
       case 'POLICE':       return Icons.shield_rounded;
       case 'FIRE':         return Icons.local_fire_department_rounded;
+      case 'SECURITY_BREACH': return Icons.security_update_warning_rounded;
       case 'ACCOMPANIMENT':return Icons.people_rounded;
       case 'ENVIRONMENTAL':return Icons.eco_rounded;
       case 'ROAD_EMERGENCY': return Icons.directions_car_rounded;
@@ -1335,6 +1406,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       case 'HOME_HELP':    return const Color(0xFF66BB6A);
       case 'POLICE':       return const Color(0xFF1565C0);
       case 'FIRE':         return const Color(0xFFE53935);
+      case 'SECURITY_BREACH': return const Color(0xFFC62828);
       case 'ACCOMPANIMENT':return const Color(0xFF8E24AA);
       case 'ENVIRONMENTAL':return const Color(0xFF43A047);
       case 'ROAD_EMERGENCY':return const Color(0xFFFF7043);

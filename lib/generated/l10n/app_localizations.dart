@@ -338,6 +338,12 @@ abstract class AppLocalizations {
   /// **'Bomberos'**
   String get emergencyFireNew;
 
+  /// No description provided for @emergencySecurityBreach.
+  ///
+  /// In es, this message translates to:
+  /// **'Brecha de seguridad'**
+  String get emergencySecurityBreach;
+
   /// No description provided for @emergencyAccompaniment.
   ///
   /// In es, this message translates to:

@@ -154,7 +154,6 @@ class _HomeViewState extends State<HomeView> {
             : w < 600
                 ? 0.30
                 : 0.28;
-    // Teléfonos bajos (SE, etc.): subir un poco el mínimo relativo al alto.
     final desiredMin = w < 360
         ? 232.0
         : w < 420
@@ -175,7 +174,7 @@ class _HomeViewState extends State<HomeView> {
     final alertsPanelHeight = _recentAlertsPanelHeight(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
         child: Column(
           children: [
@@ -881,19 +880,19 @@ class _HomeViewState extends State<HomeView> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        isSmall ? 4 : 12,
-        isSmall ? 2 : 6,
-        isSmall ? 4 : 12,
-        isSmall ? 2 : 4,
+        isSmall ? 12 : 16,
+        isSmall ? 6 : 10,
+        isSmall ? 12 : 16,
+        isSmall ? 4 : 8,
       ),
       child: Column(
         children: [
           Padding(
-            padding: EdgeInsets.only(bottom: isSmall ? 1 : 2),
+            padding: EdgeInsets.only(bottom: isSmall ? 4 : 6),
             child: Text(
               AppLocalizations.of(context)!.emergencyButton,
               style: TextStyle(
-                fontSize: (sw * 0.042).clamp(13.0, 19.0),
+                fontSize: (sw * 0.044).clamp(14.0, 20.0),
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF1A1A1A),
               ),

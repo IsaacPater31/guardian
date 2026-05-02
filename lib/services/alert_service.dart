@@ -452,6 +452,8 @@ class AlertService {
     String? subtype,
     String? customDetail,
     List<String> attachmentPlaceholders = const [],
+    List<String>? imageBase64,
+    String? audioBase64,
   }) async {
     try {
       if (!_userService.canUserSendAlerts()) {
@@ -485,6 +487,8 @@ class AlertService {
         viewedBy: [],
         communityIds: communityIds,
         attachmentPlaceholders: attachmentPlaceholders,
+        imageBase64: imageBase64,
+        audioBase64: audioBase64,
         forwardsCount: 0,
         reportsCount: 0,
       );
@@ -564,6 +568,7 @@ class AlertService {
           forwardsCount: 0,
           reportsCount: 0,
           imageBase64: originalAlert.imageBase64,
+          audioBase64: originalAlert.audioBase64,
           subtype: originalAlert.subtype,
           customDetail: originalAlert.customDetail,
           attachmentPlaceholders: originalAlert.attachmentPlaceholders,

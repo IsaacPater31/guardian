@@ -38,6 +38,8 @@ class AlertHandler {
     String? subtype,
     String? customDetail,
     List<String> attachmentPlaceholders = const [],
+    List<String>? imageBase64,
+    String? audioBase64,
   }) =>
       _alertService.sendSwipedAlert(
         alertType: alertType,
@@ -46,6 +48,8 @@ class AlertHandler {
         subtype: subtype,
         customDetail: customDetail,
         attachmentPlaceholders: attachmentPlaceholders,
+        imageBase64: imageBase64,
+        audioBase64: audioBase64,
       );
 
   Future<int> forwardAlert({

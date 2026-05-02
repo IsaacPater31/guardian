@@ -31,6 +31,8 @@ dependencies:
   provider: ^6.1.1
   app_links: ^6.3.3          # Deep links para invitaciones
   share_plus: ^10.1.4        # Compartir links de invitación
+  record: ^6.2.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

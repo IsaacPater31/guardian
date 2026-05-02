@@ -5,6 +5,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/quick_alert_config_service.dart';
 import 'package:guardian/services/swipe_alert_config_service.dart';
 import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/core/alert_detail_catalog.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kBg = Color(0xFFF2F2F7);         // iOS system grouped background
@@ -370,7 +371,9 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
 
   @override
   Widget build(BuildContext context) {
-    final types = EmergencyTypes.types.entries.toList();
+    final types = AlertDetailCatalog.supportedAlertTypes
+        .map((typeName) => MapEntry(typeName, EmergencyTypes.typeMetadata[typeName]!))
+        .toList();
 
     return Scaffold(
       backgroundColor: _kBg,

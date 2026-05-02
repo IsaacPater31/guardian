@@ -35,6 +35,8 @@ abstract final class AlertFields {
   static const String userEmail = 'userEmail';
   static const String userName = 'userName';
   static const String imageBase64 = 'imageBase64';
+  /// Audio corto (p. ej. AAC) codificado en base64; opcional.
+  static const String audioBase64 = 'audio_base64';
   static const String viewedCount = 'viewedCount';
   static const String viewedBy = 'viewedBy';
   static const String communityId  = 'community_id';   // legacy (read-only, backward compat)

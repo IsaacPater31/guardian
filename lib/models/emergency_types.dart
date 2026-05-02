@@ -33,9 +33,15 @@ class EmergencyTypes {
     },
     AlertDetailCatalog.fire: {
       'type': AlertDetailCatalog.fire,
-      'icon': Icons.shield_moon_rounded,
+      'icon': Icons.local_fire_department_rounded,
       'color': Color(0xFFE53935),
       'defaultCommunityKeyword': 'BOMBEROS',
+    },
+    AlertDetailCatalog.securityBreach: {
+      'type': AlertDetailCatalog.securityBreach,
+      'icon': Icons.security_update_warning_rounded,
+      'color': Color(0xFFC62828),
+      'defaultCommunityKeyword': null,
     },
     AlertDetailCatalog.roadEmergency: {
       'type': AlertDetailCatalog.roadEmergency,
@@ -67,7 +73,7 @@ class EmergencyTypes {
   static const Map<String, String> radialDirectionToType = {
     'up': AlertDetailCatalog.harassment,
     'right': AlertDetailCatalog.roadEmergency,
-    'downRight': AlertDetailCatalog.fire,
+    'downRight': AlertDetailCatalog.securityBreach,
     'downLeft': AlertDetailCatalog.homeHelp,
     'left': AlertDetailCatalog.health,
   };
@@ -91,6 +97,8 @@ class EmergencyTypes {
         return Icons.local_police;
       case 'FIRE':
         return Icons.local_fire_department;
+      case 'SECURITY_BREACH':
+        return Icons.security_update_warning_rounded;
       case 'ACCOMPANIMENT':
         return Icons.people;
       case 'ENVIRONMENTAL':
@@ -134,6 +142,8 @@ class EmergencyTypes {
         return const Color(0xFF1565C0);
       case 'FIRE':
         return const Color(0xFFE53935);
+      case 'SECURITY_BREACH':
+        return const Color(0xFFC62828);
       case 'ACCOMPANIMENT':
         return const Color(0xFF8E24AA);
       case 'ENVIRONMENTAL':
@@ -200,6 +210,8 @@ class EmergencyTypes {
         return localizations.emergencyPolice;
       case 'FIRE':
         return localizations.emergencyFireNew;
+      case 'SECURITY_BREACH':
+        return localizations.emergencySecurityBreach;
       case 'ACCOMPANIMENT':
         return localizations.emergencyAccompaniment;
       case 'ENVIRONMENTAL':
