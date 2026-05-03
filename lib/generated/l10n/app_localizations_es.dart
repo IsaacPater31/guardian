@@ -138,7 +138,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emergencyEnvironmental => 'Ambiental';
 
   @override
-  String get emergencyRoadEmergency => 'Emergencia Vial';
+  String get emergencyRoadEmergency => 'Emergencia\nVial';
 
   @override
   String get emergencyHarassment => 'Acoso';
@@ -168,7 +168,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emergencyPublicServices => 'Emergencia Servicios Públicos';
 
   @override
-  String get emergencyVial => 'Emergencia Vial';
+  String get emergencyVial => 'Emergencia\nVial';
 
   @override
   String get emergencyAssistance => 'Asistencia Necesaria';

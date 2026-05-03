@@ -49,9 +49,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   static const Color _danger = Color(0xFFFF3B30);
   static const Color _surface = Color(0xFFF8F9FA);
 
-  /// Lienzo lógico del menú radial; `FittedBox` lo escala al `Expanded` de la home.
-  /// Valor moderado + composición interna: efecto “zoom” en pantalla y chips más abiertos en el anillo.
-  static const double _kRadialCanvas = 418.0;
+  /// Límites del lienzo cuadrado del menú radial (se deriva del espacio real con [LayoutBuilder]).
+  static const double _kRadialCanvasMin = 248.0;
+  static const double _kRadialCanvasMax = 560.0;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -1345,10 +1345,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // ---------------------------------------------------------------------------
   // Cinco direcciones (estrella): la más cercana en ángulo al gesto corregido.
   // ---------------------------------------------------------------------------
-  String _getDirection(Offset offset) {
+  String _getDirection(
+    Offset offset,
+    double minPanDistance, {
+    double maxAngleSlack = 0.72,
+  }) {
     final distance = offset.distance;
-    // Zona muerta mayor → más espacio para arrastrar sin seleccionar hasta salir del centro.
-    if (distance < 38) return '';
+    if (distance < minPanDistance) return '';
 
     // Misma convención que al pintar chips, pero con Y invertida respecto a la
     // pantalla: hacia abajo-izquierda en pantalla → ángulo -3π/4 (no +3π/4).
@@ -1384,7 +1387,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         best = e.key;
       }
     }
-    if (bestDiff > 0.72) return '';
+    if (bestDiff > maxAngleSlack) return '';
     return best;
   }
 
@@ -1404,12 +1407,24 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // ===========================================================================
 
   EdgeInsets _radialSafePadding(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final h = MediaQuery.sizeOf(context).height;
-    // Marco mínimo: más área útil al radial (= más zoom y separación en pantalla).
-    final hx = w < 360 ? 3.0 : w < 420 ? 5.0 : w < 600 ? 6.0 : 6.0;
-    final vyTop = h < 520 ? 4.0 : h < 700 ? 8.0 : 10.0;
-    final vyBottom = h < 520 ? 2.0 : 6.0;
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    final h = mq.size.height;
+    final viewPad = mq.viewPadding;
+    // Teléfono estrecho / SE vs pantallas amplias / tablet en horizontal.
+    final hx = w < 360
+        ? 3.0
+        : w < 420
+            ? 5.0
+            : w < 600
+                ? 6.0
+                : w < 900
+                    ? 10.0
+                    : 16.0;
+    var vyTop = h < 520 ? 4.0 : h < 700 ? 8.0 : 10.0;
+    var vyBottom = h < 520 ? 2.0 : 6.0;
+    if (h > 640 && viewPad.top > 24) vyTop += 2;
+    if (viewPad.bottom > 16) vyBottom = math.max(vyBottom, viewPad.bottom * 0.35);
     return EdgeInsets.fromLTRB(hx, vyTop, hx, vyBottom);
   }
 
@@ -1422,58 +1437,76 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         Expanded(
           child: Padding(
             padding: radialPad,
-            child: FittedBox(
-              fit: BoxFit.contain,
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: _kRadialCanvas,
-                height: _kRadialCanvas,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: (_) {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _dragOffset = Offset.zero;
-                      _isGestureActive = false;
-                      _showDragFeedback = false;
-                      _currentDragDirection = null;
-                    });
-                  },
-                  onPanUpdate: (details) {
-                    _dragOffset += details.delta;
-                    final dir = _getDirection(_dragOffset);
-                    if (dir != _currentDragDirection) {
-                      if (dir.isNotEmpty) HapticFeedback.selectionClick();
-                      setState(() {
-                        _currentDragDirection = dir;
-                        _showDragFeedback = dir.isNotEmpty;
-                      });
-                    }
-                  },
-                  onPanEnd: (_) {
-                    if (_currentDragDirection != null &&
-                        _currentDragDirection!.isNotEmpty) {
-                      _handleGesture(_currentDragDirection!);
-                    }
-                    setState(() {
-                      _dragOffset = Offset.zero;
-                      _showDragFeedback = false;
-                      _currentDragDirection = null;
-                    });
-                  },
-                  child: _RadialMenu(
-                    availableWidth: _kRadialCanvas,
-                    availableHeight: _kRadialCanvas,
-                    dirAngles: _dirAngles,
-                    currentDragDirection: _currentDragDirection,
-                    showDragFeedback: _showDragFeedback,
-                    showEmergencyOptions: _showEmergencyOptions,
-                    currentEmergencyType: _currentEmergencyType,
-                    scaleAnimation: _scaleAnimation,
-                    onTapCenter: _sendQuickAlert,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final side = math.min(constraints.maxWidth, constraints.maxHeight);
+                if (!side.isFinite || side < 8) {
+                  return const SizedBox.shrink();
+                }
+                final canvasSide = side.clamp(
+                  _kRadialCanvasMin,
+                  _kRadialCanvasMax,
+                );
+                final panDeadZone = (canvasSide * 0.086).clamp(24.0, 44.0);
+                return FittedBox(
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: canvasSide,
+                    height: canvasSide,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanStart: (_) {
+                        HapticFeedback.lightImpact();
+                        setState(() {
+                          _dragOffset = Offset.zero;
+                          _isGestureActive = false;
+                          _showDragFeedback = false;
+                          _currentDragDirection = null;
+                        });
+                      },
+                      onPanUpdate: (details) {
+                        _dragOffset += details.delta;
+                        final dir = _getDirection(
+                          _dragOffset,
+                          panDeadZone,
+                          maxAngleSlack:
+                              canvasSide < 292 ? 0.78 : 0.72,
+                        );
+                        if (dir != _currentDragDirection) {
+                          if (dir.isNotEmpty) HapticFeedback.selectionClick();
+                          setState(() {
+                            _currentDragDirection = dir;
+                            _showDragFeedback = dir.isNotEmpty;
+                          });
+                        }
+                      },
+                      onPanEnd: (_) {
+                        if (_currentDragDirection != null &&
+                            _currentDragDirection!.isNotEmpty) {
+                          _handleGesture(_currentDragDirection!);
+                        }
+                        setState(() {
+                          _dragOffset = Offset.zero;
+                          _showDragFeedback = false;
+                          _currentDragDirection = null;
+                        });
+                      },
+                      child: _RadialMenu(
+                        availableWidth: canvasSide,
+                        availableHeight: canvasSide,
+                        dirAngles: _dirAngles,
+                        currentDragDirection: _currentDragDirection,
+                        showDragFeedback: _showDragFeedback,
+                        showEmergencyOptions: _showEmergencyOptions,
+                        currentEmergencyType: _currentEmergencyType,
+                        scaleAnimation: _scaleAnimation,
+                        onTapCenter: _sendQuickAlert,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -1507,35 +1540,46 @@ class _EventualityBottomStrip extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
-    final hx = w < 360 ? 14.0 : w < 420 ? 18.0 : 22.0;
-    final gap = w < 360 ? 10.0 : 12.0;
-    final bottomExtra = mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
+    final shortest = mq.size.shortestSide;
+    final hx = w < 360 ? 12.0 : w < 420 ? 16.0 : w < 720 ? 20.0 : 24.0;
+    final gap = w < 360 ? 10.0 : w < 420 ? 11.0 : 14.0;
+    final bottomExtra =
+        mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
+    // Tablets / canvas ancho: evita tarjetas ridiculamente anchas.
+    final maxRow = shortest >= 600 ? 620.0 : w >= 840 ? 680.0 : double.infinity;
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: _AppleCategoryCard(
+            icon: Icons.eco_rounded,
+            title: l10n.eventualityEnvironmentalTitle,
+            subtitle: l10n.eventualityEnvironmentalSubtitle,
+            accent: _AppleEmergencyUX.accentGreen,
+            onTap: onAmbiental,
+          ),
+        ),
+        SizedBox(width: gap),
+        Expanded(
+          child: _AppleCategoryCard(
+            icon: Icons.local_police_rounded,
+            title: l10n.eventualityPoliceTitle,
+            subtitle: l10n.eventualityPoliceSubtitle,
+            accent: _AppleEmergencyUX.accentBlue,
+            onTap: onPolicial,
+          ),
+        ),
+      ],
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(hx, 4, hx, bottomExtra),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: _AppleCategoryCard(
-              icon: Icons.eco_rounded,
-              title: l10n.eventualityEnvironmentalTitle,
-              subtitle: l10n.eventualityEnvironmentalSubtitle,
-              accent: _AppleEmergencyUX.accentGreen,
-              onTap: onAmbiental,
-            ),
-          ),
-          SizedBox(width: gap),
-          Expanded(
-            child: _AppleCategoryCard(
-              icon: Icons.local_police_rounded,
-              title: l10n.eventualityPoliceTitle,
-              subtitle: l10n.eventualityPoliceSubtitle,
-              accent: _AppleEmergencyUX.accentBlue,
-              onTap: onPolicial,
-            ),
-          ),
-        ],
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxRow),
+          child: row,
+        ),
       ),
     );
   }
@@ -1558,15 +1602,27 @@ class _AppleCategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ss = MediaQuery.sizeOf(context).shortestSide;
+    final circleD = (ss * 0.092).clamp(32.0, 42.0);
+    final iconSz = (circleD * 0.52).clamp(17.0, 22.0);
+    final titleSz = MediaQuery.textScalerOf(context).scale(
+      ss < 340 ? 13.0 : ss < 400 ? 13.5 : 14.0,
+    );
+    final subSz = MediaQuery.textScalerOf(context).scale(
+      ss < 340 ? 10.5 : 11.0,
+    );
+    final padH = ss < 340 ? 8.0 : 10.0;
+    final padV = ss < 340 ? 8.0 : 10.0;
+
     final circle = Container(
-      width: 36,
-      height: 36,
+      width: circleD,
+      height: circleD,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: accent, size: 19),
+      child: Icon(icon, color: accent, size: iconSz),
     );
 
     final text = Column(
@@ -1577,8 +1633,8 @@ class _AppleCategoryCard extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 14,
+          style: TextStyle(
+            fontSize: titleSz,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.28,
             color: _AppleEmergencyUX.labelPrimary,
@@ -1589,8 +1645,8 @@ class _AppleCategoryCard extends StatelessWidget {
           subtitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 11,
+          style: TextStyle(
+            fontSize: subSz,
             height: 1.2,
             letterSpacing: -0.08,
             color: _AppleEmergencyUX.labelSecondary,
@@ -1617,7 +1673,7 @@ class _AppleCategoryCard extends StatelessWidget {
           splashColor: accent.withValues(alpha: 0.15),
           highlightColor: accent.withValues(alpha: 0.06),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -1634,12 +1690,77 @@ class _AppleCategoryCard extends StatelessWidget {
 }
 
 // =============================================================================
+// Etiqueta del chip: si el l10n trae '\n', cada línea es un [Text] de una sola línea + [FittedBox].
+// Una sola cadena larga: [Text] a tamaño completo (sin [FittedBox]) para no encoger "Brecha de seguridad".
+// =============================================================================
+
+class _RadialChipLabelText extends StatelessWidget {
+  final String label;
+  final double maxWidth;
+  final TextStyle style;
+
+  const _RadialChipLabelText({
+    required this.label,
+    required this.maxWidth,
+    required this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = label
+        .replaceAll('\r', '')
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return const SizedBox.shrink();
+
+    if (lines.length == 1) {
+      return SizedBox(
+        width: maxWidth,
+        child: Text(
+          lines.single,
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: maxWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < lines.length; i++) ...[
+            if (i > 0) const SizedBox(height: 1),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: Text(
+                lines[i],
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.clip,
+                style: style,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // _RadialMenu — Stateless visual layer for the radial swipe interface
 //
 // Sizing strategy:
-//   1. Usar el menor de ancho/alto como `available` (clamp a un rango razonable).
-//   2. Botón central y chips con fracciones generosas; órbita cerca del máximo para
-//      separar los chips del centro y facilitar el gesto.
+//   1. `availableWidth/Height` vienen del [LayoutBuilder] de la home (espacio real).
+//   2. Clases: tiny / compact / tablet según `layoutShortest` y `deviceShortest`.
+//   3. Gutter y `edgePad` escalan con el lienzo; gesto: `panDeadZone` y `maxAngleSlack` en el padre.
 // =============================================================================
 
 class _RadialMenu extends StatelessWidget {
@@ -1667,27 +1788,44 @@ class _RadialMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    final mq = MediaQuery.of(context);
+    final deviceShortest = mq.size.shortestSide;
+    final deviceWidth = mq.size.width;
     final canvas = math.min(availableWidth, availableHeight);
     final available = canvas.clamp(148.0, 560.0);
-    final isTiny = shortestSide < 340;
-    final isCompact = shortestSide >= 340 && shortestSide < 400;
+    final layoutShortest = available;
 
-    // Botón HELP central más grande (prioridad visual); tope alto para usar bien el espacio.
-    final btnFrac = isTiny ? 0.252 : (isCompact ? 0.292 : 0.332);
-    final btnSize = (available * btnFrac).clamp(56.0, 154.0);
+    // Teléfono muy pequeño (SE, Android estrecho), compacto, tablet / ventana ancha.
+    final isTiny = layoutShortest < 288 || deviceShortest < 336;
+    final isCompact = !isTiny &&
+        (layoutShortest < 400 ||
+            (deviceShortest < 404 && deviceShortest >= 336));
+    final isTablet = deviceShortest >= 560 || deviceWidth >= 600;
 
-    // Chips algo más compactos en caja → más radio de órbita útil: más separación entre alertas en el anillo.
+    final btnFrac = isTiny
+        ? 0.248
+        : isCompact
+            ? 0.288
+            : isTablet
+                ? 0.30
+                : 0.332;
+    final btnSize = (available * btnFrac).clamp(
+      layoutShortest < 270 ? 50.0 : 56.0,
+      isTablet ? 172.0 : 154.0,
+    );
+
     var labelW =
-        (available * (isTiny ? 0.302 : 0.268)).clamp(74.0, 138.0);
+        (available * (isTiny ? 0.318 : 0.282)).clamp(78.0, isTablet ? 158.0 : 148.0);
     final labelH =
-        (available * (isTiny ? 0.252 : 0.232)).clamp(56.0, 102.0);
-    labelW = math.min(labelW, availableWidth * 0.42);
+        (available * (isTiny ? 0.252 : 0.232)).clamp(54.0, isTablet ? 112.0 : 102.0);
+    labelW = math.min(
+      labelW,
+      availableWidth * (isTablet ? 0.42 : 0.44),
+    );
 
-    // Carril ancho entre el botón y el anillo (hueco de swipe) + chips más hacia el borde del lienzo.
-    const radialGutter = 26.0;
+    final radialGutter = (layoutShortest * 0.058).clamp(18.0, 30.0);
     final innerEdge = btnSize / 2 + radialGutter;
-    const edgePad = 3.0;
+    final edgePad = (layoutShortest * 0.0075).clamp(2.0, 5.0);
     // Órbita máx. por dirección: para cada ángulo, el chip alineado al eje debe caber
     // en el rectángulo (evita overflow diagonal y en “Emergencia Vial” a la derecha).
     double maxOrbitFromAngles() {
@@ -1775,6 +1913,7 @@ class _RadialMenu extends StatelessWidget {
                   labelH: labelH,
                   isTinyLayout: isTiny,
                   isCompactLayout: isCompact,
+                  isTabletLayout: isTablet,
                 )),
           ],
         ),
@@ -1793,6 +1932,7 @@ class _RadialMenu extends StatelessWidget {
     required double labelH,
     required bool isTinyLayout,
     required bool isCompactLayout,
+    required bool isTabletLayout,
   }) {
     final typeData = EmergencyTypes.getTypeByDirection(dir);
     if (typeData == null) return const SizedBox.shrink();
@@ -1806,12 +1946,18 @@ class _RadialMenu extends StatelessWidget {
     final dy = orbit * math.sin(angle);
 
     // Texto más grande; icono y gap un poco más chicos para no agrandar el cuadro (labelW/H igual).
-    final iconSz = (labelH * 0.29).clamp(18.0, 28.0);
-    final textTargetSize = isTinyLayout
-        ? 14.0
+    final iconSz = (labelH * 0.29).clamp(18.0, isTabletLayout ? 30.0 : 28.0);
+    final rawFontSize = isTinyLayout
+        ? 13.5
         : isCompactLayout
-            ? 15.25
-            : 17.0;
+            ? 14.75
+            : isTabletLayout
+                ? 17.5
+                : 17.0;
+    final textTargetSize = math.min(
+      MediaQuery.textScalerOf(context).scale(rawFontSize),
+      labelH * 0.46,
+    );
     final radius = (labelH * 0.22).clamp(14.0, 22.0);
     final hPad = (labelW * 0.055).clamp(4.0, 8.0);
     // Reserva para borde decorativo (el hijo no debe superar el rect interior).
@@ -1879,11 +2025,11 @@ class _RadialMenu extends StatelessWidget {
                     padding: EdgeInsets.symmetric(
                       horizontal: math.max(0.0, hPad - innerInset),
                     ),
-                    child: Text(
-                      name,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: _RadialChipLabelText(
+                      label: name,
+                      maxWidth: labelW -
+                          2 * innerInset -
+                          2 * math.max(0.0, hPad - innerInset),
                       style: TextStyle(
                         fontSize: textTargetSize,
                         fontWeight: isSelected

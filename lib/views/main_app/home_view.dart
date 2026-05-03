@@ -142,26 +142,46 @@ class _HomeViewState extends State<HomeView> {
 
   /// Altura del bloque "Alertas recientes": compacto; cabe cabecera + ~1 tarjeta
   /// densa y el resto con scroll. Libera espacio para el botón de emergencia.
+  ///
+  /// La parte más sensible al tamaño de pantalla está aquí: en horizontal o tablet
+  /// se reduce el panel para que el radial reciba más alto útil.
   double _recentAlertsPanelHeight(BuildContext context) {
-    final h = MediaQuery.sizeOf(context).height;
-    final w = MediaQuery.sizeOf(context).width;
-    final fraction = w < 360
-        ? 0.24
-        : w < 420
-            ? 0.21
-            : w < 600
-                ? 0.18
-                : 0.16;
-    final desiredMin = w < 360
-        ? 156.0
-        : w < 420
-            ? 150.0
-            : 144.0;
+    final mq = MediaQuery.of(context);
+    final h = mq.size.height;
+    final w = mq.size.width;
+    final shortest = mq.size.shortestSide;
+    final landscape = mq.orientation == Orientation.landscape;
+    final isTablet = shortest >= 600;
+
+    // Teléfono en horizontal (SE, Android pequeño): priorizar altura del área de emergencia.
+    if (landscape && shortest < 420) {
+      return (h * 0.22).clamp(108.0, 172.0);
+    }
+
+    final fraction = isTablet
+        ? 0.14
+        : w < 360
+            ? 0.24
+            : w < 420
+                ? 0.21
+                : w < 600
+                    ? 0.18
+                    : 0.16;
+    final desiredMin = isTablet
+        ? 132.0
+        : w < 360
+            ? 156.0
+            : w < 420
+                ? 150.0
+                : 144.0;
     if (h < 520) {
       final cap = h * 0.32;
       return math.min(cap, math.max(140.0, h * fraction));
     }
-    final maxPanel = math.min(232.0, h * 0.28);
+    final maxPanel = math.min(
+      isTablet ? 204.0 : 232.0,
+      h * (isTablet ? 0.22 : 0.28),
+    );
     final minPanel = math.min(desiredMin, maxPanel);
     return (h * fraction).clamp(minPanel, maxPanel);
   }
@@ -873,51 +893,101 @@ class _HomeViewState extends State<HomeView> {
     return l10n.timeDaysAgo(difference.inDays);
   }
 
+  /// Área del menú radial: padding y tope de ancho según dispositivo (tablet / ventana ancha).
+  /// [LayoutBuilder] ajusta márgenes si el alto útil es muy bajo (horizontal, split-screen).
   Widget _buildAlertButtonSection() {
-    final sw = MediaQuery.of(context).size.width;
-    final sh = MediaQuery.sizeOf(context).height;
+    final mq = MediaQuery.of(context);
+    final sw = mq.size.width;
+    final sh = mq.size.height;
+    final shortest = mq.size.shortestSide;
+    final landscape = mq.orientation == Orientation.landscape;
+    final isTablet = shortest >= 600;
+    final isWideWindow = sw >= 840;
     final isSmall = sw < 360;
-    final isLargePhone = sw >= 420 && sh >= 720;
-    // Más aire alrededor del radial; el Expanded ya recibe más alto al achicar alertas.
+    final isLargePhone =
+        sw >= 420 && sh >= 720 && !isTablet && !landscape;
+
     final titleSize = isSmall
         ? (sw * 0.048).clamp(15.0, 17.0)
         : isLargePhone
             ? (sw * 0.052).clamp(18.0, 24.0)
             : (sw * 0.05).clamp(16.0, 21.0);
 
+    final hPad = isSmall
+        ? 8.0
+        : isTablet
+            ? 20.0
+            : (sw >= 420 ? 16.0 : 14.0);
+    final topPad = landscape && shortest < 500
+        ? 4.0
+        : isSmall
+            ? 8.0
+            : isTablet
+                ? 14.0
+                : isLargePhone
+                    ? 16.0
+                    : 12.0;
+    final bottomPad = landscape && shortest < 500
+        ? 4.0
+        : isSmall
+            ? 6.0
+            : 10.0;
+
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        isSmall ? 10 : 14,
-        isSmall ? 10 : (isLargePhone ? 16 : 12),
-        isSmall ? 10 : 14,
-        isSmall ? 8 : (isLargePhone ? 14 : 10),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.only(
-              bottom: isSmall ? 8 : (isLargePhone ? 14 : 10),
-              top: isSmall ? 2 : 4,
-            ),
-            child: Text(
-              AppLocalizations.of(context)!.emergencyButton,
-              style: TextStyle(
-                fontSize: titleSize,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
-                height: 1.2,
-                letterSpacing: isLargePhone ? 0.2 : 0,
+      padding: EdgeInsets.fromLTRB(hPad, topPad, hPad, bottomPad),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxH = constraints.maxHeight;
+          final tightVertical = maxH < 240;
+          final titleBottom = tightVertical
+              ? 4.0
+              : isSmall
+                  ? 8.0
+                  : isLargePhone
+                      ? 14.0
+                      : 10.0;
+
+          final column = Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: titleBottom,
+                  top: tightVertical ? 0 : (isSmall ? 2 : 4),
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.emergencyButton,
+                  style: TextStyle(
+                    fontSize: tightVertical
+                        ? (titleSize * 0.92).clamp(14.0, titleSize)
+                        : titleSize,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A1A1A),
+                    height: 1.2,
+                    letterSpacing: isLargePhone ? 0.2 : 0,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          // AlertButton fills all remaining vertical space
-          Expanded(
-            child: AlertButton(
-              onPressed: () {},
-            ),
-          ),
-        ],
+              Expanded(
+                child: AlertButton(
+                  onPressed: () {},
+                ),
+              ),
+            ],
+          );
+
+          if (isTablet || isWideWindow) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: math.min(580.0, sw * 0.94),
+                ),
+                child: column,
+              ),
+            );
+          }
+          return column;
+        },
       ),
     );
   }

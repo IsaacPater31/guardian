@@ -359,7 +359,7 @@ abstract class AppLocalizations {
   /// No description provided for @emergencyRoadEmergency.
   ///
   /// In es, this message translates to:
-  /// **'Emergencia Vial'**
+  /// **'Emergencia\nVial'**
   String get emergencyRoadEmergency;
 
   /// No description provided for @emergencyHarassment.
@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// No description provided for @emergencyVial.
   ///
   /// In es, this message translates to:
-  /// **'Emergencia Vial'**
+  /// **'Emergencia\nVial'**
   String get emergencyVial;
 
   /// No description provided for @emergencyAssistance.

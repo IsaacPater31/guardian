@@ -45,7 +45,7 @@
   "emergencySecurityBreach": "Security breach",
   "emergencyAccompaniment": "Accompaniment",
   "emergencyEnvironmental": "Environmental",
-  "emergencyRoadEmergency": "Road Emergency",
+  "emergencyRoadEmergency": "Road\nEmergency",
   "emergencyHarassment": "Harassment",
   "emergencyUrgency": "Urgency",
   "emergencyRobbery": "Robbery Reported",
@@ -55,7 +55,7 @@
   "emergencyUnsafety": "Unsafe Area",
   "emergencyPhysicalRisk": "Physical Risk",
   "emergencyPublicServices": "Public Services Emergency",
-  "emergencyVial": "Traffic Emergency",
+  "emergencyVial": "Traffic\nEmergency",
   "emergencyAssistance": "Assistance Needed",
   "emergencyGeneral": "General Emergency",
   
