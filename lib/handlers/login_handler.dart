@@ -18,6 +18,7 @@ class LoginHandler {
   Future<String?> signInWithEmail(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // Perfil Firestore: [AuthGate] llama a [syncUserProfileAfterAuth] al detectar sesión.
       return null;
     } on FirebaseAuthException catch (e) {
       return _handleAuthError(e);
@@ -46,9 +47,8 @@ class LoginHandler {
         idToken: googleAuth.idToken,
       );
 
-      final userCredential = await _auth.signInWithCredential(credential);
-      await _upsertUserProfile(userCredential.user);
-      _ensureEntitiesInBackground();
+      await _auth.signInWithCredential(credential);
+      // Perfil Firestore: [AuthGate] sincroniza al cambiar el estado de auth.
       return null;
     } on FirebaseAuthException catch (e) {
       return _handleAuthError(e);
@@ -86,8 +86,7 @@ class LoginHandler {
         await user.reload();
       }
 
-      await _upsertUserProfile(user, fullName: fullName.trim());
-      _ensureEntitiesInBackground();
+      await syncUserProfileAfterAuth(_auth.currentUser, fullName: fullName.trim());
       return null;
     } on FirebaseAuthException catch (e) {
       return _handleAuthError(e);
@@ -102,6 +101,14 @@ class LoginHandler {
   }
 
   User? get currentUser => _auth.currentUser;
+
+  /// Escribe/actualiza `users/{uid}` y enlaza entidades. Úsalo tras cada auth válido
+  /// (login, registro) y al restaurar sesión — ver [AuthGate].
+  Future<void> syncUserProfileAfterAuth(User? user, {String? fullName}) async {
+    if (user == null) return;
+    await _upsertUserProfile(user, fullName: fullName);
+    _ensureEntitiesInBackground();
+  }
 
   void _ensureEntitiesInBackground() {
     CommunityService().ensureUserInEntities().catchError((error) {

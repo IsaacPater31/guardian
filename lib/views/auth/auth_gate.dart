@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:guardian/core/app_logger.dart';
+import 'package:guardian/handlers/login_handler.dart';
 import 'package:guardian/views/login_view.dart';
 import 'package:guardian/views/main_app/main_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
-import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/deep_link_service.dart';
 
 class AuthGate extends StatefulWidget {
@@ -16,6 +16,9 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _hasCheckedPendingToken = false;
+  final LoginHandler _loginHandler = LoginHandler();
+  /// Evita sync duplicado en reconstrucciones del [StreamBuilder].
+  String? _lastProfileSyncUid;
 
   @override
   Widget build(BuildContext context) {
@@ -30,23 +33,25 @@ class _AuthGateState extends State<AuthGate> {
         }
         // Si hay usuario logueado
         if (snapshot.hasData) {
-          // Agregar usuario a entidades si no está ya (idempotente)
-          // Se ejecuta en background, no bloquea la UI
-          // Usar catchError para manejar errores sin bloquear
-          CommunityService().ensureUserInEntities().catchError((error) {
-            AppLogger.w('AuthGate: ensureUserInEntities failed: $error');
-          });
-          
+          final user = snapshot.data!;
+          if (_lastProfileSyncUid != user.uid) {
+            _lastProfileSyncUid = user.uid;
+            _loginHandler.syncUserProfileAfterAuth(user).catchError((error) {
+              AppLogger.w('AuthGate: syncUserProfileAfterAuth failed: $error');
+            });
+          }
+
           // Verificar si hay un token de invitación pendiente (solo una vez)
           if (!_hasCheckedPendingToken) {
             _hasCheckedPendingToken = true;
             _checkPendingInviteToken();
           }
-          
+
           return const MainView();
         }
         // Si no hay usuario logueado
         _hasCheckedPendingToken = false; // Reset para el próximo login
+        _lastProfileSyncUid = null;
         return const LoginView();
       },
     );

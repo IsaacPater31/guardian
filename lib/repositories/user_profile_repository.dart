@@ -13,18 +13,30 @@ class UserProfileRepository {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Crea o actualiza el perfil en `users/{uid}`.
+  ///
+  /// `created_at` solo se escribe si el documento no existe (evita borrar la fecha de alta en cada login).
   Future<void> mergeProfile({
     required String uid,
     required String resolvedName,
     String? email,
-  }) {
-    return _firestore.collection(FirestoreCollections.users).doc(uid).set({
+  }) async {
+    final ref = _firestore.collection(FirestoreCollections.users).doc(uid);
+    final snap = await ref.get();
+    final normalizedEmail = email != null && email.trim().isNotEmpty
+        ? email.trim().toLowerCase()
+        : null;
+
+    final payload = <String, dynamic>{
       'name': resolvedName,
       'displayName': resolvedName,
       'full_name': resolvedName,
-      'email': email,
+      'email': normalizedEmail,
       'updated_at': FieldValue.serverTimestamp(),
-      'created_at': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (!snap.exists) {
+      payload['created_at'] = FieldValue.serverTimestamp();
+    }
+    await ref.set(payload, SetOptions(merge: true));
   }
 }
