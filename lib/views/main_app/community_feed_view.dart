@@ -262,7 +262,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         ? EmergencyTypes.getTranslatedType(alert.alertType, context)
         : null;
 
-    // Burbujas grandes para mostrar TODO el contenido sin recortes
+    // Burbujas grandes para mostrar todo el contenido sin recortes
     final maxBubbleWidth = (sw * (isSmall ? 0.90 : 0.86)).clamp(220.0, 560.0);
 
     final bubbleColor = isOwn

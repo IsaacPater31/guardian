@@ -87,11 +87,11 @@ object EmergencyTypes {
      * [EmergencyTypes.radialDirectionToType] en Dart.
      */
     val types: Map<String, EmergencyType> = mapOf(
-        "up" to catalogTypes.getValue("HARASSMENT"),
-        "left" to catalogTypes.getValue("HEALTH"),
-        "downLeft" to catalogTypes.getValue("HOME_HELP"),
-        "downRight" to catalogTypes.getValue("SECURITY_BREACH"),
-        "right" to catalogTypes.getValue("ROAD_EMERGENCY"),
+        "up" to catalogTypes.getValue("HOME_HELP"),
+        "left" to catalogTypes.getValue("HARASSMENT"),
+        "downLeft" to catalogTypes.getValue("SECURITY_BREACH"),
+        "downRight" to catalogTypes.getValue("ROAD_EMERGENCY"),
+        "right" to catalogTypes.getValue("HEALTH"),
         "center" to catalogTypes.getValue("URGENCY"),
     )
 

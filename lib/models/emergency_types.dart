@@ -69,13 +69,14 @@ class EmergencyTypes {
     },
   };
 
-  /// Gesto radial: dirección → tipo (solo 5 en la estrella, como diseño actual).
+  /// Gesto radial: dirección → tipo (solo 5 en la estrella).
+  /// Arriba ayuda en casa, derecha sanitaria, izquierda acoso, abajo-izq seguridad, abajo-der vial.
   static const Map<String, String> radialDirectionToType = {
-    'up': AlertDetailCatalog.harassment,
-    'right': AlertDetailCatalog.roadEmergency,
-    'downRight': AlertDetailCatalog.securityBreach,
-    'downLeft': AlertDetailCatalog.homeHelp,
-    'left': AlertDetailCatalog.health,
+    'up': AlertDetailCatalog.homeHelp,
+    'right': AlertDetailCatalog.health,
+    'downRight': AlertDetailCatalog.roadEmergency,
+    'downLeft': AlertDetailCatalog.securityBreach,
+    'left': AlertDetailCatalog.harassment,
   };
 
   /// Mapa dirección → metadata completa (compatibilidad con swipe / UI radial).

@@ -49,10 +49,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   static const Color _danger = Color(0xFFFF3B30);
   static const Color _surface = Color(0xFFF8F9FA);
 
-  /// Lienzo amplio: [FittedBox] lo reduce para caber en pantalla → efecto “zoom alejado”
-  /// en todas las resoluciones (más aire izquierda/derecha, menos amontonado).
   /// Lienzo lógico del menú radial; `FittedBox` lo escala al `Expanded` de la home.
-  static const double _kRadialCanvas = 472.0;
+  /// Valor moderado + composición interna: efecto “zoom” en pantalla y chips más abiertos en el anillo.
+  static const double _kRadialCanvas = 418.0;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -77,7 +76,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     // Pre-configurar comunidades por defecto basado en keywords
@@ -1348,7 +1347,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   // ---------------------------------------------------------------------------
   String _getDirection(Offset offset) {
     final distance = offset.distance;
-    if (distance < 22) return '';
+    // Zona muerta mayor → más espacio para arrastrar sin seleccionar hasta salir del centro.
+    if (distance < 38) return '';
 
     // Misma convención que al pintar chips, pero con Y invertida respecto a la
     // pantalla: hacia abajo-izquierda en pantalla → ángulo -3π/4 (no +3π/4).
@@ -1357,8 +1357,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
     const centers = <String, double>{
       'right': 0,
-      'downRight': -math.pi / 4,
-      'downLeft': -3 * math.pi / 4,
+      // Abajo: mismo rol (dcha / izq) que [_dirAngles], un poco más bajos en pantalla.
+      'downRight': -5 * math.pi / 18,
+      'downLeft': -13 * math.pi / 18,
       'left': math.pi,
       'up': math.pi / 2,
     };
@@ -1388,11 +1389,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   /// Ángulos en radianes para posicionar chips (Y hacia abajo en pantalla).
+  /// Abajo: π/4±π/36 (~50° / ~130°): mismas esquinas, un poco más abajo que 45°/135°.
   static const Map<String, double> _dirAngles = {
     'up': -math.pi / 2,
     'right': 0.0,
-    'downRight': math.pi / 4,
-    'downLeft': 3 * math.pi / 4,
+    'downRight': 5 * math.pi / 18,
+    'downLeft': 13 * math.pi / 18,
     'left': math.pi,
   };
 
@@ -1404,10 +1406,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   EdgeInsets _radialSafePadding(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
     final h = MediaQuery.sizeOf(context).height;
-    // Menos margen en pantallas amplias → el radial escala un poco más grande.
-    final hx = w < 360 ? 6.0 : w < 420 ? 9.0 : w < 600 ? 11.0 : 10.0;
-    final vyTop = h < 520 ? 6.0 : h < 700 ? 10.0 : 12.0;
-    final vyBottom = h < 520 ? 4.0 : 8.0;
+    // Marco mínimo: más área útil al radial (= más zoom y separación en pantalla).
+    final hx = w < 360 ? 3.0 : w < 420 ? 5.0 : w < 600 ? 6.0 : 6.0;
+    final vyTop = h < 520 ? 4.0 : h < 700 ? 8.0 : 10.0;
+    final vyBottom = h < 520 ? 2.0 : 6.0;
     return EdgeInsets.fromLTRB(hx, vyTop, hx, vyBottom);
   }
 
@@ -1635,8 +1637,9 @@ class _AppleCategoryCard extends StatelessWidget {
 // _RadialMenu — Stateless visual layer for the radial swipe interface
 //
 // Sizing strategy:
-//   1. Take the smaller of available width/height as `available`
-//   2. Lienzo fijo 320 + FittedBox: misma composición en todos los tamaños (solo escala).
+//   1. Usar el menor de ancho/alto como `available` (clamp a un rango razonable).
+//   2. Botón central y chips con fracciones generosas; órbita cerca del máximo para
+//      separar los chips del centro y facilitar el gesto.
 // =============================================================================
 
 class _RadialMenu extends StatelessWidget {
@@ -1666,21 +1669,25 @@ class _RadialMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final shortestSide = MediaQuery.sizeOf(context).shortestSide;
     final canvas = math.min(availableWidth, availableHeight);
-    final available = canvas.clamp(148.0, 520.0);
+    final available = canvas.clamp(148.0, 560.0);
     final isTiny = shortestSide < 340;
     final isCompact = shortestSide >= 340 && shortestSide < 400;
 
-    final btnFrac = isTiny ? 0.205 : (isCompact ? 0.235 : 0.265);
-    final btnSize = (available * btnFrac).clamp(52.0, 124.0);
+    // Botón HELP central más grande (prioridad visual); tope alto para usar bien el espacio.
+    final btnFrac = isTiny ? 0.252 : (isCompact ? 0.292 : 0.332);
+    final btnSize = (available * btnFrac).clamp(56.0, 154.0);
 
+    // Chips algo más compactos en caja → más radio de órbita útil: más separación entre alertas en el anillo.
     var labelW =
-        (available * (isTiny ? 0.32 : 0.285)).clamp(76.0, 134.0);
+        (available * (isTiny ? 0.302 : 0.268)).clamp(74.0, 138.0);
     final labelH =
-        (available * (isTiny ? 0.27 : 0.242)).clamp(58.0, 100.0);
-    labelW = math.min(labelW, availableWidth * 0.44);
+        (available * (isTiny ? 0.252 : 0.232)).clamp(56.0, 102.0);
+    labelW = math.min(labelW, availableWidth * 0.42);
 
-    final innerEdge = btnSize / 2 + 2.0;
-    const edgePad = 7.0;
+    // Carril ancho entre el botón y el anillo (hueco de swipe) + chips más hacia el borde del lienzo.
+    const radialGutter = 26.0;
+    final innerEdge = btnSize / 2 + radialGutter;
+    const edgePad = 3.0;
     // Órbita máx. por dirección: para cada ángulo, el chip alineado al eje debe caber
     // en el rectángulo (evita overflow diagonal y en “Emergencia Vial” a la derecha).
     double maxOrbitFromAngles() {
@@ -1708,8 +1715,9 @@ class _RadialMenu extends StatelessWidget {
     }
 
     final maxOrbit = maxOrbitFromAngles();
+    // Empuja el anillo al límite del rectángulo: máximo radio → alertas más separadas (efecto zoom del lienzo).
     final orbit =
-        (innerEdge + (maxOrbit - innerEdge) * 0.93).clamp(innerEdge, maxOrbit);
+        (innerEdge + (maxOrbit - innerEdge) * 0.998).clamp(innerEdge, maxOrbit);
 
     final cx = availableWidth / 2;
     final cy = availableHeight / 2;
@@ -1797,12 +1805,13 @@ class _RadialMenu extends StatelessWidget {
     final dx = orbit * math.cos(angle);
     final dy = orbit * math.sin(angle);
 
-    final iconSz = (labelH * 0.40).clamp(22.0, 38.0);
+    // Texto más grande; icono y gap un poco más chicos para no agrandar el cuadro (labelW/H igual).
+    final iconSz = (labelH * 0.29).clamp(18.0, 28.0);
     final textTargetSize = isTinyLayout
-        ? 12.0
+        ? 14.0
         : isCompactLayout
-            ? 13.25
-            : 15.0;
+            ? 15.25
+            : 17.0;
     final radius = (labelH * 0.22).clamp(14.0, 22.0);
     final hPad = (labelW * 0.055).clamp(4.0, 8.0);
     // Reserva para borde decorativo (el hijo no debe superar el rect interior).
@@ -1848,57 +1857,48 @@ class _RadialMenu extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(innerInset),
-            child: LayoutBuilder(
-              builder: (context, bc) {
-                final innerW = bc.maxWidth;
-                return FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: innerW),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 150),
-                          child: Icon(
-                            icon,
-                            key: ValueKey('$dir-$isSelected'),
-                            size: iconSz,
-                            color: isSelected
-                                ? baseColor
-                                : _AppleEmergencyUX.labelSecondary,
-                          ),
-                        ),
-                        SizedBox(height: math.max(2.0, labelH * 0.028)),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: math.max(0.0, hPad - innerInset),
-                          ),
-                          child: Text(
-                            name,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: textTargetSize,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: isSelected
-                                  ? baseColor
-                                  : _AppleEmergencyUX.labelPrimary,
-                              height: 1.12,
-                              letterSpacing: -0.22,
-                            ),
-                          ),
-                        ),
-                      ],
+            // Sin FittedBox: antes los textos cortos escalaban y Acoso/Sanitaria se veían más grandes.
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(
+                      icon,
+                      key: ValueKey('$dir-$isSelected'),
+                      size: iconSz,
+                      color: isSelected
+                          ? baseColor
+                          : _AppleEmergencyUX.labelSecondary,
                     ),
                   ),
-                );
-              },
+                  SizedBox(height: math.max(1.0, labelH * 0.018)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: math.max(0.0, hPad - innerInset),
+                    ),
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: textTargetSize,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                        color: isSelected
+                            ? baseColor
+                            : _AppleEmergencyUX.labelPrimary,
+                        height: 1.08,
+                        letterSpacing: -0.22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -2115,7 +2115,7 @@ class _CenterButtonState extends State<_CenterButton>
                     Icon(
                       Icons.swipe_rounded,
                       color: Colors.white.withValues(alpha: 0.58),
-                      size: math.max(10.0, size * 0.11),
+                      size: math.max(9.0, size * 0.095),
                     ),
                     SizedBox(width: math.max(2.0, size * 0.016)),
                     Text(
