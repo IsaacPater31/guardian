@@ -120,16 +120,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emergencyHealth => 'Sanitaria';
 
   @override
-  String get emergencyHomeHelp => 'Ayuda en Casa';
+  String get emergencyHomeHelp => 'Casa';
 
   @override
-  String get emergencyPolice => 'Policía';
+  String get emergencyPolice => 'Policial';
 
   @override
   String get emergencyFireNew => 'Bomberos';
 
   @override
-  String get emergencySecurityBreach => 'Brecha de seguridad';
+  String get emergencySecurityBreach => 'Seguridad';
 
   @override
   String get emergencyAccompaniment => 'Acompañamiento';
@@ -138,7 +138,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emergencyEnvironmental => 'Ambiental';
 
   @override
-  String get emergencyRoadEmergency => 'Emergencia\nVial';
+  String get emergencyRoadEmergency => 'Vial';
 
   @override
   String get emergencyHarassment => 'Acoso';
@@ -388,7 +388,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get drag => 'ARRASTRAR';
 
   @override
-  String get help => 'AYUDA';
+  String get help => 'Ayuda';
 
   @override
   String get emergencyButton => 'Botón de Emergencia';
@@ -1324,7 +1324,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get selectCommunitiesDialogTitle => 'Seleccionar comunidades';
+  String get selectCommunitiesDialogTitle => 'Comunidad';
 
   @override
   String get selectCommunitiesSubtitle => 'Selecciona una o más comunidades';

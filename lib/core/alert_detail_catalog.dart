@@ -5,19 +5,20 @@ import 'package:flutter/material.dart';
 /// This catalog is intentionally local and editable so product/operations can
 /// add, remove, or rename categories/subtypes without rewriting UI logic.
 ///
-/// Web parity: use the same `alertType` / subtype `id` strings as in the webapp
-/// (`src/config/alertTypes.js`, `src/utils/alertSubtype.js`) so Firestore reads match both clients.
+/// Web parity: mismos `alertType` / subtype `id` que el webapp
+/// (`webapp/src/config/alertTypes.js`, `LEGACY_ALERT_TYPE_ALIASES`).
+/// Tipos swipe en Firestore: `casa`, `seguridad`, `vial`, `acoso`, `ambiental`, `policial`.
 class AlertDetailCatalog {
   static const String health = 'HEALTH';
-  static const String homeHelp = 'HOME_HELP';
-  static const String police = 'POLICE';
+  static const String homeHelp = 'casa';
+  static const String police = 'policial';
   static const String fire = 'FIRE';
-  /// Brecha de seguridad (física, perimetral, sistemas, etc.) — distinto de bomberos/incendio.
-  static const String securityBreach = 'SECURITY_BREACH';
-  static const String roadEmergency = 'ROAD_EMERGENCY';
-  static const String environmental = 'ENVIRONMENTAL';
+  /// Seguridad perimetral / física / sistemas — distinto de bomberos/incendio.
+  static const String securityBreach = 'seguridad';
+  static const String roadEmergency = 'vial';
+  static const String environmental = 'ambiental';
   static const String accompaniment = 'ACCOMPANIMENT';
-  static const String harassment = 'HARASSMENT';
+  static const String harassment = 'acoso';
   static const String otherSubtypeId = 'OTHER';
 
   static const List<String> supportedAlertTypes = [
@@ -47,7 +48,7 @@ class AlertDetailCatalog {
     ),
     homeHelp: AlertCategoryDetailConfig(
       alertType: homeHelp,
-      fallbackTitle: 'Ayuda en casa',
+      fallbackTitle: 'Casa',
       subtypes: [
         AlertSubtypeOption(id: 'GAS_LEAK', label: 'Fuga de gas'),
         AlertSubtypeOption(id: 'FIRE', label: 'Incendio'),
@@ -94,7 +95,7 @@ class AlertDetailCatalog {
     ),
     securityBreach: AlertCategoryDetailConfig(
       alertType: securityBreach,
-      fallbackTitle: 'Brecha de seguridad',
+      fallbackTitle: 'Seguridad',
       subtypes: [
         AlertSubtypeOption(id: 'UNAUTHORIZED_ACCESS', label: 'Acceso no autorizado / intrusión'),
         AlertSubtypeOption(id: 'PERIMETER_BREACH', label: 'Brecha en perímetro o cerramiento'),
@@ -181,7 +182,7 @@ class AlertDetailCatalog {
       case fire:
         return Icons.local_fire_department;
       case securityBreach:
-        return Icons.security_update_warning_rounded;
+        return Icons.security_rounded;
       case accompaniment:
         return Icons.people;
       case environmental:
@@ -189,7 +190,7 @@ class AlertDetailCatalog {
       case roadEmergency:
         return Icons.directions_car;
       case harassment:
-        return Icons.shield_rounded;
+        return Icons.front_hand_rounded;
       default:
         return Icons.warning;
     }

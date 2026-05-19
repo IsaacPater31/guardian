@@ -1386,15 +1386,21 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   IconData _getAlertIcon(String alertType) {
     switch (alertType) {
       case 'HEALTH':       return Icons.medical_services_rounded;
+      case 'casa':
       case 'HOME_HELP':    return Icons.home_rounded;
-      case 'POLICE':       return Icons.shield_rounded;
+      case 'policial':
+      case 'POLICE':       return Icons.local_police_rounded;
       case 'FIRE':         return Icons.local_fire_department_rounded;
-      case 'SECURITY_BREACH': return Icons.security_update_warning_rounded;
+      case 'seguridad':
+      case 'SECURITY_BREACH': return Icons.security_rounded;
       case 'ACCOMPANIMENT':return Icons.people_rounded;
+      case 'ambiental':
       case 'ENVIRONMENTAL':return Icons.eco_rounded;
+      case 'vial':
       case 'ROAD_EMERGENCY': return Icons.directions_car_rounded;
       case 'URGENCY':      return Icons.emergency_rounded;
-      case 'HARASSMENT':   return Icons.shield_rounded;
+      case 'acoso':
+      case 'HARASSMENT':   return Icons.front_hand_rounded;
       case 'ROBBERY':      return Icons.person_off_rounded;
       case 'ACCIDENT':     return Icons.car_crash_rounded;
       case 'STREET ESCORT':return Icons.people_rounded;
@@ -1411,15 +1417,21 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   Color _getAlertColor(String alertType) {
     switch (alertType) {
       case 'HEALTH':       return const Color(0xFF26C6DA);
+      case 'casa':
       case 'HOME_HELP':    return const Color(0xFF66BB6A);
+      case 'policial':
       case 'POLICE':       return const Color(0xFF1565C0);
       case 'FIRE':         return const Color(0xFFE53935);
+      case 'seguridad':
       case 'SECURITY_BREACH': return const Color(0xFFC62828);
       case 'ACCOMPANIMENT':return const Color(0xFF8E24AA);
+      case 'ambiental':
       case 'ENVIRONMENTAL':return const Color(0xFF43A047);
+      case 'vial':
       case 'ROAD_EMERGENCY':return const Color(0xFFFF7043);
       case 'URGENCY':     return const Color(0xFFF44336);
-      case 'HARASSMENT':  return const Color(0xFFEC407A);
+      case 'acoso':
+      case 'HARASSMENT':  return const Color(0xFF7B1FA2);
       case 'ROBBERY':      return const Color(0xFF9C27B0);
       case 'EMERGENCY':    return const Color(0xFFF44336);
       case 'ACCIDENT':     return const Color(0xFFFF9800);

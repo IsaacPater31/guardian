@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../core/alert_type_normalize.dart';
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
 import '../models/emergency_types.dart';
@@ -28,7 +29,21 @@ class SwipeAlertConfigService {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getStringList('${PrefKeys.swipeAlertPrefix}$alertType');
+      var key = '${PrefKeys.swipeAlertPrefix}$alertType';
+      var saved = prefs.getStringList(key);
+
+      // Migrar preferencias guardadas con claves antiguas (HOME_HELP, etc.).
+      if ((saved == null || saved.isEmpty) &&
+          AlertTypeNormalize.canonicalToLegacyPrefKey.containsKey(alertType)) {
+        final legacy = AlertTypeNormalize.canonicalToLegacyPrefKey[alertType]!;
+        final legacyKey = '${PrefKeys.swipeAlertPrefix}$legacy';
+        final legacyList = prefs.getStringList(legacyKey);
+        if (legacyList != null && legacyList.isNotEmpty) {
+          await prefs.setStringList(key, legacyList);
+          await prefs.remove(legacyKey);
+          saved = legacyList;
+        }
+      }
 
       if (saved == null || saved.isEmpty) {
         _cache[alertType] = null;
@@ -72,7 +87,10 @@ class SwipeAlertConfigService {
       final matched = communities
           .where((c) {
             final name = (c[CommunityFields.name] as String? ?? '').toUpperCase();
-            return name.contains(keyword);
+            final kw = keyword.toUpperCase();
+            if (name.contains(kw)) return true;
+            if (kw == 'POLICIAL' && name.contains('POLICIA')) return true;
+            return false;
           })
           .map((c) => c['id'] as String)
           .toList();

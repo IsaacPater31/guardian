@@ -10,13 +10,13 @@ abstract final class EntityDefinitions {
   /// The canonical list of entity communities that must always exist.
   static const List<Map<String, dynamic>> defaultEntities = [
     {
-      CommunityFields.name: 'AMBIENTAL',
+      CommunityFields.name: 'ambiental',
       CommunityFields.description: 'Entidad Ambiental',
       CommunityFields.iconCodePoint: 0xe217,
       CommunityFields.iconColor: '#4CAF50',
     },
     {
-      CommunityFields.name: 'POLICIA',
+      CommunityFields.name: 'policial',
       CommunityFields.description: 'Policía Nacional',
       CommunityFields.iconCodePoint: 0xe3a2,
       CommunityFields.iconColor: '#1565C0',

@@ -323,13 +323,13 @@ abstract class AppLocalizations {
   /// No description provided for @emergencyHomeHelp.
   ///
   /// In es, this message translates to:
-  /// **'Ayuda en Casa'**
+  /// **'Casa'**
   String get emergencyHomeHelp;
 
   /// No description provided for @emergencyPolice.
   ///
   /// In es, this message translates to:
-  /// **'Policía'**
+  /// **'Policial'**
   String get emergencyPolice;
 
   /// No description provided for @emergencyFireNew.
@@ -341,7 +341,7 @@ abstract class AppLocalizations {
   /// No description provided for @emergencySecurityBreach.
   ///
   /// In es, this message translates to:
-  /// **'Brecha de seguridad'**
+  /// **'Seguridad'**
   String get emergencySecurityBreach;
 
   /// No description provided for @emergencyAccompaniment.
@@ -359,7 +359,7 @@ abstract class AppLocalizations {
   /// No description provided for @emergencyRoadEmergency.
   ///
   /// In es, this message translates to:
-  /// **'Emergencia\nVial'**
+  /// **'Vial'**
   String get emergencyRoadEmergency;
 
   /// No description provided for @emergencyHarassment.
@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @help.
   ///
   /// In es, this message translates to:
-  /// **'AYUDA'**
+  /// **'Ayuda'**
   String get help;
 
   /// No description provided for @emergencyButton.
@@ -2513,7 +2513,7 @@ abstract class AppLocalizations {
   /// No description provided for @selectCommunitiesDialogTitle.
   ///
   /// In es, this message translates to:
-  /// **'Seleccionar comunidades'**
+  /// **'Comunidad'**
   String get selectCommunitiesDialogTitle;
 
   /// No description provided for @selectCommunitiesSubtitle.

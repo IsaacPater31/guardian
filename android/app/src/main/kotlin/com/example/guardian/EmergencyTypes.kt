@@ -26,17 +26,17 @@ object EmergencyTypes {
             color = Color.parseColor("#26C6DA"),
             title = "HEALTH",
         ),
-        "HOME_HELP" to EmergencyType(
-            type = "HOME_HELP",
+        "casa" to EmergencyType(
+            type = "casa",
             icon = "🏠",
             color = Color.parseColor("#66BB6A"),
-            title = "HOME_HELP",
+            title = "casa",
         ),
-        "POLICE" to EmergencyType(
-            type = "POLICE",
+        "policial" to EmergencyType(
+            type = "policial",
             icon = "🚔",
             color = Color.parseColor("#1565C0"),
-            title = "POLICE",
+            title = "policial",
         ),
         "FIRE" to EmergencyType(
             type = "FIRE",
@@ -44,23 +44,23 @@ object EmergencyTypes {
             color = Color.parseColor("#E53935"),
             title = "FIRE",
         ),
-        "SECURITY_BREACH" to EmergencyType(
-            type = "SECURITY_BREACH",
+        "seguridad" to EmergencyType(
+            type = "seguridad",
             icon = "🛡️",
             color = Color.parseColor("#C62828"),
-            title = "SECURITY_BREACH",
+            title = "seguridad",
         ),
-        "ROAD_EMERGENCY" to EmergencyType(
-            type = "ROAD_EMERGENCY",
+        "vial" to EmergencyType(
+            type = "vial",
             icon = "🚗",
             color = Color.parseColor("#FF7043"),
-            title = "ROAD_EMERGENCY",
+            title = "vial",
         ),
-        "ENVIRONMENTAL" to EmergencyType(
-            type = "ENVIRONMENTAL",
+        "ambiental" to EmergencyType(
+            type = "ambiental",
             icon = "🌿",
             color = Color.parseColor("#43A047"),
-            title = "ENVIRONMENTAL",
+            title = "ambiental",
         ),
         "ACCOMPANIMENT" to EmergencyType(
             type = "ACCOMPANIMENT",
@@ -68,11 +68,11 @@ object EmergencyTypes {
             color = Color.parseColor("#8E24AA"),
             title = "ACCOMPANIMENT",
         ),
-        "HARASSMENT" to EmergencyType(
-            type = "HARASSMENT",
-            icon = "🛡️",
-            color = Color.parseColor("#EC407A"),
-            title = "HARASSMENT",
+        "acoso" to EmergencyType(
+            type = "acoso",
+            icon = "✋",
+            color = Color.parseColor("#7B1FA2"),
+            title = "acoso",
         ),
         "URGENCY" to EmergencyType(
             type = "URGENCY",
@@ -87,10 +87,10 @@ object EmergencyTypes {
      * [EmergencyTypes.radialDirectionToType] en Dart.
      */
     val types: Map<String, EmergencyType> = mapOf(
-        "up" to catalogTypes.getValue("HOME_HELP"),
-        "left" to catalogTypes.getValue("HARASSMENT"),
-        "downLeft" to catalogTypes.getValue("SECURITY_BREACH"),
-        "downRight" to catalogTypes.getValue("ROAD_EMERGENCY"),
+        "up" to catalogTypes.getValue("casa"),
+        "left" to catalogTypes.getValue("acoso"),
+        "downLeft" to catalogTypes.getValue("seguridad"),
+        "downRight" to catalogTypes.getValue("vial"),
         "right" to catalogTypes.getValue("HEALTH"),
         "center" to catalogTypes.getValue("URGENCY"),
     )
@@ -132,36 +132,46 @@ object EmergencyTypes {
 
     /**
      * Misma lógica que [AlertModel.fromFirestore]: quick + HEALTH antiguo → URGENCY.
-     * Unifica alias viejos (p. ej. vial) con claves actuales.
+     * Unifica alias viejos con claves cortas actuales.
      */
     fun normalizeAlertTypeForNotification(alertType: String, flowType: String): String {
         var t = alertType.trim()
         if (flowType == "quick" && t == "HEALTH") return "URGENCY"
-        t = when (t) {
-            "VIAL EMERGENCY" -> "ROAD_EMERGENCY"
-            else -> t
-        }
-        return t
+        return normalizeAliasToCanonicalKey(t)
     }
 
     private fun normalizeAliasToCanonicalKey(typeName: String): String {
         val t = typeName.trim()
-        if (t == "VIAL EMERGENCY") return "ROAD_EMERGENCY"
-        return t
+        return when (t) {
+            "HOME_HELP" -> "casa"
+            "SECURITY_BREACH" -> "seguridad"
+            "ROAD_EMERGENCY" -> "vial"
+            "HARASSMENT" -> "acoso"
+            "ENVIRONMENTAL" -> "ambiental"
+            "POLICE" -> "policial"
+            "VIAL EMERGENCY" -> "vial"
+            else -> t
+        }
     }
 
     private val spanishTitles = mapOf(
         "HEALTH" to "🏥 Sanitaria",
-        "HOME_HELP" to "🏠 Ayuda en casa",
-        "POLICE" to "🚔 Policía",
+        "casa" to "🏠 Casa",
+        "policial" to "🚔 Policial",
         "FIRE" to "🔥 Bomberos",
-        "SECURITY_BREACH" to "🛡️ Brecha de seguridad",
-        "ROAD_EMERGENCY" to "🚗 Emergencia vial",
-        "ENVIRONMENTAL" to "🌿 Ambiental",
+        "seguridad" to "🛡️ Seguridad",
+        "vial" to "🚗 Vial",
+        "ambiental" to "🌿 Ambiental",
         "ACCOMPANIMENT" to "👥 Acompañamiento",
-        "HARASSMENT" to "🛡️ Acoso",
+        "acoso" to "✋ Acoso",
         "URGENCY" to "🚨 Urgencia",
-        // Legacy / datos antiguos en Firestore (conviven con clientes viejos)
+        // Legacy / datos antiguos en Firestore
+        "HOME_HELP" to "🏠 Casa",
+        "POLICE" to "🚔 Policial",
+        "SECURITY_BREACH" to "🛡️ Seguridad",
+        "ROAD_EMERGENCY" to "🚗 Vial",
+        "ENVIRONMENTAL" to "🌿 Ambiental",
+        "HARASSMENT" to "✋ Acoso",
         "ROBBERY" to "🚨 Robo reportado",
         "ACCIDENT" to "🚗 Accidente reportado",
         "UNSAFETY" to "⚠️ Zona insegura",
@@ -170,20 +180,26 @@ object EmergencyTypes {
         "STREET ESCORT" to "👥 Acompañamiento solicitado",
         "ASSISTANCE" to "🆘 Asistencia necesaria",
         "EMERGENCY" to "🚨 Emergencia general",
-        "VIAL EMERGENCY" to "🚗 Emergencia vial",
+        "VIAL EMERGENCY" to "🚗 Vial",
     )
 
     private val englishTitles = mapOf(
         "HEALTH" to "🏥 Health emergency",
-        "HOME_HELP" to "🏠 Home help",
-        "POLICE" to "🚔 Police",
+        "casa" to "🏠 Home",
+        "policial" to "🚔 Police",
         "FIRE" to "🔥 Firefighters",
+        "seguridad" to "🛡️ Security",
+        "vial" to "🚗 Road",
+        "ambiental" to "🌿 Environmental",
+        "ACCOMPANIMENT" to "👥 Accompaniment",
+        "acoso" to "✋ Harassment",
+        "URGENCY" to "🚨 Urgency",
+        "HOME_HELP" to "🏠 Home",
+        "POLICE" to "🚔 Police",
         "SECURITY_BREACH" to "🛡️ Security breach",
         "ROAD_EMERGENCY" to "🚗 Road emergency",
         "ENVIRONMENTAL" to "🌿 Environmental",
-        "ACCOMPANIMENT" to "👥 Accompaniment",
-        "HARASSMENT" to "🛡️ Harassment",
-        "URGENCY" to "🚨 Urgency",
+        "HARASSMENT" to "✋ Harassment",
         "ROBBERY" to "🚨 Robbery reported",
         "ACCIDENT" to "🚗 Accident reported",
         "UNSAFETY" to "⚠️ Unsafe area",

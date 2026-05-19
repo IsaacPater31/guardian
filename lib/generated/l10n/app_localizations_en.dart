@@ -120,7 +120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emergencyHealth => 'Health Emergency';
 
   @override
-  String get emergencyHomeHelp => 'Home Help';
+  String get emergencyHomeHelp => 'Home';
 
   @override
   String get emergencyPolice => 'Police';
@@ -129,7 +129,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emergencyFireNew => 'Firefighters';
 
   @override
-  String get emergencySecurityBreach => 'Security breach';
+  String get emergencySecurityBreach => 'Security';
 
   @override
   String get emergencyAccompaniment => 'Accompaniment';
@@ -138,7 +138,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emergencyEnvironmental => 'Environmental';
 
   @override
-  String get emergencyRoadEmergency => 'Road\nEmergency';
+  String get emergencyRoadEmergency => 'Road';
 
   @override
   String get emergencyHarassment => 'Harassment';
@@ -386,7 +386,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drag => 'DRAG';
 
   @override
-  String get help => 'HELP';
+  String get help => 'Help';
 
   @override
   String get emergencyButton => 'Emergency Button';
@@ -1315,7 +1315,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get selectCommunitiesDialogTitle => 'Select communities';
+  String get selectCommunitiesDialogTitle => 'Community';
 
   @override
   String get selectCommunitiesSubtitle => 'Select one or more communities';

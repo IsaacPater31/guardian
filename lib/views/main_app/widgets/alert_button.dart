@@ -1555,7 +1555,6 @@ class _EventualityBottomStrip extends StatelessWidget {
           child: _AppleCategoryCard(
             icon: Icons.eco_rounded,
             title: l10n.eventualityEnvironmentalTitle,
-            subtitle: l10n.eventualityEnvironmentalSubtitle,
             accent: _AppleEmergencyUX.accentGreen,
             onTap: onAmbiental,
           ),
@@ -1565,7 +1564,6 @@ class _EventualityBottomStrip extends StatelessWidget {
           child: _AppleCategoryCard(
             icon: Icons.local_police_rounded,
             title: l10n.eventualityPoliceTitle,
-            subtitle: l10n.eventualityPoliceSubtitle,
             accent: _AppleEmergencyUX.accentBlue,
             onTap: onPolicial,
           ),
@@ -1588,14 +1586,12 @@ class _EventualityBottomStrip extends StatelessWidget {
 class _AppleCategoryCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
   final Color accent;
   final VoidCallback onTap;
 
   const _AppleCategoryCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
     required this.accent,
     required this.onTap,
   });
@@ -1608,11 +1604,8 @@ class _AppleCategoryCard extends StatelessWidget {
     final titleSz = MediaQuery.textScalerOf(context).scale(
       ss < 340 ? 13.0 : ss < 400 ? 13.5 : 14.0,
     );
-    final subSz = MediaQuery.textScalerOf(context).scale(
-      ss < 340 ? 10.5 : 11.0,
-    );
-    final padH = ss < 340 ? 8.0 : 10.0;
-    final padV = ss < 340 ? 8.0 : 10.0;
+    final padH = ss < 340 ? 10.0 : 12.0;
+    final padV = ss < 340 ? 12.0 : 14.0;
 
     final circle = Container(
       width: circleD,
@@ -1625,34 +1618,17 @@ class _AppleCategoryCard extends StatelessWidget {
       child: Icon(icon, color: accent, size: iconSz),
     );
 
-    final text = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: titleSz,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.28,
-            color: _AppleEmergencyUX.labelPrimary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: subSz,
-            height: 1.2,
-            letterSpacing: -0.08,
-            color: _AppleEmergencyUX.labelSecondary,
-          ),
-        ),
-      ],
+    final text = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: titleSz,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.28,
+        color: _AppleEmergencyUX.labelPrimary,
+      ),
     );
 
     return Container(
@@ -1675,11 +1651,12 @@ class _AppleCategoryCard extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 circle,
                 const SizedBox(width: 10),
-                Expanded(child: text),
+                Flexible(child: text),
               ],
             ),
           ),
@@ -1802,29 +1779,31 @@ class _RadialMenu extends StatelessWidget {
             (deviceShortest < 404 && deviceShortest >= 336));
     final isTablet = deviceShortest >= 560 || deviceWidth >= 600;
 
-    final btnFrac = isTiny
-        ? 0.248
+    // Hub central (Ayuda): el elemento más grande de la pantalla.
+    final hubFrac = isTiny
+        ? 0.30
         : isCompact
-            ? 0.288
+            ? 0.34
             : isTablet
-                ? 0.30
-                : 0.332;
-    final btnSize = (available * btnFrac).clamp(
-      layoutShortest < 270 ? 50.0 : 56.0,
-      isTablet ? 172.0 : 154.0,
+                ? 0.355
+                : 0.388;
+    final hubSize = (available * hubFrac).clamp(
+      layoutShortest < 270 ? 58.0 : 64.0,
+      isTablet ? 188.0 : 170.0,
     );
 
+    // Chips radiales: más grandes para facilitar el toque.
     var labelW =
-        (available * (isTiny ? 0.318 : 0.282)).clamp(78.0, isTablet ? 158.0 : 148.0);
+        (available * (isTiny ? 0.348 : 0.302)).clamp(88.0, isTablet ? 172.0 : 162.0);
     final labelH =
-        (available * (isTiny ? 0.252 : 0.232)).clamp(54.0, isTablet ? 112.0 : 102.0);
+        (available * (isTiny ? 0.272 : 0.252)).clamp(62.0, isTablet ? 118.0 : 108.0);
     labelW = math.min(
       labelW,
       availableWidth * (isTablet ? 0.42 : 0.44),
     );
 
     final radialGutter = (layoutShortest * 0.058).clamp(18.0, 30.0);
-    final innerEdge = btnSize / 2 + radialGutter;
+    final innerEdge = hubSize / 2 + radialGutter;
     final edgePad = (layoutShortest * 0.0075).clamp(2.0, 5.0);
     // Órbita máx. por dirección: para cada ángulo, el chip alineado al eje debe caber
     // en el rectángulo (evita overflow diagonal y en “Emergencia Vial” a la derecha).
@@ -1890,7 +1869,7 @@ class _RadialMenu extends StatelessWidget {
                 builder: (_, __) => Transform.scale(
                   scale: showEmergencyOptions ? scaleAnimation.value : 1.0,
                   child: _CenterButton(
-                    btnSize: btnSize,
+                    btnSize: hubSize,
                     showDragFeedback: showDragFeedback,
                     currentDragDirection: currentDragDirection,
                     showEmergencyOptions: showEmergencyOptions,
@@ -1946,14 +1925,14 @@ class _RadialMenu extends StatelessWidget {
     final dy = orbit * math.sin(angle);
 
     // Texto más grande; icono y gap un poco más chicos para no agrandar el cuadro (labelW/H igual).
-    final iconSz = (labelH * 0.29).clamp(18.0, isTabletLayout ? 30.0 : 28.0);
+    final iconSz = (labelH * 0.31).clamp(20.0, isTabletLayout ? 32.0 : 30.0);
     final rawFontSize = isTinyLayout
-        ? 13.5
+        ? 14.25
         : isCompactLayout
-            ? 14.75
+            ? 15.5
             : isTabletLayout
-                ? 17.5
-                : 17.0;
+                ? 18.25
+                : 17.75;
     final textTargetSize = math.min(
       MediaQuery.textScalerOf(context).scale(rawFontSize),
       labelH * 0.46,
@@ -2242,40 +2221,10 @@ class _CenterButtonState extends State<_CenterButton>
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: math.max(11.0, size * 0.17),
+                fontSize: math.max(14.0, size * 0.22),
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                letterSpacing: 0.4,
                 height: 1.0,
-              ),
-            ),
-            SizedBox(height: math.max(2.0, size * 0.028)),
-            SizedBox(
-              width: innerMaxW,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.swipe_rounded,
-                      color: Colors.white.withValues(alpha: 0.58),
-                      size: math.max(9.0, size * 0.095),
-                    ),
-                    SizedBox(width: math.max(2.0, size * 0.016)),
-                    Text(
-                      AppLocalizations.of(context)!.drag,
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.58),
-                        fontSize: math.max(9.5, size * 0.072),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.15,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],

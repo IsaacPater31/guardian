@@ -5,7 +5,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 /// Clase centralizada para manejar todos los tipos de emergencia.
 ///
 /// El menú radial del home usa solo [types] (5 direcciones). Los tipos
-/// `POLICE` y `ENVIRONMENTAL` se eligen con los botones inferiores.
+/// `policial` y `ambiental` se eligen con los botones inferiores.
 /// [typeMetadata] incluye todos los tipos configurables y filtros.
 class EmergencyTypes {
   /// [alertType] guardado en Firestore para alertas de un toque (centro del botón).
@@ -21,7 +21,7 @@ class EmergencyTypes {
     },
     AlertDetailCatalog.homeHelp: {
       'type': AlertDetailCatalog.homeHelp,
-      'icon': Icons.domain_add_rounded,
+      'icon': Icons.home_rounded,
       'color': Color(0xFF66BB6A),
       'defaultCommunityKeyword': null,
     },
@@ -29,7 +29,7 @@ class EmergencyTypes {
       'type': AlertDetailCatalog.police,
       'icon': Icons.local_police_rounded,
       'color': Color(0xFF1565C0),
-      'defaultCommunityKeyword': 'POLICIA',
+      'defaultCommunityKeyword': 'POLICIAL',
     },
     AlertDetailCatalog.fire: {
       'type': AlertDetailCatalog.fire,
@@ -39,7 +39,7 @@ class EmergencyTypes {
     },
     AlertDetailCatalog.securityBreach: {
       'type': AlertDetailCatalog.securityBreach,
-      'icon': Icons.security_update_warning_rounded,
+      'icon': Icons.security_rounded,
       'color': Color(0xFFC62828),
       'defaultCommunityKeyword': null,
     },
@@ -63,8 +63,8 @@ class EmergencyTypes {
     },
     AlertDetailCatalog.harassment: {
       'type': AlertDetailCatalog.harassment,
-      'icon': Icons.shield_rounded,
-      'color': Color(0xFFEC407A),
+      'icon': Icons.front_hand_rounded,
+      'color': Color(0xFF7B1FA2),
       'defaultCommunityKeyword': null,
     },
   };
@@ -92,22 +92,28 @@ class EmergencyTypes {
     switch (alertType) {
       case 'HEALTH':
         return Icons.local_hospital;
+      case 'casa':
       case 'HOME_HELP':
-        return Icons.home;
+        return Icons.home_rounded;
+      case 'policial':
       case 'POLICE':
         return Icons.local_police;
       case 'FIRE':
         return Icons.local_fire_department;
+      case 'seguridad':
       case 'SECURITY_BREACH':
-        return Icons.security_update_warning_rounded;
+        return Icons.security_rounded;
       case 'ACCOMPANIMENT':
         return Icons.people;
+      case 'ambiental':
       case 'ENVIRONMENTAL':
         return Icons.nature_people;
+      case 'vial':
       case 'ROAD_EMERGENCY':
         return Icons.directions_car;
+      case 'acoso':
       case 'HARASSMENT':
-        return Icons.shield;
+        return Icons.front_hand_rounded;
       case 'URGENCY':
         return Icons.emergency;
       case 'ROBBERY':
@@ -137,22 +143,28 @@ class EmergencyTypes {
     switch (alertType) {
       case 'HEALTH':
         return const Color(0xFF26C6DA);
+      case 'casa':
       case 'HOME_HELP':
         return const Color(0xFF66BB6A);
+      case 'policial':
       case 'POLICE':
         return const Color(0xFF1565C0);
       case 'FIRE':
         return const Color(0xFFE53935);
+      case 'seguridad':
       case 'SECURITY_BREACH':
         return const Color(0xFFC62828);
       case 'ACCOMPANIMENT':
         return const Color(0xFF8E24AA);
+      case 'ambiental':
       case 'ENVIRONMENTAL':
         return const Color(0xFF43A047);
+      case 'vial':
       case 'ROAD_EMERGENCY':
         return const Color(0xFFFF7043);
+      case 'acoso':
       case 'HARASSMENT':
-        return const Color(0xFFEC407A);
+        return const Color(0xFF7B1FA2);
       case 'URGENCY':
         return const Color(0xFFF44336);
       case 'ROBBERY':
@@ -205,22 +217,28 @@ class EmergencyTypes {
     switch (type) {
       case 'HEALTH':
         return localizations.emergencyHealth;
+      case 'casa':
       case 'HOME_HELP':
         return localizations.emergencyHomeHelp;
+      case 'policial':
       case 'POLICE':
         return localizations.emergencyPolice;
       case 'FIRE':
         return localizations.emergencyFireNew;
+      case 'seguridad':
       case 'SECURITY_BREACH':
         return localizations.emergencySecurityBreach;
       case 'ACCOMPANIMENT':
         return localizations.emergencyAccompaniment;
+      case 'ambiental':
       case 'ENVIRONMENTAL':
         return localizations.emergencyEnvironmental;
+      case 'vial':
       case 'ROAD_EMERGENCY':
         return localizations.emergencyRoadEmergency;
       case 'URGENCY':
         return localizations.emergencyUrgency;
+      case 'acoso':
       case 'HARASSMENT':
         return localizations.emergencyHarassment;
       case 'STREET ESCORT':

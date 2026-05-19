@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:guardian/core/alert_type_normalize.dart';
 import 'package:guardian/core/app_constants.dart';
 
 /// Domain model representing a single alert.
@@ -8,7 +9,7 @@ class AlertModel {
   /// Alert category: `'detailed'`, `'quick'`, or `'swiped'`.
   final String type;
 
-  /// Emergency type identifier (e.g. `'FIRE'`, `'HEALTH'`, `'POLICE'`).
+  /// Emergency type identifier (Firestore), p. ej. `'FIRE'`, `'casa'`, `'policial'`.
   final String alertType;
 
   final String? description;
@@ -103,11 +104,10 @@ class AlertModel {
     final communityIds = parseCommunityIds(data);
 
     final flowType = data['type'] as String? ?? '';
-    var alertType = data['alertType'] as String? ?? '';
-    // Legacy one-tap quick alerts were stored as HEALTH; normalize to URGENCY.
-    if (flowType == 'quick' && alertType == 'HEALTH') {
-      alertType = 'URGENCY';
-    }
+    var alertType = AlertTypeNormalize.apply(
+      data['alertType'] as String? ?? '',
+      flowType,
+    );
 
     return AlertModel(
       id: doc.id,
