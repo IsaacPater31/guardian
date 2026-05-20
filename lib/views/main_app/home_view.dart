@@ -938,28 +938,27 @@ class _HomeViewState extends State<HomeView> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final maxH = constraints.maxHeight;
-          final tightVertical = maxH < 240;
+          final tightVertical = maxH < 220;
           final titleBottom = tightVertical
-              ? 4.0
+              ? 2.0
               : isSmall
-                  ? 8.0
+                  ? 6.0
                   : isLargePhone
-                      ? 14.0
-                      : 10.0;
+                      ? 10.0
+                      : 8.0;
 
           final column = Column(
             children: [
-              Padding(
+              if (!tightVertical)
+                Padding(
                 padding: EdgeInsets.only(
                   bottom: titleBottom,
-                  top: tightVertical ? 0 : (isSmall ? 2 : 4),
+                  top: isSmall ? 2 : 4,
                 ),
                 child: Text(
                   AppLocalizations.of(context)!.emergencyButton,
                   style: TextStyle(
-                    fontSize: tightVertical
-                        ? (titleSize * 0.92).clamp(14.0, titleSize)
-                        : titleSize,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1A1A1A),
                     height: 1.2,

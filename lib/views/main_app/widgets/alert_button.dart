@@ -18,6 +18,127 @@ import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Paleta y métricas tipo iOS (legibilidad, aire, profesional).
+/// Métricas del menú radial derivadas del espacio disponible (responsive).
+class _RadialLayoutMetrics {
+  final double canvasSide;
+  final double hubSize;
+  final double labelW;
+  final double labelH;
+  final double radialGutter;
+  final double edgePad;
+  final double orbitFill;
+  final bool isTiny;
+  final bool isCompact;
+  final bool isTablet;
+
+  const _RadialLayoutMetrics({
+    required this.canvasSide,
+    required this.hubSize,
+    required this.labelW,
+    required this.labelH,
+    required this.radialGutter,
+    required this.edgePad,
+    required this.orbitFill,
+    required this.isTiny,
+    required this.isCompact,
+    required this.isTablet,
+  });
+
+  factory _RadialLayoutMetrics.from(
+    BuildContext context,
+    BoxConstraints constraints,
+  ) {
+    final mq = MediaQuery.of(context);
+    final deviceShortest = mq.size.shortestSide;
+    final deviceWidth = mq.size.width;
+    final landscape = mq.orientation == Orientation.landscape;
+    final maxW = constraints.maxWidth;
+    final maxH = constraints.maxHeight;
+    final side = math.min(
+      maxW.isFinite ? maxW : deviceWidth,
+      maxH.isFinite ? maxH : mq.size.height,
+    );
+
+    if (!side.isFinite || side < 8) {
+      return _RadialLayoutMetrics._tinyFallback();
+    }
+
+    // Ocupa casi todo el cuadrado útil del [Expanded] (home).
+    final canvasFactor = landscape && maxH < 300 ? 0.90 : 0.96;
+    final canvasMax = isTabletish(deviceShortest, deviceWidth)
+        ? math.min(640.0, side)
+        : math.min(580.0, side);
+    final canvasSide = (side * canvasFactor).clamp(220.0, canvasMax);
+
+    final layoutShortest = canvasSide;
+    final isTiny = layoutShortest < 278 || deviceShortest < 328;
+    final isCompact = !isTiny &&
+        (layoutShortest < 392 ||
+            (deviceShortest < 404 && deviceShortest >= 328));
+    final isTablet = isTabletish(deviceShortest, deviceWidth);
+
+    // Botón Ayuda: el más grande de la pantalla.
+    final hubFrac = isTiny
+        ? 0.36
+        : isCompact
+            ? 0.40
+            : isTablet
+                ? 0.42
+                : 0.44;
+    final hubSize = (canvasSide * hubFrac).clamp(
+      isTiny ? 68.0 : 72.0,
+      isTablet ? 204.0 : 188.0,
+    );
+
+    // Chips: área táctil ≥ 48dp y mejor lectura.
+    var labelH = (canvasSide * (isTiny ? 0.30 : 0.28)).clamp(
+      52.0,
+      isTablet ? 128.0 : 116.0,
+    );
+    labelH = math.max(labelH, 48.0);
+    var labelW = (canvasSide * (isTiny ? 0.38 : 0.34)).clamp(
+      86.0,
+      isTablet ? 184.0 : 172.0,
+    );
+    labelW = math.max(labelW, 76.0);
+    if (maxW.isFinite) {
+      labelW = math.min(labelW, maxW * (isTablet ? 0.46 : 0.48));
+    }
+
+    final radialGutter = (layoutShortest * 0.052).clamp(14.0, 32.0);
+    final edgePad = (layoutShortest * 0.008).clamp(2.0, 6.0);
+
+    return _RadialLayoutMetrics(
+      canvasSide: canvasSide,
+      hubSize: hubSize,
+      labelW: labelW,
+      labelH: labelH,
+      radialGutter: radialGutter,
+      edgePad: edgePad,
+      orbitFill: 0.996,
+      isTiny: isTiny,
+      isCompact: isCompact,
+      isTablet: isTablet,
+    );
+  }
+
+  static bool isTabletish(double deviceShortest, double deviceWidth) =>
+      deviceShortest >= 560 || deviceWidth >= 600;
+
+  static _RadialLayoutMetrics _tinyFallback() => const _RadialLayoutMetrics(
+        canvasSide: 248,
+        hubSize: 88,
+        labelW: 92,
+        labelH: 56,
+        radialGutter: 18,
+        edgePad: 3,
+        orbitFill: 0.996,
+        isTiny: true,
+        isCompact: false,
+        isTablet: false,
+      );
+}
+
 abstract final class _AppleEmergencyUX {
   static const Color labelPrimary = Color(0xFF1C1C1E);
   static const Color labelSecondary = Color(0xFF8E8E93);
@@ -48,10 +169,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   static const Color _primaryDark = Color(0xFF1C1C1E);
   static const Color _danger = Color(0xFFFF3B30);
   static const Color _surface = Color(0xFFF8F9FA);
-
-  /// Límites del lienzo cuadrado del menú radial (se deriva del espacio real con [LayoutBuilder]).
-  static const double _kRadialCanvasMin = 248.0;
-  static const double _kRadialCanvasMax = 560.0;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -1439,18 +1556,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             padding: radialPad,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final side = math.min(constraints.maxWidth, constraints.maxHeight);
-                if (!side.isFinite || side < 8) {
+                if (constraints.maxWidth < 8 || constraints.maxHeight < 8) {
                   return const SizedBox.shrink();
                 }
-                final canvasSide = side.clamp(
-                  _kRadialCanvasMin,
-                  _kRadialCanvasMax,
-                );
-                final panDeadZone = (canvasSide * 0.086).clamp(24.0, 44.0);
-                return FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
+                final metrics = _RadialLayoutMetrics.from(context, constraints);
+                final canvasSide = metrics.canvasSide;
+                final panDeadZone = (canvasSide * 0.082).clamp(22.0, 48.0);
+                return Center(
                   child: SizedBox(
                     width: canvasSide,
                     height: canvasSide,
@@ -1493,6 +1605,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         });
                       },
                       child: _RadialMenu(
+                        metrics: metrics,
                         availableWidth: canvasSide,
                         availableHeight: canvasSide,
                         dirAngles: _dirAngles,
@@ -1542,43 +1655,49 @@ class _EventualityBottomStrip extends StatelessWidget {
     final w = mq.size.width;
     final shortest = mq.size.shortestSide;
     final hx = w < 360 ? 12.0 : w < 420 ? 16.0 : w < 720 ? 20.0 : 24.0;
-    final gap = w < 360 ? 10.0 : w < 420 ? 11.0 : 14.0;
+    final gap = w < 360 ? 10.0 : w < 420 ? 12.0 : 14.0;
     final bottomExtra =
         mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
-    // Tablets / canvas ancho: evita tarjetas ridiculamente anchas.
-    final maxRow = shortest >= 600 ? 620.0 : w >= 840 ? 680.0 : double.infinity;
+    final maxRow = shortest >= 600 ? 640.0 : w >= 840 ? 720.0 : double.infinity;
 
-    final row = Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: _AppleCategoryCard(
-            icon: Icons.eco_rounded,
-            title: l10n.eventualityEnvironmentalTitle,
-            accent: _AppleEmergencyUX.accentGreen,
-            onTap: onAmbiental,
-          ),
-        ),
-        SizedBox(width: gap),
-        Expanded(
-          child: _AppleCategoryCard(
-            icon: Icons.local_police_rounded,
-            title: l10n.eventualityPoliceTitle,
-            accent: _AppleEmergencyUX.accentBlue,
-            onTap: onPolicial,
-          ),
-        ),
-      ],
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardMinH = (constraints.maxWidth * 0.13).clamp(52.0, 68.0);
+        final row = Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _AppleCategoryCard(
+                icon: Icons.eco_rounded,
+                title: l10n.eventualityEnvironmentalTitle,
+                accent: _AppleEmergencyUX.accentGreen,
+                minHeight: cardMinH,
+                onTap: onAmbiental,
+              ),
+            ),
+            SizedBox(width: gap),
+            Expanded(
+              child: _AppleCategoryCard(
+                icon: Icons.local_police_rounded,
+                title: l10n.eventualityPoliceTitle,
+                accent: _AppleEmergencyUX.accentBlue,
+                minHeight: cardMinH,
+                onTap: onPolicial,
+              ),
+            ),
+          ],
+        );
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(hx, 4, hx, bottomExtra),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxRow),
-          child: row,
-        ),
-      ),
+        return Padding(
+          padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxRow),
+              child: row,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1587,22 +1706,25 @@ class _AppleCategoryCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final Color accent;
+  final double minHeight;
   final VoidCallback onTap;
 
   const _AppleCategoryCard({
     required this.icon,
     required this.title,
     required this.accent,
+    this.minHeight = 52,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final ss = MediaQuery.sizeOf(context).shortestSide;
-    final circleD = (ss * 0.092).clamp(32.0, 42.0);
-    final iconSz = (circleD * 0.52).clamp(17.0, 22.0);
+    final w = MediaQuery.sizeOf(context).width;
+    final circleD = (ss * 0.10).clamp(36.0, 48.0);
+    final iconSz = (circleD * 0.52).clamp(18.0, 26.0);
     final titleSz = MediaQuery.textScalerOf(context).scale(
-      ss < 340 ? 13.0 : ss < 400 ? 13.5 : 14.0,
+      ss < 340 ? 14.0 : ss < 400 ? 14.5 : w >= 600 ? 16.0 : 15.0,
     );
     final padH = ss < 340 ? 10.0 : 12.0;
     final padV = ss < 340 ? 12.0 : 14.0;
@@ -1631,33 +1753,36 @@ class _AppleCategoryCard extends StatelessWidget {
       ),
     );
 
-    return Container(
-      decoration: BoxDecoration(
-        color: _AppleEmergencyUX.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _AppleEmergencyUX.separator,
-          width: 0.5,
-        ),
-        boxShadow: _AppleEmergencyUX.cardShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _AppleEmergencyUX.cardSurface,
           borderRadius: BorderRadius.circular(12),
-          splashColor: accent.withValues(alpha: 0.15),
-          highlightColor: accent.withValues(alpha: 0.06),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                circle,
-                const SizedBox(width: 10),
-                Flexible(child: text),
-              ],
+          border: Border.all(
+            color: _AppleEmergencyUX.separator,
+            width: 0.5,
+          ),
+          boxShadow: _AppleEmergencyUX.cardShadow,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            splashColor: accent.withValues(alpha: 0.15),
+            highlightColor: accent.withValues(alpha: 0.06),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  circle,
+                  const SizedBox(width: 10),
+                  Flexible(child: text),
+                ],
+              ),
             ),
           ),
         ),
@@ -1741,6 +1866,7 @@ class _RadialChipLabelText extends StatelessWidget {
 // =============================================================================
 
 class _RadialMenu extends StatelessWidget {
+  final _RadialLayoutMetrics metrics;
   final double availableWidth;
   final double availableHeight;
   final Map<String, double> dirAngles;
@@ -1752,6 +1878,7 @@ class _RadialMenu extends StatelessWidget {
   final VoidCallback onTapCenter;
 
   const _RadialMenu({
+    required this.metrics,
     required this.availableWidth,
     required this.availableHeight,
     required this.dirAngles,
@@ -1765,46 +1892,16 @@ class _RadialMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final deviceShortest = mq.size.shortestSide;
-    final deviceWidth = mq.size.width;
     final canvas = math.min(availableWidth, availableHeight);
-    final available = canvas.clamp(148.0, 560.0);
-    final layoutShortest = available;
+    final hubSize = metrics.hubSize;
+    final labelW = metrics.labelW;
+    final labelH = metrics.labelH;
+    final isTiny = metrics.isTiny;
+    final isCompact = metrics.isCompact;
+    final isTablet = metrics.isTablet;
 
-    // Teléfono muy pequeño (SE, Android estrecho), compacto, tablet / ventana ancha.
-    final isTiny = layoutShortest < 288 || deviceShortest < 336;
-    final isCompact = !isTiny &&
-        (layoutShortest < 400 ||
-            (deviceShortest < 404 && deviceShortest >= 336));
-    final isTablet = deviceShortest >= 560 || deviceWidth >= 600;
-
-    // Hub central (Ayuda): el elemento más grande de la pantalla.
-    final hubFrac = isTiny
-        ? 0.30
-        : isCompact
-            ? 0.34
-            : isTablet
-                ? 0.355
-                : 0.388;
-    final hubSize = (available * hubFrac).clamp(
-      layoutShortest < 270 ? 58.0 : 64.0,
-      isTablet ? 188.0 : 170.0,
-    );
-
-    // Chips radiales: más grandes para facilitar el toque.
-    var labelW =
-        (available * (isTiny ? 0.348 : 0.302)).clamp(88.0, isTablet ? 172.0 : 162.0);
-    final labelH =
-        (available * (isTiny ? 0.272 : 0.252)).clamp(62.0, isTablet ? 118.0 : 108.0);
-    labelW = math.min(
-      labelW,
-      availableWidth * (isTablet ? 0.42 : 0.44),
-    );
-
-    final radialGutter = (layoutShortest * 0.058).clamp(18.0, 30.0);
-    final innerEdge = hubSize / 2 + radialGutter;
-    final edgePad = (layoutShortest * 0.0075).clamp(2.0, 5.0);
+    final innerEdge = hubSize / 2 + metrics.radialGutter;
+    final edgePad = metrics.edgePad;
     // Órbita máx. por dirección: para cada ángulo, el chip alineado al eje debe caber
     // en el rectángulo (evita overflow diagonal y en “Emergencia Vial” a la derecha).
     double maxOrbitFromAngles() {
@@ -1832,9 +1929,9 @@ class _RadialMenu extends StatelessWidget {
     }
 
     final maxOrbit = maxOrbitFromAngles();
-    // Empuja el anillo al límite del rectángulo: máximo radio → alertas más separadas (efecto zoom del lienzo).
-    final orbit =
-        (innerEdge + (maxOrbit - innerEdge) * 0.998).clamp(innerEdge, maxOrbit);
+    // Distribuye chips al borde del lienzo (máxima separación sin overflow).
+    final orbit = (innerEdge + (maxOrbit - innerEdge) * metrics.orbitFill)
+        .clamp(innerEdge, maxOrbit);
 
     final cx = availableWidth / 2;
     final cy = availableHeight / 2;
@@ -1925,14 +2022,14 @@ class _RadialMenu extends StatelessWidget {
     final dy = orbit * math.sin(angle);
 
     // Texto más grande; icono y gap un poco más chicos para no agrandar el cuadro (labelW/H igual).
-    final iconSz = (labelH * 0.31).clamp(20.0, isTabletLayout ? 32.0 : 30.0);
+    final iconSz = (labelH * 0.33).clamp(22.0, isTabletLayout ? 34.0 : 32.0);
     final rawFontSize = isTinyLayout
-        ? 14.25
+        ? 14.75
         : isCompactLayout
-            ? 15.5
+            ? 16.0
             : isTabletLayout
-                ? 18.25
-                : 17.75;
+                ? 18.75
+                : 18.25;
     final textTargetSize = math.min(
       MediaQuery.textScalerOf(context).scale(rawFontSize),
       labelH * 0.46,
@@ -2221,7 +2318,7 @@ class _CenterButtonState extends State<_CenterButton>
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: math.max(14.0, size * 0.22),
+                fontSize: math.max(15.0, size * 0.24),
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.4,
                 height: 1.0,
