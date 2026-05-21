@@ -539,7 +539,7 @@ class _HomeViewState extends State<HomeView> {
             Flexible(
               child: Text(
                 _showingOwn
-                    ? 'No has enviado alertas recientes'
+                    ? AppLocalizations.of(context)!.noOwnRecentAlerts
                     : AppLocalizations.of(context)!.noRecentAlerts,
                 style: TextStyle(
                   fontSize: dense ? 11 : (compact ? 11.5 : 13),
@@ -606,6 +606,7 @@ class _HomeViewState extends State<HomeView> {
 
 
   Widget _buildAlertCard(AlertModel alert, {bool compact = false, bool dense = false}) {
+    final localizedType = EmergencyTypes.getTranslatedType(alert.alertType, context);
     final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
@@ -645,7 +646,9 @@ class _HomeViewState extends State<HomeView> {
             ),
             SizedBox(width: dense ? 2 : (compact ? 2 : 3)),
             Text(
-              isAttended ? 'Atendida' : 'No atendida',
+              isAttended
+                  ? AppLocalizations.of(context)!.alertStatusAttendedShort
+                  : AppLocalizations.of(context)!.alertStatusNotAttendedShort,
               style: TextStyle(
                 fontSize: dense ? 8 : (compact ? 9 : 10),
                 fontWeight: FontWeight.w600,
@@ -809,7 +812,7 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   if (compact) ...[
                     Text(
-                      alert.alertType,
+                      localizedType,
                       style: TextStyle(
                         fontSize: titleSize,
                         fontWeight: FontWeight.w600,
@@ -840,7 +843,7 @@ class _HomeViewState extends State<HomeView> {
                       children: [
                         Expanded(
                           child: Text(
-                            alert.alertType,
+                            localizedType,
                             style: TextStyle(
                               fontSize: titleSize,
                               fontWeight: FontWeight.w600,

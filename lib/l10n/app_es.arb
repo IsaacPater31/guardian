@@ -333,6 +333,12 @@
   "@@communitiesList": {},
   "officialEntities": "Entidades Oficiales",
   "myCommunities": "Mis Comunidades",
+  "selectedCommunityCount": "{count, plural, =1{1 comunidad} other{{count} comunidades}}",
+  "@selectedCommunityCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "noResults": "Sin resultados",
   "communityCount": "{n} comunidad{plural}",
   "@communityCount": { "placeholders": { "n": { "type": "int" }, "plural": { "type": "String" } } },
@@ -372,6 +378,12 @@
   "@defaultCommunitiesFor": { "placeholders": { "type": { "type": "String" } } },
   "generalSection": "General",
   "about": "Acerca de",
+  "aboutVersion": "Versión {version} · Guardian",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
   "appInfo": "Información de la aplicación",
   "quickAlertsTitle": "Alertas Rápidas",
   "quickAlertsConfig": "Configuración de Alertas Rápidas",
@@ -463,6 +475,18 @@
   "myAlertsFilterDateSection": "Fecha",
   "myAlertsFilterStatusSection": "Estado",
   "myAlertsFilterTypeSection": "Tipo de alerta",
+  "mapFilterStatusSection": "Estado de atención",
+  "mapFilterDateSection": "Período de tiempo",
+  "mapFilterApplyButton": "Aplicar filtros",
+  "filterStatusAll": "Todas",
+  "filterDateAll": "Cualquier fecha",
+  "filterDateToday": "Hoy",
+  "filterDateYesterday": "Ayer",
+  "filterDateWeek": "Esta semana",
+  "filterDateLast7Days": "Últimos 7 días",
+  "filterDateMonth": "Este mes",
+  "filterDateCustom": "Personalizado",
+  "filterDateSelect": "Seleccionar",
   "myAlertsPickStartDate": "Desde",
   "myAlertsPickEndDate": "Hasta",
   "myAlertsListCapHint": "Se muestran como máximo las {n} alertas más recientes enviadas desde este dispositivo.",
@@ -500,6 +524,14 @@
   "selectCommunitiesSubtitle": "Selecciona una o más comunidades",
   "noCommunitiesAvailableSnack": "No tienes comunidades disponibles",
   "errorLoadingCommunitiesDetail": "Error cargando comunidades",
+  "quickAlertNoCommunitiesConfigured": "No hay comunidades configuradas. Configura las alertas rápidas en Ajustes.",
+  "quickAlertConfigureAction": "Configurar",
+  "quickAlertConfigureTypeCommunities": "Configura las comunidades para \"{type}\" en Ajustes.",
+  "@quickAlertConfigureTypeCommunities": {
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
   "microphonePermissionSnack": "Se necesita permiso de micrófono",
   "recordingFailedWithError": "No se pudo grabar: {error}",
   "@recordingFailedWithError": { "placeholders": { "error": { "type": "String" } } },
@@ -529,6 +561,7 @@
   "audioPreviewFailed": "No se pudo reproducir la vista previa del audio.",
   "selectSubtypeRequired": "Selecciona un subtipo para continuar",
   "describeOtherCaseRequired": "Describe el caso para la opción Otro",
+  "noOwnRecentAlerts": "No has enviado alertas recientes",
 
   "@@registerPassword": {},
   "passwordReqMinLength": "Mínimo 8 caracteres",

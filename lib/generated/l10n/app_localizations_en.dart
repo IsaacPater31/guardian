@@ -886,6 +886,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myCommunities => 'My Communities';
 
   @override
+  String selectedCommunityCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count communities',
+      one: '1 community',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get noResults => 'No results';
 
   @override
@@ -984,6 +995,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get about => 'About';
+
+  @override
+  String aboutVersion(String version) {
+    return 'Version $version · Guardian';
+  }
 
   @override
   String get appInfo => 'Application information';
@@ -1247,6 +1263,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myAlertsFilterTypeSection => 'Alert type';
 
   @override
+  String get mapFilterStatusSection => 'Handling status';
+
+  @override
+  String get mapFilterDateSection => 'Time period';
+
+  @override
+  String get mapFilterApplyButton => 'Apply filters';
+
+  @override
+  String get filterStatusAll => 'All';
+
+  @override
+  String get filterDateAll => 'Any date';
+
+  @override
+  String get filterDateToday => 'Today';
+
+  @override
+  String get filterDateYesterday => 'Yesterday';
+
+  @override
+  String get filterDateWeek => 'This week';
+
+  @override
+  String get filterDateLast7Days => 'Last 7 days';
+
+  @override
+  String get filterDateMonth => 'This month';
+
+  @override
+  String get filterDateCustom => 'Custom';
+
+  @override
+  String get filterDateSelect => 'Select';
+
+  @override
   String get myAlertsPickStartDate => 'From';
 
   @override
@@ -1325,6 +1377,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorLoadingCommunitiesDetail => 'Error loading communities';
+
+  @override
+  String get quickAlertNoCommunitiesConfigured =>
+      'No communities configured. Set quick alerts in Settings.';
+
+  @override
+  String get quickAlertConfigureAction => 'Configure';
+
+  @override
+  String quickAlertConfigureTypeCommunities(String type) {
+    return 'Configure communities for \"$type\" in Settings.';
+  }
 
   @override
   String get microphonePermissionSnack => 'Microphone permission is required';
@@ -1410,6 +1474,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get describeOtherCaseRequired =>
       'Describe the case for the “Other” option';
+
+  @override
+  String get noOwnRecentAlerts => 'You have not sent recent alerts';
 
   @override
   String get passwordReqMinLength => 'At least 8 characters';

@@ -1,24 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/emergency_types.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 // ─── Constantes de opciones ────────────────────────────────────────────────
 
-const List<Map<String, String>> kStatusOptions = [
-  {'value': 'all',      'label': 'Todas'},
-  {'value': 'pending',  'label': 'No atendida'},
-  {'value': 'attended', 'label': 'Atendida'},
+const List<String> kStatusOptionValues = ['all', 'pending', 'attended'];
+const List<String> kDateOptionValues = [
+  'all',
+  'today',
+  'yesterday',
+  'week',
+  '7days',
+  'month',
+  'custom',
 ];
 
-const List<Map<String, String>> kDateOptions = [
-  {'value': 'all',       'label': 'Cualquier fecha'},
-  {'value': 'today',     'label': 'Hoy'},
-  {'value': 'yesterday', 'label': 'Ayer'},
-  {'value': 'week',      'label': 'Esta semana'},
-  {'value': '7days',     'label': 'Últimos 7 días'},
-  {'value': 'month',     'label': 'Este mes'},
-  {'value': 'custom',    'label': 'Personalizado'},
-];
+List<Map<String, String>> localizedStatusOptions(AppLocalizations l10n) => [
+      {'value': 'all', 'label': l10n.filterStatusAll},
+      {'value': 'pending', 'label': l10n.alertStatusNotAttendedShort},
+      {'value': 'attended', 'label': l10n.alertStatusAttendedShort},
+    ];
+
+List<Map<String, String>> localizedDateOptions(AppLocalizations l10n) => [
+      {'value': 'all', 'label': l10n.filterDateAll},
+      {'value': 'today', 'label': l10n.filterDateToday},
+      {'value': 'yesterday', 'label': l10n.filterDateYesterday},
+      {'value': 'week', 'label': l10n.filterDateWeek},
+      {'value': '7days', 'label': l10n.filterDateLast7Days},
+      {'value': 'month', 'label': l10n.filterDateMonth},
+      {'value': 'custom', 'label': l10n.filterDateCustom},
+    ];
 
 // ─── Modelo de filtros ─────────────────────────────────────────────────────
 
@@ -170,8 +182,11 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // Lista de tipos únicos del sistema de emergencias
     final allTypes = EmergencyTypes.allTypesForFilters;
+    final statusOptions = localizedStatusOptions(l10n);
+    final dateOptions = localizedDateOptions(l10n);
 
     return Container(
       decoration: const BoxDecoration(
@@ -209,8 +224,8 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                   child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Filtros',
+                Text(
+                  l10n.myAlertsFilters,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -244,9 +259,9 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                       foregroundColor: const Color(0xFFEF4444),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     ),
-                    child: const Text(
-                      'Limpiar todo',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    child: Text(
+                      l10n.myAlertsClearFilters,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 IconButton(
@@ -272,7 +287,10 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Tipos ──
-                  _buildSectionTitle(Icons.category_rounded, 'Tipo de alerta'),
+                  _buildSectionTitle(
+                    Icons.category_rounded,
+                    l10n.myAlertsFilterTypeSection,
+                  ),
                   const SizedBox(height: 10),
                   _buildTypeGrid(allTypes),
 
@@ -281,18 +299,24 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                   const SizedBox(height: 20),
 
                   // ── Estado ──
-                  _buildSectionTitle(Icons.radio_button_checked_rounded, 'Estado de atención'),
+                  _buildSectionTitle(
+                    Icons.radio_button_checked_rounded,
+                    l10n.mapFilterStatusSection,
+                  ),
                   const SizedBox(height: 10),
-                  _buildStatusPills(),
+                  _buildStatusPills(statusOptions),
 
                   const SizedBox(height: 20),
                   const Divider(height: 1, color: Color(0xFFF3F4F6)),
                   const SizedBox(height: 20),
 
                   // ── Período ──
-                  _buildSectionTitle(Icons.calendar_today_rounded, 'Período de tiempo'),
+                  _buildSectionTitle(
+                    Icons.calendar_today_rounded,
+                    l10n.mapFilterDateSection,
+                  ),
                   const SizedBox(height: 10),
-                  _buildDateChips(),
+                  _buildDateChips(dateOptions, l10n),
 
                   if (_filters.dateRange == 'custom') ...[
                     const SizedBox(height: 14),
@@ -325,8 +349,8 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Aplicar filtros',
+                child: Text(
+                  l10n.mapFilterApplyButton,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -411,9 +435,9 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
     );
   }
 
-  Widget _buildStatusPills() {
+  Widget _buildStatusPills(List<Map<String, String>> statusOptions) {
     return Row(
-      children: kStatusOptions.map((opt) {
+      children: statusOptions.map((opt) {
         final isActive = _filters.status == opt['value'];
         return Expanded(
           child: GestureDetector(
@@ -446,11 +470,14 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
     );
   }
 
-  Widget _buildDateChips() {
+  Widget _buildDateChips(
+    List<Map<String, String>> dateOptions,
+    AppLocalizations l10n,
+  ) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: kDateOptions.map((opt) {
+      children: dateOptions.map((opt) {
         if (opt['value'] == 'custom') return const SizedBox.shrink();
         final isActive = _filters.dateRange == opt['value'];
         return GestureDetector(
@@ -507,7 +534,7 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                   ),
                   const SizedBox(width: 5),
                   Text(
-                    'Personalizado',
+                    l10n.filterDateCustom,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -525,15 +552,16 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
   }
 
   Widget _buildCustomDateRow() {
+    final l10n = AppLocalizations.of(context)!;
     String fmt(DateTime? d) => d == null
-        ? 'Seleccionar'
+        ? l10n.filterDateSelect
         : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
     return Row(
       children: [
         Expanded(
           child: _buildDatePickerButton(
-            label: 'Desde',
+            label: l10n.myAlertsPickStartDate,
             value: fmt(_filters.customStart),
             onTap: () => _pickCustomDate(true),
           ),
@@ -541,7 +569,7 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
         const SizedBox(width: 10),
         Expanded(
           child: _buildDatePickerButton(
-            label: 'Hasta',
+            label: l10n.myAlertsPickEndDate,
             value: fmt(_filters.customEnd),
             onTap: () => _pickCustomDate(false),
           ),

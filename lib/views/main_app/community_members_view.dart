@@ -435,7 +435,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                     icon: Icons.shield_outlined,
                     iconColor: const Color(0xFF007AFF),
                     title: AppLocalizations.of(context)!.makeAdmin,
-                    subtitle: 'Dar permisos de gestión',
+                    subtitle: AppLocalizations.of(context)!.giveManagementPerms,
                     onTap: () {
                       Navigator.pop(context);
                       _promoteToAdmin(member);
@@ -444,7 +444,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                   _buildActionTile(
                     icon: Icons.person_remove_outlined,
                     iconColor: const Color(0xFFFF3B30),
-                    title: 'Expulsar',
+                    title: AppLocalizations.of(context)!.expel,
                     subtitle: AppLocalizations.of(context)!.removeFromCommunity,
                     onTap: () {
                       Navigator.pop(context);
@@ -456,7 +456,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                 _buildActionTile(
                   icon: Icons.flag_outlined,
                   iconColor: const Color(0xFFFF9500),
-                  title: 'Reportar',
+                  title: AppLocalizations.of(context)!.report,
                   subtitle: AppLocalizations.of(context)!.sendReportToAdmins,
                   onTap: () {
                     Navigator.pop(context);
@@ -467,7 +467,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Text(
-                    'Este eres tú',
+                    AppLocalizations.of(context)!.thisIsYou,
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey[400],

@@ -26,6 +26,12 @@ const Color _kBluePrim  = Color(0xFF007AFF); // Apple blue
 const Color _kDark      = Color(0xFF1C1C1E);
 const Color _kError     = Color(0xFFFF3B30);
 
+String _capitalizedLabel(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
+}
+
 /// Pill badge showing the attendance status of an alert.
 /// Used in the header and anywhere else an at-a-glance signal is needed.
 class AlertStatusBadge extends StatelessWidget {
@@ -146,7 +152,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         final mid = (m['id'] as String?)?.trim();
         final mname = (m['name'] as String?)?.trim();
         if (mid != null && mid.isNotEmpty && mname != null && mname.isNotEmpty) {
-          myNameById[mid] = mname;
+          myNameById[mid] = _capitalizedLabel(mname);
         }
       }
     } catch (e) {
@@ -1525,7 +1531,7 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
   Widget _buildCommunityTile(Map<String, dynamic> community) {
     final l10n = AppLocalizations.of(context)!;
     final id       = community['id'] as String;
-    final name     = community['name'] as String;
+    final name     = _capitalizedLabel(community['name'] as String);
     final isEntity = community['is_entity'] as bool;
     final selected = _selectedIds.contains(id);
 

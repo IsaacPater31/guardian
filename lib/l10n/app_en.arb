@@ -333,6 +333,12 @@
   "@@communitiesList": {},
   "officialEntities": "Official Entities",
   "myCommunities": "My Communities",
+  "selectedCommunityCount": "{count, plural, =1{1 community} other{{count} communities}}",
+  "@selectedCommunityCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "noResults": "No results",
   "communityCount": "{n} communit{plural}",
   "@communityCount": { "placeholders": { "n": { "type": "int" }, "plural": { "type": "String" } } },
@@ -372,6 +378,12 @@
   "@defaultCommunitiesFor": { "placeholders": { "type": { "type": "String" } } },
   "generalSection": "General",
   "about": "About",
+  "aboutVersion": "Version {version} · Guardian",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
   "appInfo": "Application information",
   "quickAlertsTitle": "Quick Alerts",
   "quickAlertsConfig": "Quick Alerts Configuration",
@@ -463,6 +475,18 @@
   "myAlertsFilterDateSection": "Date",
   "myAlertsFilterStatusSection": "Status",
   "myAlertsFilterTypeSection": "Alert type",
+  "mapFilterStatusSection": "Handling status",
+  "mapFilterDateSection": "Time period",
+  "mapFilterApplyButton": "Apply filters",
+  "filterStatusAll": "All",
+  "filterDateAll": "Any date",
+  "filterDateToday": "Today",
+  "filterDateYesterday": "Yesterday",
+  "filterDateWeek": "This week",
+  "filterDateLast7Days": "Last 7 days",
+  "filterDateMonth": "This month",
+  "filterDateCustom": "Custom",
+  "filterDateSelect": "Select",
   "myAlertsPickStartDate": "From",
   "myAlertsPickEndDate": "To",
   "myAlertsListCapHint": "Up to the {n} most recent alerts you sent are shown.",
@@ -500,6 +524,14 @@
   "selectCommunitiesSubtitle": "Select one or more communities",
   "noCommunitiesAvailableSnack": "You have no communities available",
   "errorLoadingCommunitiesDetail": "Error loading communities",
+  "quickAlertNoCommunitiesConfigured": "No communities configured. Set quick alerts in Settings.",
+  "quickAlertConfigureAction": "Configure",
+  "quickAlertConfigureTypeCommunities": "Configure communities for \"{type}\" in Settings.",
+  "@quickAlertConfigureTypeCommunities": {
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
   "microphonePermissionSnack": "Microphone permission is required",
   "recordingFailedWithError": "Could not record: {error}",
   "@recordingFailedWithError": { "placeholders": { "error": { "type": "String" } } },
@@ -529,6 +561,7 @@
   "audioPreviewFailed": "Could not play the audio preview.",
   "selectSubtypeRequired": "Select a subtype to continue",
   "describeOtherCaseRequired": "Describe the case for the “Other” option",
+  "noOwnRecentAlerts": "You have not sent recent alerts",
 
   "@@registerPassword": {},
   "passwordReqMinLength": "At least 8 characters",

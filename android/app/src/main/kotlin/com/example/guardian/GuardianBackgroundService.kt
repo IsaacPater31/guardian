@@ -20,13 +20,8 @@ class GuardianBackgroundService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "guardian_background_service"
-        private const val CHANNEL_NAME = "Guardian Background Service"
-        private const val CHANNEL_DESCRIPTION = "Mantiene Guardian escuchando alertas en segundo plano"
-        
         private const val ALERTS_CHANNEL_ID = "emergency_alerts"
-        private const val ALERTS_CHANNEL_NAME = "Emergency Alerts"
-        private const val ALERTS_CHANNEL_DESCRIPTION = "Notificaciones de alertas de emergencia"
-        
+
         private var isServiceRunning = false
         
         fun isRunning(): Boolean = isServiceRunning
@@ -104,14 +99,33 @@ class GuardianBackgroundService : Service() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NotificationManager::class.java)
+            val language = getCurrentLanguage()
+
+            val serviceChannelName =
+                if (language == "es") "Protección activa de Guardian" else "Guardian Active Protection"
+            val serviceChannelDescription =
+                if (language == "es") {
+                    "Mantiene Guardian monitoreando alertas en segundo plano"
+                } else {
+                    "Keeps Guardian monitoring alerts in the background"
+                }
+
+            val alertsChannelName =
+                if (language == "es") "Alertas de emergencia" else "Emergency alerts"
+            val alertsChannelDescription =
+                if (language == "es") {
+                    "Notificaciones de alertas enviadas por tu comunidad"
+                } else {
+                    "Notifications for alerts sent by your community"
+                }
             
             // Canal para la notificación persistente del servicio
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                serviceChannelName,
                 NotificationManager.IMPORTANCE_MIN // MIN para notificación persistente visible pero silenciosa
             ).apply {
-                description = CHANNEL_DESCRIPTION
+                description = serviceChannelDescription
                 setShowBadge(false) // No mostrar badge para servicio
                 enableLights(false)
                 enableVibration(false)
@@ -123,10 +137,10 @@ class GuardianBackgroundService : Service() {
             // Canal para las alertas de emergencia
             val alertsChannel = NotificationChannel(
                 ALERTS_CHANNEL_ID,
-                ALERTS_CHANNEL_NAME,
+                alertsChannelName,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = ALERTS_CHANNEL_DESCRIPTION
+                description = alertsChannelDescription
                 setShowBadge(true)
                 enableLights(true)
                 enableVibration(true)
@@ -174,9 +188,9 @@ class GuardianBackgroundService : Service() {
         }
         
         val content = if (language == "es") {
-            "Monitoreando alertas de emergencia • Toca para abrir"
+            "Monitoreando alertas de tu comunidad • Toca para abrir"
         } else {
-            "Monitoring emergency alerts • Tap to open"
+            "Monitoring community alerts • Tap to open"
         }
         
         val subText = if (language == "es") {
@@ -188,9 +202,9 @@ class GuardianBackgroundService : Service() {
         val stopButtonText = if (language == "es") "Detener" else "Stop"
         
         val bigText = if (language == "es") {
-            "Guardian está monitoreando alertas de emergencia en tu área. El servicio permanece activo para tu seguridad."
+            "Guardian está monitoreando alertas de tu comunidad. El servicio permanece activo para tu seguridad."
         } else {
-            "Guardian is monitoring emergency alerts in your area. The service remains active for your safety."
+            "Guardian is monitoring community alerts. The service remains active for your safety."
         }
         
         val summaryText = if (language == "es") {

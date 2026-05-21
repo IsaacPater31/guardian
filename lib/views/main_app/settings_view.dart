@@ -18,6 +18,12 @@ const _kGreen = Color(0xFF30D158);      // iOS green
 const _kOrange = Color(0xFFFF9F0A);     // iOS orange
 const _kRed = Color(0xFFFF3B30);        // iOS red
 
+String _capitalizedLabel(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return text;
+  return text[0].toUpperCase() + text.substring(1);
+}
+
 // =============================================================================
 // SettingsView
 // =============================================================================
@@ -39,8 +45,8 @@ class SettingsView extends StatelessWidget {
               _AppleTile(
                 icon: Icons.bolt_rounded,
                 iconColor: _kOrange,
-                title: 'Alertas Rápidas',
-                subtitle: 'Comunidades que reciben el toque de emergencia',
+                title: l10n.quickAlerts,
+                subtitle: l10n.configQuickAlerts,
                 onTap: () => Navigator.push(context,
                     _slide(const QuickAlertConfigView())),
               ),
@@ -48,8 +54,8 @@ class SettingsView extends StatelessWidget {
               _AppleTile(
                 icon: Icons.swipe_rounded,
                 iconColor: _kBlue,
-                title: 'Alertas por Tipo',
-                subtitle: 'Destinos predeterminados por cada tipo de alerta',
+                title: l10n.configSwipeAlerts,
+                subtitle: l10n.swipeAlertsSubtitle,
                 onTap: () => Navigator.push(context,
                     _slide(const SwipeAlertConfigView())),
               ),
@@ -63,7 +69,7 @@ class SettingsView extends StatelessWidget {
                 icon: Icons.info_rounded,
                 iconColor: _kSecondary,
                 title: l10n.about,
-                subtitle: 'Versión 1.0 · Guardian',
+                subtitle: l10n.aboutVersion('1.0'),
                 showChevron: false,
                 onTap: null,
               ),
@@ -139,6 +145,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
   }
 
   void _showSaveToast(bool success) {
+    final l10n = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
@@ -152,7 +159,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                 color: Colors.white, size: 20),
             const SizedBox(width: 10),
             Text(
-              success ? 'Configuración guardada' : 'Error al guardar',
+              success ? l10n.configSaved : l10n.errorSavingConfig,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
             ),
           ],
@@ -163,15 +170,16 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final entities = _destinations.where((d) => d['is_entity'] == true).toList();
     final communities = _destinations.where((d) => d['is_entity'] != true).toList();
 
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: _AppleAppBar(title: 'Alertas Rápidas', actions: [
+      appBar: _AppleAppBar(title: l10n.quickAlertsTitle, actions: [
         if (!_isLoading)
           _NavBarAction(
-            label: 'Guardar',
+            label: l10n.save,
             loading: _isSaving,
             onTap: _save,
           ),
@@ -186,14 +194,13 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                     child: _InfoBanner(
                       icon: Icons.bolt_rounded,
                       color: _kOrange,
-                      text:
-                          'Al presionar el botón de emergencia, la alerta se enviará instantáneamente a las comunidades seleccionadas.',
+                      text: l10n.selectCommunitiesForQuickAlerts,
                     ),
                   ),
                 ),
                 if (entities.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _SectionLabel('ENTIDADES OFICIALES',
+                    child: _SectionLabel(l10n.officialEntities.toUpperCase(),
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6)),
                   ),
                   SliverToBoxAdapter(
@@ -230,7 +237,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                 ],
                 if (communities.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _SectionLabel('MIS COMUNIDADES',
+                    child: _SectionLabel(l10n.myCommunities.toUpperCase(),
                         padding: const EdgeInsets.fromLTRB(16, 24, 16, 6)),
                   ),
                   SliverToBoxAdapter(
@@ -266,10 +273,10 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                   ),
                 ],
                 if (_destinations.isEmpty)
-                  const SliverFillRemaining(
+                  SliverFillRemaining(
                     child: _EmptyState(
                       icon: Icons.group_off_rounded,
-                      message: 'No tienes comunidades disponibles.\nÚnete o crea una para comenzar.',
+                      message: l10n.noCommunitiesAvailableSnack,
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -722,7 +729,8 @@ class _CommunityCheckTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = community['name'] as String? ?? '';
+    final l10n = AppLocalizations.of(context)!;
+    final name = _capitalizedLabel(community['name'] as String? ?? '');
     final isEntity = community['is_entity'] as bool? ?? false;
     final color = isEntity ? _kBlue : _kGreen;
 
@@ -766,7 +774,7 @@ class _CommunityCheckTile extends StatelessWidget {
                       const SizedBox(height: 2),
                     if (isEntity)
                       Text(
-                        'Entidad Oficial',
+                        l10n.officialEntity,
                         style: TextStyle(
                           fontSize: 12,
                           color: _kBlue.withValues(alpha: 0.8),
@@ -830,6 +838,7 @@ class _AlertTypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hasConfig = selected.isNotEmpty;
 
     return AnimatedContainer(
@@ -891,12 +900,13 @@ class _AlertTypeCard extends StatelessWidget {
                             // Status badge
                             hasConfig
                                 ? _StatusBadge(
-                                    text:
-                                        '${selected.length} comunidad${selected.length != 1 ? 'es' : ''}',
+                                    text: l10n.selectedCommunityCount(
+                                      selected.length,
+                                    ),
                                     color: _kGreen,
                                   )
                                 : _StatusBadge(
-                                    text: 'Sin configurar',
+                                    text: l10n.noDefaultCommunity,
                                     color: _kOrange,
                                   ),
                           ],
@@ -931,11 +941,11 @@ class _AlertTypeCard extends StatelessWidget {
                       indent: 0,
                       endIndent: 0),
                   if (communities.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(20),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
                       child: Text(
-                        'No tienes comunidades disponibles',
-                        style: TextStyle(color: _kSecondary, fontSize: 14),
+                        l10n.noCommunitiesAvailableSnack,
+                        style: const TextStyle(color: _kSecondary, fontSize: 14),
                       ),
                     )
                   else
@@ -979,7 +989,9 @@ class _AlertTypeCard extends StatelessWidget {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        community['name'] as String? ?? '',
+                                        _capitalizedLabel(
+                                          community['name'] as String? ?? '',
+                                        ),
                                         style: const TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w400,

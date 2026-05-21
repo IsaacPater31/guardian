@@ -655,7 +655,9 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    isAttended ? 'Atendida' : 'No atendida',
+                                    isAttended
+                                        ? AppLocalizations.of(context)!.alertStatusAttendedShort
+                                        : AppLocalizations.of(context)!.alertStatusNotAttendedShort,
                                     style: const TextStyle(
                                       fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white,
                                     ),

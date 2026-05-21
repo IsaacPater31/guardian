@@ -687,6 +687,8 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final types = EmergencyTypes.allTypesForFilters;
+    final dateOptions = localizedDateOptions(l10n);
+    final statusOptions = localizedStatusOptions(l10n);
     final communityIds = widget.communities
         .map((m) => m['id'] as String?)
         .whereType<String>()
@@ -794,7 +796,7 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
                   });
                 },
                 child: Column(
-                  children: kDateOptions.map((opt) {
+                  children: dateOptions.map((opt) {
                     return RadioListTile<String>(
                       dense: true,
                       value: opt['value']!,
@@ -842,7 +844,7 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
                   setState(() => _f = _f.copyWith(status: v));
                 },
                 child: Column(
-                  children: kStatusOptions.map((opt) {
+                  children: statusOptions.map((opt) {
                     return RadioListTile<String>(
                       dense: true,
                       value: opt['value']!,

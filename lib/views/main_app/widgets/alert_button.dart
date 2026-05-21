@@ -349,10 +349,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             children: [
               const Icon(Icons.settings, color: Colors.white),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'No hay comunidades configuradas. Configura las alertas rápidas en Ajustes.',
-                  style: TextStyle(fontSize: 13),
+                  AppLocalizations.of(context)!.quickAlertNoCommunitiesConfigured,
+                  style: const TextStyle(fontSize: 13),
                 ),
               ),
             ],
@@ -363,7 +363,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           margin: const EdgeInsets.all(16),
           duration: const Duration(milliseconds: 2200),
           action: SnackBarAction(
-            label: 'Configurar',
+            label: AppLocalizations.of(context)!.quickAlertConfigureAction,
             textColor: const Color(0xFF007AFF),
             onPressed: () {
               Navigator.push(
@@ -442,7 +442,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                         ),
                       ),
                       Text(
-                        'Enviada a $successCount comunidad${successCount > 1 ? 'es' : ''}',
+                        successCount == 1
+                            ? AppLocalizations.of(context)!.alertSentToOneCommunity
+                            : AppLocalizations.of(context)!
+                                .alertSentToManyCommunities(successCount),
                         style: const TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
@@ -536,7 +539,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Configura las comunidades para "$typeName" en Ajustes.',
+                  AppLocalizations.of(context)!.quickAlertConfigureTypeCommunities(typeName),
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
@@ -548,7 +551,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           margin: const EdgeInsets.all(16),
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
-            label: 'Configurar',
+            label: AppLocalizations.of(context)!.quickAlertConfigureAction,
             textColor: const Color(0xFF007AFF),
             onPressed: () {
               Navigator.push(

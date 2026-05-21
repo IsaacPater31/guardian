@@ -1748,6 +1748,12 @@ abstract class AppLocalizations {
   /// **'Mis Comunidades'**
   String get myCommunities;
 
+  /// No description provided for @selectedCommunityCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{1 comunidad} other{{count} comunidades}}'**
+  String selectedCommunityCount(int count);
+
   /// No description provided for @noResults.
   ///
   /// In es, this message translates to:
@@ -1921,6 +1927,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Acerca de'**
   String get about;
+
+  /// No description provided for @aboutVersion.
+  ///
+  /// In es, this message translates to:
+  /// **'Versión {version} · Guardian'**
+  String aboutVersion(String version);
 
   /// No description provided for @appInfo.
   ///
@@ -2402,6 +2414,78 @@ abstract class AppLocalizations {
   /// **'Tipo de alerta'**
   String get myAlertsFilterTypeSection;
 
+  /// No description provided for @mapFilterStatusSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado de atención'**
+  String get mapFilterStatusSection;
+
+  /// No description provided for @mapFilterDateSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Período de tiempo'**
+  String get mapFilterDateSection;
+
+  /// No description provided for @mapFilterApplyButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Aplicar filtros'**
+  String get mapFilterApplyButton;
+
+  /// No description provided for @filterStatusAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Todas'**
+  String get filterStatusAll;
+
+  /// No description provided for @filterDateAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Cualquier fecha'**
+  String get filterDateAll;
+
+  /// No description provided for @filterDateToday.
+  ///
+  /// In es, this message translates to:
+  /// **'Hoy'**
+  String get filterDateToday;
+
+  /// No description provided for @filterDateYesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'Ayer'**
+  String get filterDateYesterday;
+
+  /// No description provided for @filterDateWeek.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta semana'**
+  String get filterDateWeek;
+
+  /// No description provided for @filterDateLast7Days.
+  ///
+  /// In es, this message translates to:
+  /// **'Últimos 7 días'**
+  String get filterDateLast7Days;
+
+  /// No description provided for @filterDateMonth.
+  ///
+  /// In es, this message translates to:
+  /// **'Este mes'**
+  String get filterDateMonth;
+
+  /// No description provided for @filterDateCustom.
+  ///
+  /// In es, this message translates to:
+  /// **'Personalizado'**
+  String get filterDateCustom;
+
+  /// No description provided for @filterDateSelect.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar'**
+  String get filterDateSelect;
+
   /// No description provided for @myAlertsPickStartDate.
   ///
   /// In es, this message translates to:
@@ -2533,6 +2617,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Error cargando comunidades'**
   String get errorLoadingCommunitiesDetail;
+
+  /// No description provided for @quickAlertNoCommunitiesConfigured.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay comunidades configuradas. Configura las alertas rápidas en Ajustes.'**
+  String get quickAlertNoCommunitiesConfigured;
+
+  /// No description provided for @quickAlertConfigureAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar'**
+  String get quickAlertConfigureAction;
+
+  /// No description provided for @quickAlertConfigureTypeCommunities.
+  ///
+  /// In es, this message translates to:
+  /// **'Configura las comunidades para \"{type}\" en Ajustes.'**
+  String quickAlertConfigureTypeCommunities(String type);
 
   /// No description provided for @microphonePermissionSnack.
   ///
@@ -2683,6 +2785,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Describe el caso para la opción Otro'**
   String get describeOtherCaseRequired;
+
+  /// No description provided for @noOwnRecentAlerts.
+  ///
+  /// In es, this message translates to:
+  /// **'No has enviado alertas recientes'**
+  String get noOwnRecentAlerts;
 
   /// No description provided for @passwordReqMinLength.
   ///
