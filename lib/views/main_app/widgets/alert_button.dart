@@ -1053,7 +1053,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           Text(l10n.subtypeOrReasonLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: selectedSubtype,
+                            initialValue: selectedSubtype,
                             items: subtypeOptions
                                 .map((option) => DropdownMenuItem<String>(
                                       value: option.id,

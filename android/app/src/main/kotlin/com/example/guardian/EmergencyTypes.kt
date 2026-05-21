@@ -184,7 +184,7 @@ object EmergencyTypes {
     )
 
     private val englishTitles = mapOf(
-        "HEALTH" to "🏥 Health emergency",
+        "HEALTH" to "🏥 Health",
         "casa" to "🏠 Home",
         "policial" to "🚔 Police",
         "FIRE" to "🔥 Firefighters",

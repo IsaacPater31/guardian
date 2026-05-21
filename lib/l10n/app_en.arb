@@ -38,7 +38,7 @@
   "reportInappropriate": "Report as Inappropriate",
   
   "@@emergencyTypes": {},
-  "emergencyHealth": "Health Emergency",
+  "emergencyHealth": "Health",
   "emergencyHomeHelp": "Home",
   "emergencyPolice": "Police",
   "emergencyFireNew": "Firefighters",

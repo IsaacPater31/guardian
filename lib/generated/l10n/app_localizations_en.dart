@@ -117,7 +117,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportInappropriate => 'Report as Inappropriate';
 
   @override
-  String get emergencyHealth => 'Health Emergency';
+  String get emergencyHealth => 'Health';
 
   @override
   String get emergencyHomeHelp => 'Home';

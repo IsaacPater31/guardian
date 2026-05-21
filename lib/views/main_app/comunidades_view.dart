@@ -850,7 +850,7 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
                             ? null
                             : (value) => setState(
                                 () => _allowForwardToEntities = value),
-                        activeColor: const Color(0xFF34C759),
+                        activeThumbColor: const Color(0xFF34C759),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 4),
                         shape: RoundedRectangleBorder(

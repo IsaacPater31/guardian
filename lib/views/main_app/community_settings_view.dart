@@ -279,6 +279,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                             onPressed: isUpdating
                                 ? null
                                 : () async {
+                                    final l10n = AppLocalizations.of(context)!;
                                     if (!formKey.currentState!.validate()) {
                                       return;
                                     }
@@ -298,29 +299,28 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                                       iconCodePoint: selectedIconCodePoint,
                                       iconColor: selectedIconColor,
                                     );
-                                    if (mounted) {
-                                      Navigator.pop(context);
-                                      if (success) {
-                                        setState(() {
-                                          _community =
-                                              _community!.copyWith(
-                                            name: newName,
-                                            description:
-                                                newDescription.isEmpty
-                                                    ? null
-                                                    : newDescription,
-                                            iconCodePoint: selectedIconCodePoint,
-                                            iconColor: selectedIconColor,
-                                          );
-                                        });
-                                        _showSnackBar(
-                                            AppLocalizations.of(context)!.communityUpdated,
-                                            isSuccess: true);
-                                      } else {
-                                        _showSnackBar(
-                                            AppLocalizations.of(context)!.errorUpdatingCommunity,
-                                            isSuccess: false);
-                                      }
+                                    if (!context.mounted) return;
+                                    Navigator.pop(context);
+                                    if (success) {
+                                      setState(() {
+                                        _community = _community!.copyWith(
+                                          name: newName,
+                                          description: newDescription.isEmpty
+                                              ? null
+                                              : newDescription,
+                                          iconCodePoint: selectedIconCodePoint,
+                                          iconColor: selectedIconColor,
+                                        );
+                                      });
+                                      _showSnackBar(
+                                        l10n.communityUpdated,
+                                        isSuccess: true,
+                                      );
+                                    } else {
+                                      _showSnackBar(
+                                        l10n.errorUpdatingCommunity,
+                                        isSuccess: false,
+                                      );
                                     }
                                   },
                             style: ElevatedButton.styleFrom(
@@ -368,18 +368,21 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
 
   // ─── Invite Link ──────────────────────────────────────────
   Future<void> _generateInviteLink() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isGeneratingLink = true);
     try {
       final link =
           await _communityService.generateInviteLink(widget.communityId);
+      if (!mounted) return;
       if (link != null) {
         setState(() => _isGeneratingLink = false);
         _showInviteLinkSheet(link);
       } else {
         setState(() => _isGeneratingLink = false);
-        _showSnackBar(AppLocalizations.of(context)!.errorGeneratingLink, isSuccess: false);
+        _showSnackBar(l10n.errorGeneratingLink, isSuccess: false);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isGeneratingLink = false);
       _showSnackBar('Error: $e', isSuccess: false);
     }
@@ -552,6 +555,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
   // ─── Admin options ────────────────────────────────────────
   Future<void> _updateAllowForward(bool value) async {
     if (_community == null) return;
+    final l10n = AppLocalizations.of(context)!;
     try {
       final success = await _communityService.updateCommunity(
         widget.communityId,
@@ -563,16 +567,16 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         });
         _showSnackBar(
           value
-              ? AppLocalizations.of(context)!.forwardEnabled
-              : AppLocalizations.of(context)!.forwardDisabled,
+              ? l10n.forwardEnabled
+              : l10n.forwardDisabled,
           isSuccess: true,
         );
       } else {
-        _showSnackBar(AppLocalizations.of(context)!.onlyCreatorCanModify,
+        _showSnackBar(l10n.onlyCreatorCanModify,
             isSuccess: false);
       }
     } catch (e) {
-      _showSnackBar(AppLocalizations.of(context)!.errorUpdatingConfig,
+      _showSnackBar(l10n.errorUpdatingConfig,
           isSuccess: false);
     }
   }
@@ -1198,7 +1202,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF34C759),
+            activeThumbColor: const Color(0xFF34C759),
           ),
         ],
       ),

@@ -782,24 +782,28 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
               const SizedBox(height: 20),
               Text(l10n.myAlertsFilterDateSection, style: _sectionStyle),
               const SizedBox(height: 8),
-              ...kDateOptions.map((opt) {
-                return RadioListTile<String>(
-                  dense: true,
-                  value: opt['value']!,
-                  groupValue: _f.dateRange,
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() {
-                      _f = _f.copyWith(
-                        dateRange: v,
-                        clearCustomStart: v != 'custom',
-                        clearCustomEnd: v != 'custom',
-                      );
-                    });
-                  },
-                  title: Text(opt['label']!, style: const TextStyle(fontSize: 15)),
-                );
-              }),
+              RadioGroup<String>(
+                groupValue: _f.dateRange,
+                onChanged: (v) {
+                  setState(() {
+                    _f = _f.copyWith(
+                      dateRange: v,
+                      clearCustomStart: v != 'custom',
+                      clearCustomEnd: v != 'custom',
+                    );
+                  });
+                },
+                child: Column(
+                  children: kDateOptions.map((opt) {
+                    return RadioListTile<String>(
+                      dense: true,
+                      value: opt['value']!,
+                      title:
+                          Text(opt['label']!, style: const TextStyle(fontSize: 15)),
+                    );
+                  }).toList(),
+                ),
+              ),
               if (_f.dateRange == 'custom') ...[
                 Row(
                   children: [
@@ -832,50 +836,49 @@ class _MyAlertsFilterSheetState extends State<_MyAlertsFilterSheet> {
               const SizedBox(height: 12),
               Text(l10n.myAlertsFilterStatusSection, style: _sectionStyle),
               const SizedBox(height: 4),
-              ...kStatusOptions.map((opt) {
-                return RadioListTile<String>(
-                  dense: true,
-                  value: opt['value']!,
-                  groupValue: _f.status,
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() => _f = _f.copyWith(status: v));
-                  },
-                  title: Text(opt['label']!, style: const TextStyle(fontSize: 15)),
-                );
-              }),
+              RadioGroup<String>(
+                groupValue: _f.status,
+                onChanged: (v) {
+                  setState(() => _f = _f.copyWith(status: v));
+                },
+                child: Column(
+                  children: kStatusOptions.map((opt) {
+                    return RadioListTile<String>(
+                      dense: true,
+                      value: opt['value']!,
+                      title:
+                          Text(opt['label']!, style: const TextStyle(fontSize: 15)),
+                    );
+                  }).toList(),
+                ),
+              ),
               const SizedBox(height: 8),
               Text(l10n.myAlertsEngagementFilter, style: _sectionStyle),
               const SizedBox(height: 4),
-              RadioListTile<String>(
-                dense: true,
-                value: 'all',
+              RadioGroup<String>(
                 groupValue: _f.readFilter,
                 onChanged: (v) {
-                  if (v == null) return;
                   setState(() => _f = _f.copyWith(readFilter: v));
                 },
-                title: Text(l10n.myAlertsEngagementAll),
-              ),
-              RadioListTile<String>(
-                dense: true,
-                value: 'seen',
-                groupValue: _f.readFilter,
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _f = _f.copyWith(readFilter: v));
-                },
-                title: Text(l10n.myAlertsEngagementSeen),
-              ),
-              RadioListTile<String>(
-                dense: true,
-                value: 'none',
-                groupValue: _f.readFilter,
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _f = _f.copyWith(readFilter: v));
-                },
-                title: Text(l10n.myAlertsEngagementNone),
+                child: Column(
+                  children: [
+                    RadioListTile<String>(
+                      dense: true,
+                      value: 'all',
+                      title: Text(l10n.myAlertsEngagementAll),
+                    ),
+                    RadioListTile<String>(
+                      dense: true,
+                      value: 'seen',
+                      title: Text(l10n.myAlertsEngagementSeen),
+                    ),
+                    RadioListTile<String>(
+                      dense: true,
+                      value: 'none',
+                      title: Text(l10n.myAlertsEngagementNone),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               Text(l10n.myAlertsFilterTypeSection, style: _sectionStyle),

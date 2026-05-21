@@ -81,11 +81,11 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
   // ─── Admin Actions ───
 
   Future<void> _promoteToAdmin(Map<String, dynamic> member) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await _showConfirmDialog(
-      title: AppLocalizations.of(context)!.promoteToAdmin,
-      message:
-          AppLocalizations.of(context)!.promoteQuestion(member['user_name']),
-      confirmText: AppLocalizations.of(context)!.promote,
+      title: l10n.promoteToAdmin,
+      message: l10n.promoteQuestion(member['user_name']),
+      confirmText: l10n.promote,
       confirmColor: const Color(0xFF007AFF),
     );
 
@@ -96,23 +96,23 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
       widget.communityId,
       member['user_id'],
     );
-    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar(AppLocalizations.of(context)!.nowAdmin(member['user_name']),
-          isSuccess: true);
+      _showSnackBar(l10n.nowAdmin(member['user_name']), isSuccess: true);
       _loadMembers();
     } else {
-      _showSnackBar(AppLocalizations.of(context)!.errorPromoting, isSuccess: false);
+      _showSnackBar(l10n.errorPromoting, isSuccess: false);
     }
   }
 
   Future<void> _removeMember(Map<String, dynamic> member) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await _showConfirmDialog(
-      title: AppLocalizations.of(context)!.expelMember,
-      message:
-          AppLocalizations.of(context)!.expelConfirmation(member['user_name']),
-      confirmText: AppLocalizations.of(context)!.expel,
+      title: l10n.expelMember,
+      message: l10n.expelConfirmation(member['user_name']),
+      confirmText: l10n.expel,
       confirmColor: Colors.red,
       isDestructive: true,
     );
@@ -124,18 +124,19 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
       widget.communityId,
       member['user_id'],
     );
-    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar(AppLocalizations.of(context)!.userExpelled(member['user_name']),
-          isSuccess: true);
+      _showSnackBar(l10n.userExpelled(member['user_name']), isSuccess: true);
       _loadMembers();
     } else {
-      _showSnackBar(AppLocalizations.of(context)!.couldNotExpel, isSuccess: false);
+      _showSnackBar(l10n.couldNotExpel, isSuccess: false);
     }
   }
 
   Future<void> _reportMember(Map<String, dynamic> member) async {
+    final l10n = AppLocalizations.of(context)!;
     final reason = await _showReportDialog(member['user_name']);
     if (reason == null || reason.trim().isEmpty) return;
 
@@ -145,12 +146,13 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
       reportedUserId: member['user_id'],
       reason: reason.trim(),
     );
-    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar(AppLocalizations.of(context)!.reportSentToAdmins, isSuccess: true);
+      _showSnackBar(l10n.reportSentToAdmins, isSuccess: true);
     } else {
-      _showSnackBar(AppLocalizations.of(context)!.errorSendingReport, isSuccess: false);
+      _showSnackBar(l10n.errorSendingReport, isSuccess: false);
     }
   }
 
@@ -666,6 +668,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
           }
 
           Future<void> addUser(Map<String, dynamic> user) async {
+            final couldNotAdd = AppLocalizations.of(context)!.couldNotAdd;
             setSheetState(() => statusMessage = 'Agregando ${user['name']}...');
             final result = await _communityService.addMemberDirectly(
               widget.communityId,
@@ -684,7 +687,7 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
               setSheetState(() => statusMessage = null);
               if (mounted) {
                 _showSnackBar(
-                  result.message ?? AppLocalizations.of(context)!.couldNotAdd,
+                  result.message ?? couldNotAdd,
                   isSuccess: result.alreadyMember,
                 );
               }

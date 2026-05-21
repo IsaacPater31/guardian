@@ -63,6 +63,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
   }
 
   Future<void> _dismissReport(Map<String, dynamic> report) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -112,17 +113,19 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
 
     _showLoadingOverlay();
     final success = await _communityService.dismissReport(report['report_id']);
-    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
 
     if (success) {
-      _showSnackBar(AppLocalizations.of(context)!.reportDismissed, isSuccess: true);
+      _showSnackBar(l10n.reportDismissed, isSuccess: true);
       _loadReports();
     } else {
-      _showSnackBar(AppLocalizations.of(context)!.errorDismissingReport, isSuccess: false);
+      _showSnackBar(l10n.errorDismissingReport, isSuccess: false);
     }
   }
 
   Future<void> _removeReportedUser(Map<String, dynamic> report) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -189,7 +192,8 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
       await _communityService.dismissReport(report['report_id']);
     }
 
-    if (mounted) Navigator.pop(context); // dismiss loading
+    if (!mounted) return;
+    Navigator.pop(context); // dismiss loading
 
     if (removeSuccess) {
       _showSnackBar(
@@ -198,7 +202,7 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
       );
       _loadReports();
     } else {
-      _showSnackBar(AppLocalizations.of(context)!.couldNotExpel, isSuccess: false);
+      _showSnackBar(l10n.couldNotExpel, isSuccess: false);
     }
   }
 
