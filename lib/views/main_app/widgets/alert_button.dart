@@ -101,7 +101,8 @@ class _RadialLayoutMetrics {
           : 180.0,
     );
 
-    // Chips secundarios: tamaño medio (ni gigantes ni microscópicos).
+    // Chips secundarios: +40% aprox en área (boost controlado, sin romper colisiones).
+    const chipAreaBoost = 1.18; // ~1.18^2 = 1.39 (≈ +39% de área)
     var labelH = (canvasSide *
             (isTiny
                 ? 0.22
@@ -134,6 +135,24 @@ class _RadialLayoutMetrics {
               : 196.0
           : 124.0,
     );
+    labelH *= chipAreaBoost;
+    labelW *= chipAreaBoost;
+    labelH = labelH.clamp(
+      52.0,
+      isTablet
+          ? isTabletLandscape
+              ? 108.0
+              : 126.0
+          : 92.0,
+    );
+    labelW = labelW.clamp(
+      84.0,
+      isTablet
+          ? isTabletLandscape
+              ? 214.0
+              : 224.0
+          : 148.0,
+    );
     labelW = math.min(labelW, labelH * (isTablet ? 2.05 : 1.52));
     if (maxW.isFinite) {
       labelW = math.min(
@@ -157,12 +176,12 @@ class _RadialLayoutMetrics {
     final edgePad = (layoutShortest * 0.012).clamp(4.0, 10.0);
 
     // Distancia mínima para evitar colisiones, sin abrir exageradamente la órbita.
-    final chipOrbitFactor = isTabletLandscape ? 0.47 : 0.52;
+    final chipOrbitFactor = isTabletLandscape ? 0.49 : 0.54;
     var minOrbitRadius =
         hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
 
     // Si no cabe el anillo, reducir solo chips (nunca el hub).
-    final maxOrbitBudget = canvasSide * (isTabletLandscape ? 0.46 : 0.43);
+    final maxOrbitBudget = canvasSide * (isTabletLandscape ? 0.47 : 0.44);
     if (minOrbitRadius > maxOrbitBudget && minOrbitRadius > 0) {
       final scale = (maxOrbitBudget / minOrbitRadius).clamp(0.80, 1.0);
       labelH *= scale;
@@ -2135,16 +2154,26 @@ class _RadialMenu extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 150),
-                    child: Icon(
-                      icon,
-                      key: ValueKey('$dir-$isSelected'),
-                      size: iconSz,
-                      color: isSelected
-                          ? baseColor
-                          : _AppleEmergencyUX.labelSecondary,
-                    ),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: isSelected ? 1 : 0),
+                    duration: const Duration(milliseconds: 170),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, t, __) {
+                      final animatedColor = Color.lerp(
+                        _AppleEmergencyUX.labelSecondary,
+                        baseColor,
+                        t,
+                      )!;
+                      final animatedSize = iconSz * (0.96 + (0.08 * t));
+                      return Transform.scale(
+                        scale: 1.0 + (0.06 * t),
+                        child: Icon(
+                          icon,
+                          size: animatedSize,
+                          color: animatedColor,
+                        ),
+                      );
+                    },
                   ),
                   SizedBox(height: math.max(1.0, labelH * 0.016)),
                   Padding(
@@ -2160,9 +2189,7 @@ class _RadialMenu extends StatelessWidget {
                       maxLines: 1,
                       style: TextStyle(
                         fontSize: textTargetSize,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                         color: isSelected
                             ? baseColor
                             : _AppleEmergencyUX.labelPrimary,
