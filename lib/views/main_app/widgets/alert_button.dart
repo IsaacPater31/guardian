@@ -338,10 +338,12 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final destinations = await quickConfig.getQuickAlertDestinations();
 
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
 
     if (destinations.isEmpty) {
       // Sin configuración — redirigir a ajustes
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
         SnackBar(
           content: Row(
             children: [
@@ -359,7 +361,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
+          duration: const Duration(milliseconds: 2200),
           action: SnackBarAction(
             label: 'Configurar',
             textColor: const Color(0xFF007AFF),
@@ -377,7 +379,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -394,7 +397,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ],
         ),
         backgroundColor: _primaryDark,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(milliseconds: 1200),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -410,10 +413,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final int successCount = ok ? destinations.length : 0;
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
+    messenger.clearSnackBars();
     if (!mounted) return;
     if (successCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -449,18 +452,18 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             ),
           ),
           backgroundColor: _primaryDark,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.errorSendingAlert),
           backgroundColor: _danger,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
@@ -1412,7 +1415,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         : l10n.alertSendingToMany(n);
     
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -1431,7 +1436,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ],
         ),
         backgroundColor: _primaryDark,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(milliseconds: 1200),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -1460,7 +1465,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).clearSnackBars();
+    messenger.clearSnackBars();
 
     if (successCount > 0) {
       final screenWidth = MediaQuery.of(context).size.width;
@@ -1469,7 +1474,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ? okL10n.alertSentToOneCommunity
           : okL10n.alertSentToManyCommunities(successCount);
       
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1515,7 +1520,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             ),
           ),
           backgroundColor: _primaryDark,
-          duration: const Duration(seconds: 4),
+          duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1524,11 +1529,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.errorSendingAlert),
           backgroundColor: _danger,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
 import '../models/alert_model.dart';
+import '../utils/alert_date_range_presets.dart';
 
 /// Persistence for alert documents only (Firestore queries and writes).
 ///
@@ -179,7 +180,7 @@ class AlertRepository {
         start = customStart;
         end = customEnd;
       } else {
-        final range = AlertRepository._resolveDateRange(filterDateRange);
+        final range = alertFilterDateBounds(range: filterDateRange);
         start = range.$1;
         end = range.$2;
       }
@@ -360,31 +361,5 @@ class AlertRepository {
       return snapshot.docs.map(AlertModel.fromFirestore).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     });
-  }
-
-  static (DateTime, DateTime?) _resolveDateRange(String range) {
-    final now = DateTime.now();
-    switch (range) {
-      case 'today':
-        return (
-          DateTime(now.year, now.month, now.day),
-          DateTime(now.year, now.month, now.day, 23, 59, 59),
-        );
-      case 'yesterday':
-        final y = now.subtract(const Duration(days: 1));
-        return (
-          DateTime(y.year, y.month, y.day),
-          DateTime(y.year, y.month, y.day, 23, 59, 59),
-        );
-      case 'week':
-        final monday = now.subtract(Duration(days: now.weekday - 1));
-        return (DateTime(monday.year, monday.month, monday.day), null);
-      case '7days':
-        return (now.subtract(const Duration(days: 6)), null);
-      case 'month':
-        return (DateTime(now.year, now.month, 1), null);
-      default:
-        return (now.subtract(AppDurations.mapAlertsWindow), null);
-    }
   }
 }
