@@ -70,7 +70,7 @@ class _RadialLayoutMetrics {
     // Lienzo radial: ocupa gran parte del espacio, pero evita expansión excesiva.
     final canvasFactor = landscape && maxH < 300 ? 0.90 : 0.95;
     final canvasMax = isTabletish(deviceShortest, deviceWidth)
-        ? math.min(680.0, side)
+        ? math.min(760.0, side)
         : math.min(620.0, side);
     final canvasSide = (side * canvasFactor).clamp(240.0, canvasMax);
 
@@ -80,6 +80,7 @@ class _RadialLayoutMetrics {
         (layoutShortest < 392 ||
             (deviceShortest < 404 && deviceShortest >= 328));
     final isTablet = isTabletish(deviceShortest, deviceWidth);
+    final isTabletLandscape = isTablet && landscape;
 
     // Hub protagonista moderado: importante, sin dominar de forma exagerada.
     final hubFrac = isTiny
@@ -87,42 +88,88 @@ class _RadialLayoutMetrics {
         : isCompact
             ? 0.39
             : isTablet
-                ? 0.37
+                ? isTabletLandscape
+                    ? 0.36
+                    : 0.40
                 : 0.38;
     final hubSize = (canvasSide * hubFrac).clamp(
       isTiny ? 78.0 : 82.0,
-      isTablet ? 196.0 : 180.0,
+      isTablet
+          ? isTabletLandscape
+              ? 204.0
+              : 226.0
+          : 180.0,
     );
 
     // Chips secundarios: tamaño medio (ni gigantes ni microscópicos).
-    var labelH = (canvasSide * (isTiny ? 0.22 : 0.205)).clamp(
+    var labelH = (canvasSide *
+            (isTiny
+                ? 0.22
+                : isTablet
+                    ? isTabletLandscape
+                        ? 0.19
+                        : 0.215
+                    : 0.205))
+        .clamp(
       48.0,
-      isTablet ? 90.0 : 80.0,
+      isTablet
+          ? isTabletLandscape
+              ? 96.0
+              : 114.0
+          : 80.0,
     );
-    var labelW = (canvasSide * (isTiny ? 0.31 : 0.285)).clamp(
+    var labelW = (canvasSide *
+            (isTiny
+                ? 0.31
+                : isTablet
+                    ? isTabletLandscape
+                        ? 0.29
+                        : 0.31
+                    : 0.285))
+        .clamp(
       74.0,
-      isTablet ? 134.0 : 124.0,
+      isTablet
+          ? isTabletLandscape
+              ? 188.0
+              : 196.0
+          : 124.0,
     );
-    labelW = math.min(labelW, labelH * 1.52);
+    labelW = math.min(labelW, labelH * (isTablet ? 2.05 : 1.52));
     if (maxW.isFinite) {
-      labelW = math.min(labelW, maxW * (isTablet ? 0.40 : 0.42));
+      labelW = math.min(
+        labelW,
+        maxW *
+            (isTablet
+                ? isTabletLandscape
+                    ? 0.32
+                    : 0.36
+                : 0.42),
+      );
     }
 
-    final radialGutter = (layoutShortest * 0.042).clamp(8.0, 16.0);
+    final radialGutter = (layoutShortest *
+            (isTablet
+                ? isTabletLandscape
+                    ? 0.034
+                    : 0.040
+                : 0.042))
+        .clamp(8.0, isTabletLandscape ? 14.0 : 16.0);
     final edgePad = (layoutShortest * 0.012).clamp(4.0, 10.0);
 
     // Distancia mínima para evitar colisiones, sin abrir exageradamente la órbita.
-    var minOrbitRadius = hubSize / 2 + radialGutter + math.max(labelW, labelH) * 0.54;
+    final chipOrbitFactor = isTabletLandscape ? 0.47 : 0.52;
+    var minOrbitRadius =
+        hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
 
     // Si no cabe el anillo, reducir solo chips (nunca el hub).
-    final maxOrbitBudget = canvasSide * 0.43;
+    final maxOrbitBudget = canvasSide * (isTabletLandscape ? 0.46 : 0.43);
     if (minOrbitRadius > maxOrbitBudget && minOrbitRadius > 0) {
       final scale = (maxOrbitBudget / minOrbitRadius).clamp(0.80, 1.0);
       labelH *= scale;
       labelW *= scale;
-      labelW = math.min(labelW, labelH * 1.52);
+      labelW = math.min(labelW, labelH * (isTablet ? 2.05 : 1.52));
       minOrbitRadius =
-          hubSize / 2 + radialGutter + math.max(labelW, labelH) * 0.54;
+          hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
     }
 
     return _RadialLayoutMetrics(
@@ -132,7 +179,11 @@ class _RadialLayoutMetrics {
       labelH: labelH,
       radialGutter: radialGutter,
       edgePad: edgePad,
-      orbitFill: 0.58,
+      orbitFill: isTablet
+          ? isTabletLandscape
+              ? 0.56
+              : 0.64
+          : 0.58,
       minOrbitRadius: minOrbitRadius,
       isTiny: isTiny,
       isCompact: isCompact,
@@ -1680,12 +1731,36 @@ class _EventualityBottomStrip extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     final shortest = mq.size.shortestSide;
+    final isTablet = shortest >= 600;
+    final isLandscape = mq.orientation == Orientation.landscape;
+    final isTabletLandscape = isTablet && isLandscape;
     final hx = w < 360 ? 12.0 : w < 420 ? 16.0 : w < 720 ? 20.0 : 24.0;
-    final gap = w < 360 ? 10.0 : w < 420 ? 12.0 : 14.0;
+    final gap = isTabletLandscape
+        ? 20.0
+        : w < 360
+            ? 10.0
+            : w < 420
+                ? 12.0
+                : 14.0;
     final bottomExtra =
         mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
-    final maxRow = shortest >= 600 ? 640.0 : w >= 840 ? 720.0 : double.infinity;
-    final cardMinH = (shortest * 0.11).clamp(52.0, 64.0);
+    final maxRow = isTablet
+        ? isTabletLandscape
+            ? 980.0
+            : 820.0
+        : w >= 840
+            ? 720.0
+            : double.infinity;
+    final cardMinH = (shortest *
+            (isTablet
+                ? isTabletLandscape
+                    ? 0.105
+                    : 0.12
+                : 0.11))
+        .clamp(
+      52.0,
+      isTablet ? 84.0 : 64.0,
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
@@ -1741,10 +1816,23 @@ class _AppleCategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ss = MediaQuery.sizeOf(context).shortestSide;
     final w = MediaQuery.sizeOf(context).width;
-    final circleD = (ss * 0.10).clamp(36.0, 48.0);
+    final isTablet = ss >= 600 || w >= 720;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final circleD = (ss * (isTablet && isLandscape ? 0.086 : 0.10)).clamp(
+      36.0,
+      isTablet ? 54.0 : 48.0,
+    );
     final iconSz = (circleD * 0.52).clamp(18.0, 26.0);
     final titleSz = MediaQuery.textScalerOf(context).scale(
-      ss < 340 ? 14.0 : ss < 400 ? 14.5 : w >= 600 ? 16.0 : 15.0,
+      ss < 340
+          ? 14.0
+          : ss < 400
+              ? 14.5
+              : isTablet
+                  ? isLandscape
+                      ? 16.0
+                      : 17.0
+                  : 15.0,
     );
     final padH = ss < 340 ? 10.0 : 12.0;
     final padV = ss < 340 ? 12.0 : 14.0;

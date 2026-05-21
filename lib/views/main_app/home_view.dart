@@ -152,6 +152,7 @@ class _HomeViewState extends State<HomeView> {
     final shortest = mq.size.shortestSide;
     final landscape = mq.orientation == Orientation.landscape;
     final isTablet = shortest >= 600;
+    final isTabletLandscape = isTablet && landscape;
 
     // Teléfono en horizontal (SE, Android pequeño): priorizar altura del área de emergencia.
     if (landscape && shortest < 420) {
@@ -159,7 +160,9 @@ class _HomeViewState extends State<HomeView> {
     }
 
     final fraction = isTablet
-        ? 0.15
+        ? isTabletLandscape
+            ? 0.12
+            : 0.15
         : w < 360
             ? 0.22
             : w < 420
@@ -168,7 +171,9 @@ class _HomeViewState extends State<HomeView> {
                     ? 0.17
                     : 0.15;
     final desiredMin = isTablet
-        ? 138.0
+        ? isTabletLandscape
+            ? 126.0
+            : 138.0
         : w < 360
             ? 152.0
             : w < 420
@@ -179,8 +184,17 @@ class _HomeViewState extends State<HomeView> {
       return math.min(cap, math.max(132.0, h * fraction));
     }
     final maxPanel = math.min(
-      isTablet ? 230.0 : 224.0,
-      h * (isTablet ? 0.24 : 0.26),
+      isTablet
+          ? isTabletLandscape
+              ? 196.0
+              : 230.0
+          : 224.0,
+      h *
+          (isTablet
+              ? isTabletLandscape
+                  ? 0.20
+                  : 0.24
+              : 0.26),
     );
     final minPanel = math.min(desiredMin, maxPanel);
     return (h * fraction).clamp(minPanel, maxPanel);
