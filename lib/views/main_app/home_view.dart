@@ -159,28 +159,28 @@ class _HomeViewState extends State<HomeView> {
     }
 
     final fraction = isTablet
-        ? 0.12
+        ? 0.15
         : w < 360
-            ? 0.20
+            ? 0.22
             : w < 420
-                ? 0.17
+                ? 0.19
                 : w < 600
-                    ? 0.15
-                    : 0.13;
+                    ? 0.17
+                    : 0.15;
     final desiredMin = isTablet
-        ? 128.0
+        ? 138.0
         : w < 360
-            ? 148.0
+            ? 152.0
             : w < 420
-                ? 142.0
+                ? 148.0
                 : 136.0;
     if (h < 520) {
-      final cap = h * 0.28;
-      return math.min(cap, math.max(128.0, h * fraction));
+      final cap = h * 0.30;
+      return math.min(cap, math.max(132.0, h * fraction));
     }
     final maxPanel = math.min(
-      isTablet ? 188.0 : 212.0,
-      h * (isTablet ? 0.20 : 0.24),
+      isTablet ? 230.0 : 224.0,
+      h * (isTablet ? 0.24 : 0.26),
     );
     final minPanel = math.min(desiredMin, maxPanel);
     return (h * fraction).clamp(minPanel, maxPanel);
