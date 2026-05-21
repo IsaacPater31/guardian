@@ -5,7 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
-import '../core/entity_definitions.dart';
+import '../core/default_official_entities.dart';
+import '../core/official_entities_ensure_result.dart';
 import '../models/join_result.dart';
 import '../models/member_report_model.dart';
 import '../repositories/community_repository.dart';
@@ -27,92 +28,138 @@ class CommunityService {
     AlertService().invalidateCommunityCache();
   }
 
-  // ─── Entity bootstrap ────────────────────────────────────────────────────
+  // ─── Official entities (configured IDs, no auto-create) ─────────────────
 
-  Future<bool> initializeEntityCommunities() async {
+  /// Une al usuario autenticado a las entidades de [DefaultOfficialEntities].
+  /// Escribe detalle y resumen en consola vía [OfficialEntitiesEnsureResult.logToConsole].
+  Future<OfficialEntitiesEnsureResult> ensureUserInEntities() async {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      final result = OfficialEntitiesEnsureResult(
+        userId: null,
+        outcomes: const [],
+      );
+      result.logToConsole();
+      return result;
+    }
+
     try {
-      bool createdAny = false;
-
-      for (final entity in EntityDefinitions.defaultEntities) {
-        final existing = await _repo.queryCommunitiesByNameAndEntity(
-          entity[CommunityFields.name] as String,
-          true,
-        );
-
-        if (existing.docs.isEmpty) {
-          await _repo.addCommunity(EntityDefinitions.toFirestore(entity));
-          AppLogger.d('Entity created: ${entity[CommunityFields.name]}');
-          createdAny = true;
-        } else {
-          AppLogger.d('Entity already exists: ${entity[CommunityFields.name]}');
-        }
-      }
-
-      return createdAny;
-    } catch (e) {
-      AppLogger.e('initializeEntityCommunities', e);
-      return false;
+      final result = await _addUserToOfficialEntityIds(
+        userId,
+        DefaultOfficialEntities.communityIds,
+      );
+      result.logToConsole();
+      return result;
+    } catch (e, st) {
+      final result = OfficialEntitiesEnsureResult(
+        userId: userId,
+        outcomes: const [],
+        fatalError: e,
+        fatalStackTrace: st,
+      );
+      result.logToConsole();
+      return result;
     }
   }
 
-  Future<void> ensureUserInEntities() async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) {
-        AppLogger.w('ensureUserInEntities: no authenticated user');
-        return;
-      }
-
-      var entitiesSnap = await _repo.fetchAllEntityCommunities();
-
-      if (entitiesSnap.docs.isEmpty) {
-        AppLogger.w('No entities found — seeding now');
-        await initializeEntityCommunities();
-        entitiesSnap = await _repo.fetchAllEntityCommunities();
-
-        if (entitiesSnap.docs.isEmpty) {
-          AppLogger.e('Could not seed entities');
-          return;
-        }
-      }
-
-      await _addUserToEntities(userId, entitiesSnap.docs);
-    } catch (e) {
-      AppLogger.e('ensureUserInEntities', e);
-    }
-  }
-
-  Future<void> _addUserToEntities(
+  Future<OfficialEntitiesEnsureResult> _addUserToOfficialEntityIds(
     String userId,
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> entities,
+    List<String> communityIds,
   ) async {
+    final outcomes = <OfficialEntityJoinOutcome>[];
     final batch = _repo.createBatch();
-    int added = 0;
+    final pendingAdds = <String>[];
 
-    for (final entityDoc in entities) {
-      final communityId = entityDoc.id;
+    for (final communityId in communityIds) {
+      final id = communityId.trim();
+      final label = id.isEmpty
+          ? '(ID vacío)'
+          : DefaultOfficialEntities.labelForId(id);
 
-      final existingMember = await _repo.findMembership(userId, communityId);
+      if (id.isEmpty) {
+        outcomes.add(OfficialEntityJoinOutcome(
+          label: label,
+          communityId: id,
+          status: OfficialEntityJoinStatus.invalidId,
+          detail: 'Revisa default_official_entities.dart',
+        ));
+        continue;
+      }
 
-      if (existingMember.docs.isEmpty) {
-        final ref = _repo.firestore.collection(FirestoreCollections.communityMembers).doc();
+      try {
+        final community = await _repo.getCommunityById(id);
+        if (community == null) {
+          outcomes.add(OfficialEntityJoinOutcome(
+            label: label,
+            communityId: id,
+            status: OfficialEntityJoinStatus.notFound,
+          ));
+          continue;
+        }
+        if (!community.isEntity) {
+          outcomes.add(OfficialEntityJoinOutcome(
+            label: label,
+            communityId: id,
+            status: OfficialEntityJoinStatus.notEntity,
+            detail: 'name=${community.name}',
+          ));
+          continue;
+        }
+
+        final existingMember = await _repo.findMembership(userId, id);
+        if (existingMember.docs.isNotEmpty) {
+          outcomes.add(OfficialEntityJoinOutcome(
+            label: label,
+            communityId: id,
+            status: OfficialEntityJoinStatus.alreadyMember,
+          ));
+          continue;
+        }
+
+        final ref = _repo.firestore
+            .collection(FirestoreCollections.communityMembers)
+            .doc();
         batch.set(ref, {
           MemberFields.userId: userId,
-          MemberFields.communityId: communityId,
+          MemberFields.communityId: id,
           MemberFields.joinedAt: Timestamp.now(),
           MemberFields.role: MemberFields.roleMember,
         });
-        added++;
+        pendingAdds.add(id);
+        outcomes.add(OfficialEntityJoinOutcome(
+          label: label,
+          communityId: id,
+          status: OfficialEntityJoinStatus.added,
+        ));
+      } catch (e) {
+        outcomes.add(OfficialEntityJoinOutcome(
+          label: label,
+          communityId: id,
+          status: OfficialEntityJoinStatus.perEntityError,
+          detail: e.toString(),
+          error: e,
+        ));
       }
     }
 
-    if (added > 0) {
-      await batch.commit();
-      _invalidateAlertCommunityCache();
-      AppLogger.d('User added to $added entities');
-    } else {
-      AppLogger.d('User already belongs to all entities');
+    if (pendingAdds.isNotEmpty) {
+      try {
+        await batch.commit();
+        _invalidateAlertCommunityCache();
+      } catch (e, st) {
+        return OfficialEntitiesEnsureResult(
+          userId: userId,
+          outcomes: outcomes,
+          fatalError: e,
+          fatalStackTrace: st,
+        );
+      }
     }
+
+    return OfficialEntitiesEnsureResult(
+      userId: userId,
+      outcomes: outcomes,
+    );
   }
 
   // ─── Community queries ───────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
+import '../core/default_official_entities.dart';
 import '../repositories/community_repository.dart';
 
 /// Manages the set of communities that receive a Quick Alert.
@@ -71,11 +72,13 @@ class QuickAlertConfigService {
 
   Future<List<String>> _getDefaultEntityIds() async {
     try {
-      final snap = await _communities.fetchAllEntityCommunities();
-      return snap.docs.map((d) => d.id).toList();
+      final valid = await _communities.validateCommunityIds(
+        DefaultOfficialEntities.communityIds,
+      );
+      return valid;
     } catch (e) {
       AppLogger.e('QuickAlertConfigService._getDefaultEntityIds', e);
-      return [];
+      return List<String>.from(DefaultOfficialEntities.communityIds);
     }
   }
 }

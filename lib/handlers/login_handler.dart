@@ -111,8 +111,17 @@ class LoginHandler {
   }
 
   void _ensureEntitiesInBackground() {
-    CommunityService().ensureUserInEntities().catchError((error) {
-      AppLogger.w('ensureUserInEntities failed after auth: $error');
+    AppLogger.d('[OfficialEntities] Iniciando tras autenticación…');
+    Future<void>(() async {
+      try {
+        await CommunityService().ensureUserInEntities();
+      } catch (error, st) {
+        AppLogger.e(
+          '[OfficialEntities] Error no capturado en ensureUserInEntities',
+          error,
+        );
+        AppLogger.d('[OfficialEntities] Stack:\n$st');
+      }
     });
   }
 

@@ -7,7 +7,6 @@ import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/views/auth/auth_gate.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
 import 'package:guardian/services/localization_service.dart';
-import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/deep_link_service.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
@@ -29,13 +28,6 @@ Future<void> main() async {
   await Firebase.initializeApp();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  try {
-    final created = await CommunityService().initializeEntityCommunities();
-    AppLogger.d(created ? 'Entities seeded' : 'Entities already exist');
-  } catch (e) {
-    AppLogger.e('Entity seeding failed (non-fatal)', e);
-  }
 
   try {
     await DeepLinkService().initialize();

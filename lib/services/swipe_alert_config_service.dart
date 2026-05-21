@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/alert_type_normalize.dart';
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
+import '../core/default_official_entities.dart';
 import '../models/emergency_types.dart';
 import '../repositories/community_repository.dart';
 
@@ -75,7 +76,7 @@ class SwipeAlertConfigService {
     }
   }
 
-  Future<void> initDefaults(List<Map<String, dynamic>> communities) async {
+  Future<void> initDefaults() async {
     for (final entry in EmergencyTypes.typeMetadata.entries) {
       final typeName = entry.value['type'] as String;
       final keyword = entry.value['defaultCommunityKeyword'] as String?;
@@ -84,21 +85,15 @@ class SwipeAlertConfigService {
       final existing = await getCommunitiesForType(typeName);
       if (existing != null) continue;
 
-      final matched = communities
-          .where((c) {
-            final name = (c[CommunityFields.name] as String? ?? '').toUpperCase();
-            final kw = keyword.toUpperCase();
-            if (name.contains(kw)) return true;
-            if (kw == 'POLICIAL' && name.contains('POLICIA')) return true;
-            return false;
-          })
-          .map((c) => c['id'] as String)
-          .toList();
+      final communityId =
+          DefaultOfficialEntities.keywordToCommunityId[keyword.toUpperCase()];
+      if (communityId == null) continue;
 
-      if (matched.isNotEmpty) {
-        await setCommunitiesForType(typeName, matched);
-        AppLogger.d('SwipeAlertConfig default for $typeName → $matched');
-      }
+      final valid = await _communities.validateCommunityIds([communityId]);
+      if (valid.isEmpty) continue;
+
+      await setCommunitiesForType(typeName, valid);
+      AppLogger.d('SwipeAlertConfig default for $typeName → $valid');
     }
   }
 

@@ -63,12 +63,12 @@ class _RadialLayoutMetrics {
       return _RadialLayoutMetrics._tinyFallback();
     }
 
-    // Ocupa casi todo el cuadrado útil del [Expanded] (home).
-    final canvasFactor = landscape && maxH < 300 ? 0.90 : 0.96;
+    // Usa casi todo el [Expanded] del home (más lienzo = chips más separados del centro).
+    final canvasFactor = landscape && maxH < 300 ? 0.92 : 0.98;
     final canvasMax = isTabletish(deviceShortest, deviceWidth)
-        ? math.min(640.0, side)
-        : math.min(580.0, side);
-    final canvasSide = (side * canvasFactor).clamp(220.0, canvasMax);
+        ? math.min(680.0, side)
+        : math.min(620.0, side);
+    final canvasSide = (side * canvasFactor).clamp(240.0, canvasMax);
 
     final layoutShortest = canvasSide;
     final isTiny = layoutShortest < 278 || deviceShortest < 328;
@@ -77,36 +77,37 @@ class _RadialLayoutMetrics {
             (deviceShortest < 404 && deviceShortest >= 328));
     final isTablet = isTabletish(deviceShortest, deviceWidth);
 
-    // Botón Ayuda: el más grande de la pantalla.
+    // Ayuda: dominante pero deja aire para el anillo de chips.
     final hubFrac = isTiny
-        ? 0.36
+        ? 0.32
         : isCompact
-            ? 0.40
+            ? 0.34
             : isTablet
-                ? 0.42
-                : 0.44;
+                ? 0.36
+                : 0.38;
     final hubSize = (canvasSide * hubFrac).clamp(
-      isTiny ? 68.0 : 72.0,
-      isTablet ? 204.0 : 188.0,
+      isTiny ? 64.0 : 68.0,
+      isTablet ? 188.0 : 172.0,
     );
 
-    // Chips: área táctil ≥ 48dp y mejor lectura.
-    var labelH = (canvasSide * (isTiny ? 0.30 : 0.28)).clamp(
-      52.0,
-      isTablet ? 128.0 : 116.0,
+    // Chips táctiles (un poco más compactos → órbita más alejada del centro).
+    var labelH = (canvasSide * (isTiny ? 0.26 : 0.24)).clamp(
+      50.0,
+      isTablet ? 118.0 : 108.0,
     );
     labelH = math.max(labelH, 48.0);
-    var labelW = (canvasSide * (isTiny ? 0.38 : 0.34)).clamp(
-      86.0,
-      isTablet ? 184.0 : 172.0,
+    var labelW = (canvasSide * (isTiny ? 0.34 : 0.30)).clamp(
+      80.0,
+      isTablet ? 168.0 : 158.0,
     );
-    labelW = math.max(labelW, 76.0);
+    labelW = math.max(labelW, 72.0);
     if (maxW.isFinite) {
-      labelW = math.min(labelW, maxW * (isTablet ? 0.46 : 0.48));
+      labelW = math.min(labelW, maxW * (isTablet ? 0.44 : 0.46));
     }
 
-    final radialGutter = (layoutShortest * 0.052).clamp(14.0, 32.0);
-    final edgePad = (layoutShortest * 0.008).clamp(2.0, 6.0);
+    // Separación mínima entre borde del círculo Ayuda y los chips.
+    final radialGutter = (layoutShortest * 0.10).clamp(28.0, 52.0);
+    final edgePad = (layoutShortest * 0.01).clamp(3.0, 8.0);
 
     return _RadialLayoutMetrics(
       canvasSide: canvasSide,
@@ -115,7 +116,7 @@ class _RadialLayoutMetrics {
       labelH: labelH,
       radialGutter: radialGutter,
       edgePad: edgePad,
-      orbitFill: 0.996,
+      orbitFill: 0.94,
       isTiny: isTiny,
       isCompact: isCompact,
       isTablet: isTablet,
@@ -126,13 +127,13 @@ class _RadialLayoutMetrics {
       deviceShortest >= 560 || deviceWidth >= 600;
 
   static _RadialLayoutMetrics _tinyFallback() => const _RadialLayoutMetrics(
-        canvasSide: 248,
-        hubSize: 88,
-        labelW: 92,
-        labelH: 56,
-        radialGutter: 18,
-        edgePad: 3,
-        orbitFill: 0.996,
+        canvasSide: 260,
+        hubSize: 80,
+        labelW: 88,
+        labelH: 54,
+        radialGutter: 30,
+        edgePad: 4,
+        orbitFill: 0.94,
         isTiny: true,
         isCompact: false,
         isTablet: false,
@@ -205,10 +206,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   /// de cada tipo de alerta si aún no está configurada.
   Future<void> _initDefaultCommunities() async {
     try {
-      final communities = await _swipeConfig.getAvailableCommunities();
-      if (communities.isNotEmpty) {
-        await _swipeConfig.initDefaults(communities);
-      }
+      await _swipeConfig.initDefaults();
     } catch (e) {
       // No bloquear la UI si falla la inicialización
     }
@@ -1659,45 +1657,39 @@ class _EventualityBottomStrip extends StatelessWidget {
     final bottomExtra =
         mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
     final maxRow = shortest >= 600 ? 640.0 : w >= 840 ? 720.0 : double.infinity;
+    final cardMinH = (shortest * 0.11).clamp(52.0, 64.0);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardMinH = (constraints.maxWidth * 0.13).clamp(52.0, 68.0);
-        final row = Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _AppleCategoryCard(
-                icon: Icons.eco_rounded,
-                title: l10n.eventualityEnvironmentalTitle,
-                accent: _AppleEmergencyUX.accentGreen,
-                minHeight: cardMinH,
-                onTap: onAmbiental,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxRow),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _AppleCategoryCard(
+                  icon: Icons.eco_rounded,
+                  title: l10n.eventualityEnvironmentalTitle,
+                  accent: _AppleEmergencyUX.accentGreen,
+                  minHeight: cardMinH,
+                  onTap: onAmbiental,
+                ),
               ),
-            ),
-            SizedBox(width: gap),
-            Expanded(
-              child: _AppleCategoryCard(
-                icon: Icons.local_police_rounded,
-                title: l10n.eventualityPoliceTitle,
-                accent: _AppleEmergencyUX.accentBlue,
-                minHeight: cardMinH,
-                onTap: onPolicial,
+              SizedBox(width: gap),
+              Expanded(
+                child: _AppleCategoryCard(
+                  icon: Icons.local_police_rounded,
+                  title: l10n.eventualityPoliceTitle,
+                  accent: _AppleEmergencyUX.accentBlue,
+                  minHeight: cardMinH,
+                  onTap: onPolicial,
+                ),
               ),
-            ),
-          ],
-        );
-
-        return Padding(
-          padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxRow),
-              child: row,
-            ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1753,36 +1745,35 @@ class _AppleCategoryCard extends StatelessWidget {
       ),
     );
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: minHeight),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _AppleEmergencyUX.cardSurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _AppleEmergencyUX.separator,
-            width: 0.5,
-          ),
-          boxShadow: _AppleEmergencyUX.cardShadow,
+    final padVEff = math.max(padV, (minHeight - circleD) / 2 - 2).clamp(padV, 22.0);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _AppleEmergencyUX.cardSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _AppleEmergencyUX.separator,
+          width: 0.5,
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            splashColor: accent.withValues(alpha: 0.15),
-            highlightColor: accent.withValues(alpha: 0.06),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  circle,
-                  const SizedBox(width: 10),
-                  Flexible(child: text),
-                ],
-              ),
+        boxShadow: _AppleEmergencyUX.cardShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: accent.withValues(alpha: 0.15),
+          highlightColor: accent.withValues(alpha: 0.06),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: padH, vertical: padVEff),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                circle,
+                const SizedBox(width: 10),
+                Flexible(child: text),
+              ],
             ),
           ),
         ),
@@ -1929,9 +1920,12 @@ class _RadialMenu extends StatelessWidget {
     }
 
     final maxOrbit = maxOrbitFromAngles();
-    // Distribuye chips al borde del lienzo (máxima separación sin overflow).
-    final orbit = (innerEdge + (maxOrbit - innerEdge) * metrics.orbitFill)
-        .clamp(innerEdge, maxOrbit);
+    // Anillo: respeta separación mínima (radialGutter) y abre hacia el exterior.
+    final ringSpan = math.max(0.0, maxOrbit - innerEdge);
+    final orbit = (innerEdge + ringSpan * metrics.orbitFill).clamp(
+      innerEdge,
+      maxOrbit,
+    );
 
     final cx = availableWidth / 2;
     final cy = availableHeight / 2;

@@ -159,28 +159,28 @@ class _HomeViewState extends State<HomeView> {
     }
 
     final fraction = isTablet
-        ? 0.14
+        ? 0.12
         : w < 360
-            ? 0.24
+            ? 0.20
             : w < 420
-                ? 0.21
+                ? 0.17
                 : w < 600
-                    ? 0.18
-                    : 0.16;
+                    ? 0.15
+                    : 0.13;
     final desiredMin = isTablet
-        ? 132.0
+        ? 128.0
         : w < 360
-            ? 156.0
+            ? 148.0
             : w < 420
-                ? 150.0
-                : 144.0;
+                ? 142.0
+                : 136.0;
     if (h < 520) {
-      final cap = h * 0.32;
-      return math.min(cap, math.max(140.0, h * fraction));
+      final cap = h * 0.28;
+      return math.min(cap, math.max(128.0, h * fraction));
     }
     final maxPanel = math.min(
-      isTablet ? 204.0 : 232.0,
-      h * (isTablet ? 0.22 : 0.28),
+      isTablet ? 188.0 : 212.0,
+      h * (isTablet ? 0.20 : 0.24),
     );
     final minPanel = math.min(desiredMin, maxPanel);
     return (h * fraction).clamp(minPanel, maxPanel);
@@ -919,19 +919,19 @@ class _HomeViewState extends State<HomeView> {
             ? 20.0
             : (sw >= 420 ? 16.0 : 14.0);
     final topPad = landscape && shortest < 500
-        ? 4.0
+        ? 2.0
         : isSmall
-            ? 8.0
+            ? 4.0
             : isTablet
-                ? 14.0
+                ? 8.0
                 : isLargePhone
-                    ? 16.0
-                    : 12.0;
+                    ? 10.0
+                    : 6.0;
     final bottomPad = landscape && shortest < 500
-        ? 4.0
+        ? 2.0
         : isSmall
-            ? 6.0
-            : 10.0;
+            ? 4.0
+            : 6.0;
 
     return Container(
       padding: EdgeInsets.fromLTRB(hPad, topPad, hPad, bottomPad),
