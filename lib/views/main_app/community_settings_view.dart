@@ -381,10 +381,10 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         setState(() => _isGeneratingLink = false);
         _showSnackBar(l10n.errorGeneratingLink, isSuccess: false);
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isGeneratingLink = false);
-      _showSnackBar('Error: $e', isSuccess: false);
+      _showSnackBar(l10n.errorGeneratingLink, isSuccess: false);
     }
   }
 
@@ -713,10 +713,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           // Señal al feed para cerrar la comunidad y volver al listado actualizado.
           Navigator.pop(context, true);
         }
-      } catch (e) {
+      } catch (_) {
         if (mounted) {
-          final msg = e.toString().replaceFirst('Exception: ', '');
-          _showSnackBar(msg, isSuccess: false);
+          _showSnackBar(AppLocalizations.of(context)!.errorOccurred, isSuccess: false);
         }
       }
     }

@@ -2612,6 +2612,12 @@ abstract class AppLocalizations {
   /// **'No tienes comunidades disponibles'**
   String get noCommunitiesAvailableSnack;
 
+  /// No description provided for @noCommunitiesAvailableEmptyState.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes comunidades disponibles.\nÚnete o crea una para comenzar.'**
+  String get noCommunitiesAvailableEmptyState;
+
   /// No description provided for @errorLoadingCommunitiesDetail.
   ///
   /// In es, this message translates to:
@@ -2647,6 +2653,12 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'No se pudo grabar: {error}'**
   String recordingFailedWithError(String error);
+
+  /// No description provided for @recordingFailed.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo grabar'**
+  String get recordingFailed;
 
   /// No description provided for @alertDetailSheetTitle.
   ///

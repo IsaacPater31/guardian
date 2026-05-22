@@ -1385,6 +1385,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noCommunitiesAvailableSnack => 'No tienes comunidades disponibles';
 
   @override
+  String get noCommunitiesAvailableEmptyState =>
+      'No tienes comunidades disponibles.\nÚnete o crea una para comenzar.';
+
+  @override
   String get errorLoadingCommunitiesDetail => 'Error cargando comunidades';
 
   @override
@@ -1406,6 +1410,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String recordingFailedWithError(String error) {
     return 'No se pudo grabar: $error';
   }
+
+  @override
+  String get recordingFailed => 'No se pudo grabar';
 
   @override
   String get alertDetailSheetTitle => 'Detalle de alerta';

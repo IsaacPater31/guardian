@@ -677,11 +677,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         Navigator.pop(context);
         try {
           await _alertService.updateAlertStatus(alert.id!, status);
-        } catch (e) {
+        } catch (_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  '${AppLocalizations.of(context)!.errorUpdatingAlertStatus}: $e'),
+              content: Text(AppLocalizations.of(context)!.errorUpdatingAlertStatus),
               backgroundColor: Colors.red,
             ));
           }

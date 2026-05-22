@@ -701,12 +701,11 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
           );
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                '${AppLocalizations.of(context)!.errorOccurred}: $e'),
+            content: Text(AppLocalizations.of(context)!.errorOccurred),
             backgroundColor: const Color(0xFFFF3B30),
             behavior: SnackBarBehavior.floating,
             shape:

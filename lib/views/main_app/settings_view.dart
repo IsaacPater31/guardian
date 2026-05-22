@@ -6,6 +6,7 @@ import 'package:guardian/services/quick_alert_config_service.dart';
 import 'package:guardian/services/swipe_alert_config_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
+import 'package:guardian/utils/text_case_utils.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kBg = Color(0xFFF2F2F7);         // iOS system grouped background
@@ -17,12 +18,6 @@ const _kBlue = Color(0xFF007AFF);       // iOS blue
 const _kGreen = Color(0xFF30D158);      // iOS green
 const _kOrange = Color(0xFFFF9F0A);     // iOS orange
 const _kRed = Color(0xFFFF3B30);        // iOS red
-
-String _capitalizedLabel(String value) {
-  final text = value.trim();
-  if (text.isEmpty) return text;
-  return text[0].toUpperCase() + text.substring(1);
-}
 
 // =============================================================================
 // SettingsView
@@ -276,7 +271,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                   SliverFillRemaining(
                     child: _EmptyState(
                       icon: Icons.group_off_rounded,
-                      message: l10n.noCommunitiesAvailableSnack,
+                      message: l10n.noCommunitiesAvailableEmptyState,
                     ),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -730,7 +725,7 @@ class _CommunityCheckTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final name = _capitalizedLabel(community['name'] as String? ?? '');
+    final name = capitalizeFirst(community['name'] as String? ?? '');
     final isEntity = community['is_entity'] as bool? ?? false;
     final color = isEntity ? _kBlue : _kGreen;
 
@@ -989,7 +984,7 @@ class _AlertTypeCard extends StatelessWidget {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        _capitalizedLabel(
+                                        capitalizeFirst(
                                           community['name'] as String? ?? '',
                                         ),
                                         style: const TextStyle(

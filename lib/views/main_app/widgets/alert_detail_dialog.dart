@@ -12,6 +12,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
+import 'package:guardian/utils/text_case_utils.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
@@ -25,12 +26,6 @@ const Color _kTextSub   = Color(0xFF6B7280);
 const Color _kBluePrim  = Color(0xFF007AFF); // Apple blue
 const Color _kDark      = Color(0xFF1C1C1E);
 const Color _kError     = Color(0xFFFF3B30);
-
-String _capitalizedLabel(String value) {
-  final text = value.trim();
-  if (text.isEmpty) return text;
-  return text[0].toUpperCase() + text.substring(1);
-}
 
 /// Pill badge showing the attendance status of an alert.
 /// Used in the header and anywhere else an at-a-glance signal is needed.
@@ -152,7 +147,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         final mid = (m['id'] as String?)?.trim();
         final mname = (m['name'] as String?)?.trim();
         if (mid != null && mid.isNotEmpty && mname != null && mname.isNotEmpty) {
-          myNameById[mid] = _capitalizedLabel(mname);
+          myNameById[mid] = capitalizeFirst(mname);
         }
       }
     } catch (e) {
@@ -1279,8 +1274,9 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isReporting = false);
+        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          content: Text(l10n.errorSendingReport),
           backgroundColor: _kError,
           duration: const Duration(seconds: 3),
         ));
@@ -1366,22 +1362,22 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             duration: const Duration(seconds: 3),
           ));
         }
-      } catch (e) {
+      } catch (_) {
         if (mounted) {
           final l10n = AppLocalizations.of(context)!;
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${l10n.forwardErrorPrefix} ${e.toString()}'),
+            content: Text(l10n.forwardErrorPrefix),
             backgroundColor: _kError,
           ));
         }
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${l10n.genericErrorPrefix} ${e.toString()}'),
+          content: Text(l10n.genericErrorPrefix),
           backgroundColor: _kError,
         ));
       }
@@ -1531,7 +1527,7 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
   Widget _buildCommunityTile(Map<String, dynamic> community) {
     final l10n = AppLocalizations.of(context)!;
     final id       = community['id'] as String;
-    final name     = _capitalizedLabel(community['name'] as String);
+    final name     = capitalizeFirst(community['name'] as String);
     final isEntity = community['is_entity'] as bool;
     final selected = _selectedIds.contains(id);
 

@@ -137,6 +137,11 @@ class _RadialLayoutMetrics {
     );
     labelH *= chipAreaBoost;
     labelW *= chipAreaBoost;
+    if (isCompact && !isTablet) {
+      // En tamaño mediano/compacto el problema principal es horizontal:
+      // estrechar un poco el chip libera órbita sin perder legibilidad.
+      labelW *= 0.94;
+    }
     labelH = labelH.clamp(
       52.0,
       isTablet
@@ -176,7 +181,11 @@ class _RadialLayoutMetrics {
     final edgePad = (layoutShortest * 0.012).clamp(4.0, 10.0);
 
     // Distancia mínima para evitar colisiones, sin abrir exageradamente la órbita.
-    final chipOrbitFactor = isTabletLandscape ? 0.49 : 0.54;
+    final chipOrbitFactor = isTabletLandscape
+        ? 0.49
+        : isCompact
+            ? 0.60
+            : 0.56;
     var minOrbitRadius =
         hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
 
@@ -867,13 +876,13 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       );
 
       return selectedCommunities;
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${l10n.errorLoadingCommunitiesDetail}: $e'),
+            content: Text(l10n.errorLoadingCommunitiesDetail),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -958,11 +967,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         recordCapTimer = Timer(const Duration(seconds: 10), () {
           stopRecording(setDialogState);
         });
-      } catch (e) {
+      } catch (_) {
         await r.dispose();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.recordingFailedWithError('$e'))),
+          SnackBar(content: Text(AppLocalizations.of(context)!.recordingFailed)),
         );
       }
     }
@@ -1630,9 +1639,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final viewPad = mq.viewPadding;
     // Teléfono estrecho / SE vs pantallas amplias / tablet en horizontal.
     final hx = w < 360
-        ? 3.0
+        ? 4.0
         : w < 420
-            ? 5.0
+            ? 6.0
             : w < 600
                 ? 6.0
                 : w < 900
@@ -1978,6 +1987,24 @@ class _RadialMenu extends StatelessWidget {
 
     final minOrbit = metrics.minOrbitRadius;
     final edgePad = metrics.edgePad;
+    final labelBleedPad = isTiny
+        ? 5.0
+        : isCompact
+            ? 4.0
+            : isTablet
+                ? 4.0
+                : 4.5;
+    final horizontalBleedPad = isCompact && !isTablet ? 2.0 : labelBleedPad;
+    final verticalBleedPad = labelBleedPad;
+    final orbitPullOut = isTiny
+        ? 0.09
+        : isCompact
+            ? 0.12
+            : isTablet
+                ? 0.06
+                : 0.07;
+    final effectiveOrbitFill =
+        (metrics.orbitFill + orbitPullOut).clamp(0.0, 0.92);
 
     double maxOrbitForAngle(double angle) {
       final ca = math.cos(angle).abs();
@@ -1986,13 +2013,13 @@ class _RadialMenu extends StatelessWidget {
       if (ca > 1e-9) {
         lim = math.min(
           lim,
-          (availableWidth / 2 - labelW / 2 - edgePad) / ca,
+          (availableWidth / 2 - labelW / 2 - edgePad - horizontalBleedPad) / ca,
         );
       }
       if (sa > 1e-9) {
         lim = math.min(
           lim,
-          (availableHeight / 2 - labelH / 2 - edgePad) / sa,
+          (availableHeight / 2 - labelH / 2 - edgePad - verticalBleedPad) / sa,
         );
       }
       if (!lim.isFinite || lim < minOrbit) return minOrbit;
@@ -2003,7 +2030,7 @@ class _RadialMenu extends StatelessWidget {
       for (final e in dirAngles.entries)
         e.key: (minOrbit +
                 math.max(0.0, maxOrbitForAngle(e.value) - minOrbit) *
-                    metrics.orbitFill)
+                    effectiveOrbitFill)
             .clamp(minOrbit, maxOrbitForAngle(e.value)),
     };
     final orbitForRing = orbitByDir.values.isEmpty
@@ -2044,8 +2071,11 @@ class _RadialMenu extends StatelessWidget {
                   orbit: orbitByDir[e.key] ?? minOrbit,
                   cx: cx,
                   cy: cy,
+                  availableWidth: availableWidth,
+                  availableHeight: availableHeight,
                   labelW: labelW,
                   labelH: labelH,
+                  safeInset: edgePad + labelBleedPad,
                   isTinyLayout: isTiny,
                   isCompactLayout: isCompact,
                   isTabletLayout: isTablet,
@@ -2081,8 +2111,11 @@ class _RadialMenu extends StatelessWidget {
     required double orbit,
     required double cx,
     required double cy,
+    required double availableWidth,
+    required double availableHeight,
     required double labelW,
     required double labelH,
+    required double safeInset,
     required bool isTinyLayout,
     required bool isCompactLayout,
     required bool isTabletLayout,
@@ -2116,9 +2149,18 @@ class _RadialMenu extends StatelessWidget {
     // Reserva para borde decorativo (el hijo no debe superar el rect interior).
     const innerInset = 2.0;
 
+    final rawLeft = cx + dx - labelW / 2;
+    final rawTop = cy + dy - labelH / 2;
+    final minLeft = safeInset;
+    final maxLeft = math.max(minLeft, availableWidth - labelW - safeInset);
+    final minTop = safeInset;
+    final maxTop = math.max(minTop, availableHeight - labelH - safeInset);
+    final clampedLeft = rawLeft.clamp(minLeft, maxLeft).toDouble();
+    final clampedTop = rawTop.clamp(minTop, maxTop).toDouble();
+
     return Positioned(
-      left: cx + dx - labelW / 2,
-      top: cy + dy - labelH / 2,
+      left: clampedLeft,
+      top: clampedTop,
       child: IgnorePointer(
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),

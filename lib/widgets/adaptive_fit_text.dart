@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Texto que escala hacia abajo para caber en el espacio disponible.
@@ -26,61 +28,85 @@ class AdaptiveFitText extends StatelessWidget {
   Widget build(BuildContext context) {
     if (text.trim().isEmpty) return const SizedBox.shrink();
 
-    if (maxLines <= 1) {
-      return SizedBox(
-        width: maxWidth,
-        height: maxHeight,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: _alignment(textAlign),
-          child: Text(
-            text,
-            textAlign: textAlign,
-            maxLines: 1,
-            softWrap: false,
-            style: style,
-          ),
-        ),
-      );
-    }
+    final baseSize = style.fontSize ?? 14.0;
+    final minSize = minFontSize != null
+        ? math.min(minFontSize!, baseSize)
+        : math.max(8.0, baseSize * 0.75);
+    final resolvedMaxHeight = maxHeight ?? double.infinity;
 
-    final lines = text
-        .replaceAll('\r', '')
-        .split('\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    if (lines.isEmpty) return const SizedBox.shrink();
+    final fittedFontSize = _resolveFontSize(
+      context: context,
+      baseSize: baseSize,
+      minSize: minSize,
+      maxHeight: resolvedMaxHeight,
+    );
 
-    final lineStyle = style.copyWith(height: 1.05);
-    final gap = (style.fontSize ?? 14) * 0.08;
+    final fittedStyle = style.copyWith(
+      fontSize: fittedFontSize,
+      height: style.height ?? (maxLines > 1 ? 1.05 : 1.0),
+    );
+
+    final content = Text(
+      text,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      softWrap: maxLines > 1,
+      overflow: TextOverflow.visible,
+      style: fittedStyle,
+    );
 
     return SizedBox(
       width: maxWidth,
       height: maxHeight,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
+      child: Align(
         alignment: _alignment(textAlign),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < lines.length; i++) ...[
-                if (i > 0) SizedBox(height: gap),
-                Text(
-                  lines[i],
-                  textAlign: textAlign,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: lineStyle,
-                ),
-              ],
-            ],
-          ),
-        ),
+        child: content,
       ),
     );
+  }
+
+  double _resolveFontSize({
+    required BuildContext context,
+    required double baseSize,
+    required double minSize,
+    required double maxHeight,
+  }) {
+    var current = baseSize;
+    while (current >= minSize) {
+      if (_fits(
+        context: context,
+        fontSize: current,
+        maxHeight: maxHeight,
+      )) {
+        return current;
+      }
+      current -= 0.5;
+    }
+    return minSize;
+  }
+
+  bool _fits({
+    required BuildContext context,
+    required double fontSize,
+    required double maxHeight,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: style.copyWith(
+          fontSize: fontSize,
+          height: style.height ?? (maxLines > 1 ? 1.05 : 1.0),
+        ),
+      ),
+      textAlign: textAlign,
+      textDirection: Directionality.of(context),
+      maxLines: maxLines,
+    );
+
+    painter.layout(minWidth: 0, maxWidth: maxWidth);
+    if (painter.didExceedMaxLines) return false;
+    if (maxHeight.isFinite && painter.height > maxHeight) return false;
+    return true;
   }
 
   static Alignment _alignment(TextAlign align) {
