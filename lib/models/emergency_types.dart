@@ -4,7 +4,7 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Clase centralizada para manejar todos los tipos de emergencia.
 ///
-/// El menú radial del home usa solo [types] (5 direcciones). Los tipos
+/// El menú radial del home usa solo [types] (6 direcciones). Los tipos
 /// `policial` y `ambiental` se eligen con los botones inferiores.
 /// [typeMetadata] incluye todos los tipos configurables y filtros.
 class EmergencyTypes {
@@ -69,10 +69,12 @@ class EmergencyTypes {
     },
   };
 
-  /// Gesto radial: dirección → tipo (solo 5 en la estrella).
-  /// Arriba ayuda en casa, derecha sanitaria, izquierda acoso, abajo-izq seguridad, abajo-der vial.
+  /// Gesto radial: dirección → tipo (6 direcciones en la estrella).
+  /// Arriba-izquierda bomberos, arriba-derecha casa, derecha sanitaria,
+  /// izquierda acoso, abajo-izq seguridad, abajo-der vial.
   static const Map<String, String> radialDirectionToType = {
-    'up': AlertDetailCatalog.homeHelp,
+    'upLeft': AlertDetailCatalog.fire,
+    'upRight': AlertDetailCatalog.homeHelp,
     'right': AlertDetailCatalog.health,
     'downRight': AlertDetailCatalog.roadEmergency,
     'downLeft': AlertDetailCatalog.securityBreach,

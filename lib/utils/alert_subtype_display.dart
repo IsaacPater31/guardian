@@ -32,8 +32,8 @@ class AlertSubtypeDisplay {
       'ANIMAL_RESCUE': 'Animal rescue',
       'FLOOD': 'Flood',
       'DANGEROUS_FAUNA': 'Dangerous fauna',
-      'LANDSLIDE': 'Landslide',
-      'TREE_OR_STRUCTURE_FALL': 'Fallen tree or structure',
+      'LANDSLIDE': 'Landslides',
+      'TREE_OR_STRUCTURE_FALL': 'Fallen trees or structures',
       AlertDetailCatalog.otherSubtypeId: 'Other',
     },
     AlertDetailCatalog.securityBreach: {

@@ -540,17 +540,66 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     if (mounted) {
       _hideEmergencyOptions();
       final typeName = EmergencyTypes.getTranslatedType(emergencyType, context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      final l10n = AppLocalizations.of(context)!;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
         SnackBar(
-          content: Row(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.settings, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  AppLocalizations.of(context)!.quickAlertConfigureTypeCommunities(typeName),
-                  style: const TextStyle(fontSize: 13),
-                ),
+              // Clear downward affordance (drag down) + handle.
+              const Icon(
+                Icons.keyboard_double_arrow_down_rounded,
+                size: 18,
+                color: Colors.white70,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Icon(Icons.settings, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      l10n.quickAlertConfigureTypeCommunities(typeName),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF4DA3FF),
+                      minimumSize: const Size(0, 30),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () {
+                      messenger.hideCurrentSnackBar();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SwipeAlertConfigView(
+                            initialAlertType: emergencyType,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      l10n.quickAlertConfigureAction,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -558,23 +607,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: AppLocalizations.of(context)!.quickAlertConfigureAction,
-            textColor: const Color(0xFF007AFF),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SwipeAlertConfigView(
-                    initialAlertType: emergencyType,
-                  ),
-                ),
-              );
-            },
-          ),
+          dismissDirection: DismissDirection.down,
+          duration: const Duration(milliseconds: 3200),
         ),
       );
+      Future.delayed(const Duration(milliseconds: 3600), () {
+        if (!mounted) return;
+        messenger.hideCurrentSnackBar();
+      });
     }
   }
 
@@ -1569,7 +1609,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   // ---------------------------------------------------------------------------
-  // Cinco direcciones (estrella): la más cercana en ángulo al gesto corregido.
+  // Seis direcciones (estrella): la más cercana en ángulo al gesto corregido.
   // ---------------------------------------------------------------------------
   String _getDirection(
     Offset offset,
@@ -1590,7 +1630,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       'downRight': -5 * math.pi / 18,
       'downLeft': -13 * math.pi / 18,
       'left': math.pi,
-      'up': math.pi / 2,
+      'upRight': 5 * math.pi / 18,
+      'upLeft': 13 * math.pi / 18,
     };
 
     double normDelta(double x, double c) {
@@ -1614,13 +1655,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       }
     }
     if (bestDiff > maxAngleSlack) return '';
+    // Sector superior: decidir lado por desplazamiento horizontal para evitar
+    // ambiguedad cuando el gesto va casi vertical.
+    if (a > 5 * math.pi / 18 && a < 13 * math.pi / 18) {
+      return corrected.dx < 0 ? 'upLeft' : 'upRight';
+    }
     return best;
   }
 
   /// Ángulos en radianes para posicionar chips (Y hacia abajo en pantalla).
-  /// Abajo: π/4±π/36 (~50° / ~130°): mismas esquinas, un poco más abajo que 45°/135°.
+  /// Arriba y abajo comparten columnas X (±50° / ±130°), logrando
+  /// alineación vertical entre pares izquierdo/derecho.
   static const Map<String, double> _dirAngles = {
-    'up': -math.pi / 2,
+    'upLeft': -13 * math.pi / 18,
+    'upRight': -5 * math.pi / 18,
     'right': 0.0,
     'downRight': 5 * math.pi / 18,
     'downLeft': 13 * math.pi / 18,

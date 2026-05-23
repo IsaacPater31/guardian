@@ -83,11 +83,12 @@ object EmergencyTypes {
     )
 
     /**
-     * Gesto radial (5 direcciones) + centro toque rápido — misma asignación que
+     * Gesto radial (6 direcciones) + centro toque rápido — misma asignación que
      * [EmergencyTypes.radialDirectionToType] en Dart.
      */
     val types: Map<String, EmergencyType> = mapOf(
-        "up" to catalogTypes.getValue("casa"),
+        "upLeft" to catalogTypes.getValue("FIRE"),
+        "upRight" to catalogTypes.getValue("casa"),
         "left" to catalogTypes.getValue("acoso"),
         "downLeft" to catalogTypes.getValue("seguridad"),
         "downRight" to catalogTypes.getValue("vial"),

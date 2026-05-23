@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 ///
 /// Web parity: mismos `alertType` / subtype `id` que el webapp
 /// (`webapp/src/config/alertTypes.js`, `LEGACY_ALERT_TYPE_ALIASES`).
-/// Tipos swipe en Firestore: `casa`, `seguridad`, `vial`, `acoso`, `ambiental`, `policial`.
+/// Tipos swipe en Firestore: `casa`, `FIRE`, `seguridad`, `vial`, `acoso`, `ambiental`, `policial`.
 class AlertDetailCatalog {
   static const String health = 'HEALTH';
   static const String homeHelp = 'casa';
@@ -86,10 +86,10 @@ class AlertDetailCatalog {
         AlertSubtypeOption(id: 'HAZARDOUS_SUBSTANCES', label: 'Sustancias peligrosas'),
         AlertSubtypeOption(id: 'SHORT_CIRCUIT', label: 'Cortocircuito'),
         AlertSubtypeOption(id: 'ANIMAL_RESCUE', label: 'Rescate animal'),
-        AlertSubtypeOption(id: 'FLOOD', label: 'Inundacion'),
+        AlertSubtypeOption(id: 'FLOOD', label: 'Inundación'),
         AlertSubtypeOption(id: 'DANGEROUS_FAUNA', label: 'Fauna peligrosa'),
-        AlertSubtypeOption(id: 'LANDSLIDE', label: 'Derrumbe'),
-        AlertSubtypeOption(id: 'TREE_OR_STRUCTURE_FALL', label: 'Arbol o estructura caida'),
+        AlertSubtypeOption(id: 'LANDSLIDE', label: 'Derrumbes'),
+        AlertSubtypeOption(id: 'TREE_OR_STRUCTURE_FALL', label: 'Árboles o estructuras caídas'),
         AlertSubtypeOption(id: otherSubtypeId, label: 'Otro', requiresDetail: true),
       ],
     ),
