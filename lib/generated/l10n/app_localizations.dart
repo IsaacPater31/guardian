@@ -2492,6 +2492,12 @@ abstract class AppLocalizations {
   /// **'Desde'**
   String get myAlertsPickStartDate;
 
+  /// No description provided for @additionalInfoLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Información adicional'**
+  String get additionalInfoLabel;
+
   /// No description provided for @myAlertsPickEndDate.
   ///
   /// In es, this message translates to:

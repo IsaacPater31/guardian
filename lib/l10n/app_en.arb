@@ -488,6 +488,7 @@
   "filterDateCustom": "Custom",
   "filterDateSelect": "Select",
   "myAlertsPickStartDate": "From",
+  "additionalInfoLabel": "Additional information",
   "myAlertsPickEndDate": "To",
   "myAlertsListCapHint": "Up to the {n} most recent alerts you sent are shown.",
   "@myAlertsListCapHint": {

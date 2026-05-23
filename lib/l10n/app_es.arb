@@ -488,6 +488,7 @@
   "filterDateCustom": "Personalizado",
   "filterDateSelect": "Seleccionar",
   "myAlertsPickStartDate": "Desde",
+  "additionalInfoLabel": "Información adicional",
   "myAlertsPickEndDate": "Hasta",
   "myAlertsListCapHint": "Se muestran como máximo las {n} alertas más recientes enviadas desde este dispositivo.",
   "@myAlertsListCapHint": {

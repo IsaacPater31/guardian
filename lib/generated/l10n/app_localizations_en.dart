@@ -1302,6 +1302,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myAlertsPickStartDate => 'From';
 
   @override
+  String get additionalInfoLabel => 'Additional information';
+
+  @override
   String get myAlertsPickEndDate => 'To';
 
   @override

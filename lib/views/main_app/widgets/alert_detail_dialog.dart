@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/models/community_model.dart';
@@ -10,12 +12,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:guardian/handlers/alert_handler.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
-import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/utils/text_case_utils.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
+import 'package:guardian/services/audio_preview_service.dart';
+import 'package:path_provider/path_provider.dart';
 // ─── Shared design constants ───────────────────────────────────────────────────
 const Color _kAttended  = Color(0xFF34C759); // Apple green
 const Color _kPending   = Color(0xFFFF9F0A); // Apple amber
@@ -101,9 +104,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   bool    _isReporting          = false;
 
   bool get _isAttended => widget.alert.alertStatus == 'attended';
-
-  String _getTranslatedAlertType() =>
-      EmergencyTypes.getTranslatedType(widget.alert.alertType, context);
 
   @override
   void initState() {
@@ -223,14 +223,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                       SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // ── Tipo principal + detalle / subtipo ────────────────────
-                    _buildAlertTypeAndSubtypeBodySection(isSmall),
-                    SizedBox(height: isSmall ? 12 : 16),
-
-                    // ── Anonimato ─────────────────────────────────────────────
-                    _buildAnonymityHighlightSection(isSmall),
-                    SizedBox(height: isSmall ? 12 : 16),
-
                     // ── Fecha y hora (absoluta) ──────────────────────────────
                     _buildDateTimeDetailSection(isSmall),
                     SizedBox(height: isSmall ? 12 : 16),
@@ -256,19 +248,24 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                       SizedBox(height: isSmall ? 12 : 16),
                     ],
 
-                    // ── Additional info ──────────────────────────────────────
-                    _buildAdditionalInfoSection(),
+                    // ── Additional info (solo cuando aporta contexto útil) ───
+                    if (!widget.alert.shareLocation ||
+                        widget.alert.attachmentPlaceholders.isNotEmpty ||
+                        widget.alert.viewedCount > 0) ...[
+                      _buildAdditionalInfoSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
 
                     if (widget.alert.imageBase64 != null &&
                         widget.alert.imageBase64!.isNotEmpty) ...[
-                      SizedBox(height: isSmall ? 12 : 16),
                       _buildImageAttachmentsGallery(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
                     ],
 
                     if (widget.alert.audioBase64 != null &&
                         widget.alert.audioBase64!.isNotEmpty) ...[
-                      SizedBox(height: isSmall ? 12 : 16),
                       _buildAudioAttachmentNotice(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
                     ],
 
                     SizedBox(height: isSmall ? 8 : 16),
@@ -286,6 +283,18 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
   // ─── Header ─────────────────────────────────────────────────────────────────
   Widget _buildHeader(bool isSmall) {
     final alertColor = _getAlertColor(widget.alert.alertType);
+    final l10n = AppLocalizations.of(context)!;
+    final reporterName = widget.alert.isAnonymous
+        ? l10n.anonymousReportMap
+        : (widget.alert.userName?.trim().isNotEmpty ?? false)
+            ? widget.alert.userName!.trim()
+            : l10n.unknownUser;
+    final headline = AlertSubtypeDisplay.primaryWithSubtypeLine(
+      context,
+      widget.alert.alertType,
+      widget.alert.subtype,
+      widget.alert.customDetail,
+    )!;
 
     return Container(
       decoration: BoxDecoration(
@@ -334,11 +343,10 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
           SizedBox(height: isSmall ? 12 : 16),
 
-          // Tipo principal primero; subtipo destacado debajo (Policía → Robo).
           Text(
-            _getTranslatedAlertType(),
+            reporterName,
             style: TextStyle(
-              fontSize:   isSmall ? 19 : 22,
+              fontSize:   isSmall ? 20 : 24,
               fontWeight: FontWeight.w800,
               color:      Colors.white,
               letterSpacing: 0.15,
@@ -346,42 +354,17 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
             ),
             textAlign: TextAlign.center,
           ),
-          if (AlertSubtypeDisplay.line(
-                context,
-                widget.alert.alertType,
-                widget.alert.subtype,
-                widget.alert.customDetail,
-              ).isNotEmpty) ...[
-            SizedBox(height: isSmall ? 8 : 10),
-            Text.rich(
-              TextSpan(
-                style: TextStyle(
-                  fontSize:   isSmall ? 16 : 18,
-                  fontWeight: FontWeight.w800,
-                  color:      Colors.white,
-                  height:     1.2,
-                ),
-                children: [
-                  TextSpan(
-                    text: '→ ',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  TextSpan(
-                    text: AlertSubtypeDisplay.line(
-                      context,
-                      widget.alert.alertType,
-                      widget.alert.subtype,
-                      widget.alert.customDetail,
-                    ),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
+          SizedBox(height: isSmall ? 8 : 10),
+          Text(
+            headline,
+            style: TextStyle(
+              fontSize: isSmall ? 13 : 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.92),
+              height: 1.2,
             ),
-          ],
+            textAlign: TextAlign.center,
+          ),
 
           SizedBox(height: isSmall ? 8 : 10),
 
@@ -602,159 +585,6 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     );
   }
 
-  // ─── Cuerpo: tipo principal + subtipo (misma jerarquía que el encabezado) ───
-  Widget _buildAlertTypeAndSubtypeBodySection(bool isSmall) {
-    final l10n    = AppLocalizations.of(context)!;
-    final alertColor = _getAlertColor(widget.alert.alertType);
-    final main   = _getTranslatedAlertType();
-    final sub    = AlertSubtypeDisplay.line(
-      context,
-      widget.alert.alertType,
-      widget.alert.subtype,
-      widget.alert.customDetail,
-    );
-    final subText = sub.isNotEmpty ? sub : l10n.alertDetailNoSubtype;
-
-    return Container(
-      padding: EdgeInsets.all(isSmall ? 14 : 16),
-      decoration: BoxDecoration(
-        color:  alertColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: alertColor.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: alertColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_getAlertIcon(widget.alert.alertType), color: alertColor, size: 24),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.alertDetailMainTypeLabel.toUpperCase(),
-                      style: TextStyle(
-                        fontSize:   10,
-                        fontWeight: FontWeight.w700,
-                        color:      alertColor.withValues(alpha: 0.75),
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      main,
-                      style: TextStyle(
-                        fontSize:   isSmall ? 17 : 18,
-                        fontWeight: FontWeight.w800,
-                        color:      alertColor,
-                        height:     1.2,
-                      ),
-                    ),
-                    SizedBox(height: isSmall ? 12 : 14),
-                    Text(
-                      l10n.alertDetailSubtypeLabel.toUpperCase(),
-                      style: TextStyle(
-                        fontSize:   10,
-                        fontWeight: FontWeight.w700,
-                        color:      _kTextSub,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subText,
-                      style: const TextStyle(
-                        fontSize:   16,
-                        fontWeight: FontWeight.w800,
-                        color:      _kText,
-                        height:     1.25,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnonymityHighlightSection(bool isSmall) {
-    final l10n = AppLocalizations.of(context)!;
-    final anon = widget.alert.isAnonymous;
-    final fg   = anon ? const Color(0xFFB45309) : const Color(0xFF1B7F3A);
-    final bg   = anon ? Colors.orange.withValues(alpha: 0.1) : const Color(0xFF34C759).withValues(alpha: 0.1);
-    final bd   = anon ? Colors.orange.withValues(alpha: 0.35) : const Color(0xFF34C759).withValues(alpha: 0.35);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isSmall ? 14 : 16),
-      decoration: BoxDecoration(
-        color:        bg,
-        borderRadius: BorderRadius.circular(14),
-        border:       Border.all(color: bd, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.alertDetailAnonymityHeading.toUpperCase(),
-            style: TextStyle(
-              fontSize:   10,
-              fontWeight: FontWeight.w700,
-              color:      fg.withValues(alpha: 0.8),
-              letterSpacing: 0.6,
-            ),
-          ),
-          SizedBox(height: isSmall ? 8 : 10),
-          Row(
-            children: [
-              Icon(
-                anon ? Icons.visibility_off_rounded : Icons.verified_user_rounded,
-                color: fg,
-                size: isSmall ? 22 : 24,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  anon ? l10n.anonymousReport : l10n.identifiedReport,
-                  style: TextStyle(
-                    fontSize:   isSmall ? 15 : 16,
-                    fontWeight: FontWeight.w800,
-                    color:      fg,
-                    height:     1.25,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (!anon && widget.alert.userName != null && widget.alert.userName!.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              '${l10n.reportedBy}: ${widget.alert.userName!.trim()}',
-              style: const TextStyle(
-                fontSize:   13,
-                fontWeight: FontWeight.w600,
-                color:      _kTextSub,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildDateTimeDetailSection(bool isSmall) {
     final l10n = AppLocalizations.of(context)!;
     return _buildInfoCard(
@@ -919,6 +749,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
   // ─── Additional info ─────────────────────────────────────────────────────────
   Widget _buildAdditionalInfoSection() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding:    const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -929,35 +760,39 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'INFORMACIÓN ADICIONAL',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kTextSub, letterSpacing: 0.8),
+          Text(
+            l10n.additionalInfoLabel.toUpperCase(),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kTextSub, letterSpacing: 0.8),
           ),
           const SizedBox(height: 14),
-          _buildInfoRow(
-            icon:  widget.alert.shareLocation ? Icons.location_on_rounded : Icons.location_off_rounded,
-            color: widget.alert.shareLocation ? Colors.green : _kTextSub,
-            label: widget.alert.shareLocation
-                ? AppLocalizations.of(context)!.locationShared
-                : AppLocalizations.of(context)!.locationNotShared,
-          ),
-          if (widget.alert.viewedCount > 0) ...[
+          if (!widget.alert.shareLocation)
+            _buildInfoRow(
+              icon:  Icons.location_off_rounded,
+              color: _kTextSub,
+              label: l10n.locationNotShared,
+            ),
+          if (!widget.alert.shareLocation &&
+              (widget.alert.viewedCount > 0 || widget.alert.attachmentPlaceholders.isNotEmpty))
             const SizedBox(height: 10),
+          if (widget.alert.viewedCount > 0) ...[
             _buildInfoRow(
               icon:  Icons.visibility_rounded,
               color: _kBluePrim,
               label:
-                  '${AppLocalizations.of(context)!.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? AppLocalizations.of(context)!.people : AppLocalizations.of(context)!.person}',
+                  '${l10n.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? l10n.people : l10n.person}',
             ),
           ],
-          if (widget.alert.attachmentPlaceholders.isNotEmpty) ...[
+          if (widget.alert.viewedCount > 0 &&
+              widget.alert.attachmentPlaceholders.isNotEmpty)
             const SizedBox(height: 10),
+          if (widget.alert.attachmentPlaceholders.isNotEmpty)
+            const SizedBox(height: 10),
+          if (widget.alert.attachmentPlaceholders.isNotEmpty)
             _buildInfoRow(
               icon: Icons.info_outline_rounded,
               color: _kTextSub,
               label: widget.alert.attachmentPlaceholders.join(' · '),
             ),
-          ],
         ],
       ),
     );
@@ -993,13 +828,21 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
           Icon(Icons.mic_rounded, color: Colors.deepPurple.shade700, size: isSmall ? 22 : 24),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'Esta alerta incluye un clip de audio adjunto.',
-              style: TextStyle(
-                fontSize: isSmall ? 14 : 15,
-                fontWeight: FontWeight.w600,
-                color: _kText,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.photosAndAudioSection,
+                  style: TextStyle(
+                    fontSize: isSmall ? 14 : 15,
+                    fontWeight: FontWeight.w700,
+                    color: _kText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _AlertAudioPreview(audioBase64: widget.alert.audioBase64!),
+              ],
             ),
           ),
         ],
@@ -1457,6 +1300,108 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
     return l10n.detailRelativeDays(diff.inDays);
   }
 
+}
+
+class _AlertAudioPreview extends StatefulWidget {
+  const _AlertAudioPreview({required this.audioBase64});
+
+  final String audioBase64;
+
+  @override
+  State<_AlertAudioPreview> createState() => _AlertAudioPreviewState();
+}
+
+class _AlertAudioPreviewState extends State<_AlertAudioPreview> {
+  String? _path;
+  bool _loading = true;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AudioPreviewService.setCompletionHandler(() {
+      if (mounted) setState(() => _playing = false);
+    });
+    _prepare();
+  }
+
+  Future<void> _prepare() async {
+    try {
+      final bytes = base64Decode(widget.audioBase64);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/alert_preview_${DateTime.now().millisecondsSinceEpoch}.m4a');
+      await file.writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      setState(() {
+        _path = file.path;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _path = null;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggle() async {
+    if (_path == null) return;
+    if (_playing) {
+      await AudioPreviewService.stop();
+      if (mounted) setState(() => _playing = false);
+      return;
+    }
+    try {
+      await AudioPreviewService.play(_path!);
+      if (mounted) setState(() => _playing = true);
+    } on PlatformException {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.audioPreviewFailed)),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    AudioPreviewService.clearCompletionHandler();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_loading) {
+      return const SizedBox(
+        height: 32,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_path == null) {
+      return Text(
+        l10n.audioPreviewFailed,
+        style: const TextStyle(fontSize: 12, color: _kTextSub),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: _toggle,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        side: BorderSide(color: Colors.deepPurple.withValues(alpha: 0.35)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 18),
+      label: Text(_playing ? l10n.attachmentPausePreview : l10n.attachmentListenPreview),
+    );
+  }
 }
 
 // ─── Forward alert dialog ─────────────────────────────────────────────────────

@@ -1310,6 +1310,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get myAlertsPickStartDate => 'Desde';
 
   @override
+  String get additionalInfoLabel => 'Información adicional';
+
+  @override
   String get myAlertsPickEndDate => 'Hasta';
 
   @override
