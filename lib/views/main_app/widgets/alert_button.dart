@@ -18,6 +18,19 @@ import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/widgets/adaptive_fit_text.dart';
 
+double _clamp01(double value) => value.clamp(0.0, 1.0).toDouble();
+
+double _lerpDouble(double a, double b, double t) => a + (b - a) * _clamp01(t);
+
+double _fluidScale(
+  double input, {
+  required double inMin,
+  required double inMax,
+}) {
+  if (inMax <= inMin) return 0;
+  return _clamp01((input - inMin) / (inMax - inMin));
+}
+
 /// Paleta y métricas tipo iOS (legibilidad, aire, profesional).
 /// Métricas del menú radial derivadas del espacio disponible (responsive).
 class _RadialLayoutMetrics {
@@ -28,6 +41,7 @@ class _RadialLayoutMetrics {
   final double radialGutter;
   final double edgePad;
   final double orbitFill;
+
   /// Radio mínimo del centro del chip: hub + gutter + mitad diagonal del chip.
   final double minOrbitRadius;
   final bool isTiny;
@@ -67,72 +81,85 @@ class _RadialLayoutMetrics {
       return _RadialLayoutMetrics._tinyFallback();
     }
 
-    // Lienzo radial: ocupa gran parte del espacio, pero evita expansión excesiva.
-    final canvasFactor = landscape && maxH < 300 ? 0.90 : 0.95;
-    final canvasMax = isTabletish(deviceShortest, deviceWidth)
-        ? math.min(760.0, side)
+    final isTabletLike = isTabletish(deviceShortest, deviceWidth);
+    // Lienzo radial: usar más área útil en tablets y anchos medianos.
+    final canvasFactor = landscape && maxH < 300
+        ? 0.91
+        : isTabletLike
+        ? 0.97
+        : 0.955;
+    final canvasMax = isTabletLike
+        ? math.min(860.0, side)
         : math.min(620.0, side);
     final canvasSide = (side * canvasFactor).clamp(240.0, canvasMax);
 
     final layoutShortest = canvasSide;
     final isTiny = layoutShortest < 278 || deviceShortest < 328;
-    final isCompact = !isTiny &&
+    final isCompact =
+        !isTiny &&
         (layoutShortest < 392 ||
             (deviceShortest < 404 && deviceShortest >= 328));
     final isTablet = isTabletish(deviceShortest, deviceWidth);
     final isTabletLandscape = isTablet && landscape;
+    final fluidT = _fluidScale(
+      layoutShortest,
+      inMin: 250,
+      inMax: isTablet ? 860 : 620,
+    );
 
     // Hub protagonista moderado: importante, sin dominar de forma exagerada.
-    final hubFrac = isTiny
-        ? 0.38
-        : isCompact
-            ? 0.39
-            : isTablet
-                ? isTabletLandscape
-                    ? 0.36
-                    : 0.40
-                : 0.38;
+    final hubFrac =
+        (0.405 -
+                (0.034 * fluidT) +
+                (isTablet && !isTabletLandscape ? 0.006 : 0.0) +
+                (isTiny ? -0.008 : 0.0))
+            .clamp(0.35, 0.405);
     final hubSize = (canvasSide * hubFrac).clamp(
       isTiny ? 78.0 : 82.0,
       isTablet
           ? isTabletLandscape
-              ? 204.0
-              : 226.0
+                ? 204.0
+                : 226.0
           : 180.0,
     );
 
     // Chips secundarios: +40% aprox en área (boost controlado, sin romper colisiones).
     const chipAreaBoost = 1.18; // ~1.18^2 = 1.39 (≈ +39% de área)
-    var labelH = (canvasSide *
-            (isTiny
-                ? 0.22
-                : isTablet
-                    ? isTabletLandscape
-                        ? 0.19
-                        : 0.215
-                    : 0.205))
-        .clamp(
+    var labelHFactor = _lerpDouble(
+      isTiny ? 0.228 : 0.218,
+      isTablet
+          ? isTabletLandscape
+                ? 0.188
+                : 0.212
+          : 0.198,
+      fluidT,
+    );
+    var labelWFactor = _lerpDouble(
+      isTiny ? 0.318 : 0.306,
+      isTablet
+          ? isTabletLandscape
+                ? 0.276
+                : 0.298
+          : 0.278,
+      fluidT,
+    );
+    if (isCompact && !isTablet) {
+      labelWFactor *= 0.965;
+    }
+    var labelH = (canvasSide * labelHFactor).clamp(
       48.0,
       isTablet
           ? isTabletLandscape
-              ? 96.0
-              : 114.0
+                ? 96.0
+                : 114.0
           : 80.0,
     );
-    var labelW = (canvasSide *
-            (isTiny
-                ? 0.31
-                : isTablet
-                    ? isTabletLandscape
-                        ? 0.29
-                        : 0.31
-                    : 0.285))
-        .clamp(
+    var labelW = (canvasSide * labelWFactor).clamp(
       74.0,
       isTablet
           ? isTabletLandscape
-              ? 188.0
-              : 196.0
+                ? 188.0
+                : 196.0
           : 124.0,
     );
     labelH *= chipAreaBoost;
@@ -140,22 +167,22 @@ class _RadialLayoutMetrics {
     if (isCompact && !isTablet) {
       // En tamaño mediano/compacto el problema principal es horizontal:
       // estrechar un poco el chip libera órbita sin perder legibilidad.
-      labelW *= 0.94;
+      labelW *= 0.92;
     }
     labelH = labelH.clamp(
       52.0,
       isTablet
           ? isTabletLandscape
-              ? 108.0
-              : 126.0
+                ? 108.0
+                : 126.0
           : 92.0,
     );
     labelW = labelW.clamp(
       84.0,
       isTablet
           ? isTabletLandscape
-              ? 214.0
-              : 224.0
+                ? 214.0
+                : 224.0
           : 148.0,
     );
     labelW = math.min(labelW, labelH * (isTablet ? 2.05 : 1.52));
@@ -165,27 +192,32 @@ class _RadialLayoutMetrics {
         maxW *
             (isTablet
                 ? isTabletLandscape
-                    ? 0.32
-                    : 0.36
+                      ? 0.32
+                      : 0.36
                 : 0.42),
       );
     }
 
-    final radialGutter = (layoutShortest *
-            (isTablet
-                ? isTabletLandscape
-                    ? 0.034
-                    : 0.040
-                : 0.042))
-        .clamp(8.0, isTabletLandscape ? 14.0 : 16.0);
+    final radialGutterFactor = _lerpDouble(
+      0.038,
+      isTabletLandscape ? 0.027 : 0.031,
+      fluidT,
+    );
+    final radialGutter = (layoutShortest * radialGutterFactor).clamp(
+      6.5,
+      isTabletLandscape ? 12.0 : 14.0,
+    );
     final edgePad = (layoutShortest * 0.012).clamp(4.0, 10.0);
 
     // Distancia mínima para evitar colisiones, sin abrir exageradamente la órbita.
-    final chipOrbitFactor = isTabletLandscape
-        ? 0.49
-        : isCompact
-            ? 0.60
-            : 0.56;
+    final chipOrbitFactor =
+        (_lerpDouble(
+                  isCompact ? 0.56 : 0.54,
+                  isTabletLandscape ? 0.45 : 0.48,
+                  fluidT,
+                ) +
+                (isTiny ? 0.02 : 0.0))
+            .clamp(0.45, 0.60);
     var minOrbitRadius =
         hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
 
@@ -197,7 +229,9 @@ class _RadialLayoutMetrics {
       labelW *= scale;
       labelW = math.min(labelW, labelH * (isTablet ? 2.05 : 1.52));
       minOrbitRadius =
-          hubSize / 2 + radialGutter + math.max(labelW, labelH) * chipOrbitFactor;
+          hubSize / 2 +
+          radialGutter +
+          math.max(labelW, labelH) * chipOrbitFactor;
     }
 
     return _RadialLayoutMetrics(
@@ -207,11 +241,11 @@ class _RadialLayoutMetrics {
       labelH: labelH,
       radialGutter: radialGutter,
       edgePad: edgePad,
-      orbitFill: isTablet
-          ? isTabletLandscape
-              ? 0.56
-              : 0.64
-          : 0.58,
+      orbitFill:
+          (_lerpDouble(0.57, 0.50, fluidT) +
+                  (isTablet && !isTabletLandscape ? 0.03 : 0.0) +
+                  (isTiny ? 0.02 : 0.0))
+              .clamp(0.49, 0.62),
       minOrbitRadius: minOrbitRadius,
       isTiny: isTiny,
       isCompact: isCompact,
@@ -251,11 +285,7 @@ abstract final class _AppleEmergencyUX {
   static const Color accentGreen = Color(0xFF34C759);
   static const Color accentBlue = Color(0xFF007AFF);
   static const List<BoxShadow> cardShadow = [
-    BoxShadow(
-      color: Color(0x14000000),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
   ];
 }
 
@@ -268,7 +298,8 @@ class AlertButton extends StatefulWidget {
   State<AlertButton> createState() => _AlertButtonState();
 }
 
-class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin {
+class _AlertButtonState extends State<AlertButton>
+    with TickerProviderStateMixin {
   static const Color _primary = Color(0xFF007AFF);
   static const Color _primaryDark = Color(0xFF1C1C1E);
   static const Color _danger = Color(0xFFFF3B30);
@@ -276,16 +307,16 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  
+
   bool _showEmergencyOptions = false;
   String _currentEmergencyType = '';
   bool _isGestureActive = false;
-  
+
   Offset _dragOffset = Offset.zero;
-  
+
   String? _currentDragDirection;
   bool _showDragFeedback = false;
-  
+
   final AlertHandler _alertHandler = AlertHandler();
   final CommunityService _communityService = CommunityService();
   final SwipeAlertConfigService _swipeConfig = SwipeAlertConfigService();
@@ -330,7 +361,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         _showEmergencyOptions = true;
       });
       _animationController.forward();
-      
+
       Future.delayed(const Duration(milliseconds: 200), () {
         if (mounted) {
           _showEmergencyDialog(EmergencyTypes.types[direction]!['type']);
@@ -360,7 +391,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  AppLocalizations.of(context)!.quickAlertNoCommunitiesConfigured,
+                  AppLocalizations.of(
+                    context,
+                  )!.quickAlertNoCommunitiesConfigured,
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
@@ -368,7 +401,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ),
           backgroundColor: const Color(0xFF1C1C1E),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
           duration: const Duration(milliseconds: 2200),
           action: SnackBarAction(
@@ -377,9 +412,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const QuickAlertConfigView(),
-                ),
+                MaterialPageRoute(builder: (_) => const QuickAlertConfigView()),
               );
             },
           ),
@@ -434,9 +467,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(
-                    color: Colors.white, shape: BoxShape.circle,
+                    color: Colors.white,
+                    shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle, color: _primary, size: 20),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: _primary,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -447,15 +485,23 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       Text(
                         AppLocalizations.of(context)!.alertSent,
                         style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
                       Text(
                         successCount == 1
-                            ? AppLocalizations.of(context)!.alertSentToOneCommunity
-                            : AppLocalizations.of(context)!
-                                .alertSentToManyCommunities(successCount),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                            ? AppLocalizations.of(
+                                context,
+                              )!.alertSentToOneCommunity
+                            : AppLocalizations.of(
+                                context,
+                              )!.alertSentToManyCommunities(successCount),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -466,7 +512,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           backgroundColor: _primaryDark,
           duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -477,7 +525,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           backgroundColor: _danger,
           duration: const Duration(milliseconds: 1800),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -489,7 +539,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     if (emergencyData == null || emergencyData.isEmpty) return;
 
     // 1. Verificar si hay comunidades configuradas por defecto para este tipo
-    final configuredIds = await _swipeConfig.getCommunitiesForType(emergencyType);
+    final configuredIds = await _swipeConfig.getCommunitiesForType(
+      emergencyType,
+    );
 
     if (configuredIds != null && configuredIds.isNotEmpty) {
       // Hay configuración guardada — obtener los datos de esas comunidades
@@ -500,8 +552,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       if (preselected.isNotEmpty && mounted) {
         // Mostrar diag de confirmación con las comunidades pre-seleccionadas
-        final selected =
-            await _showCommunitySelectionDialog(emergencyType, preSelectedIds: configuredIds.toSet());
+        final selected = await _showCommunitySelectionDialog(
+          emergencyType,
+          preSelectedIds: configuredIds.toSet(),
+        );
         if (!mounted) return;
         if (selected != null && selected.isNotEmpty) {
           _showFinalConfirmationDialog(emergencyType, selected);
@@ -526,7 +580,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
 
       if (!mounted) return;
       final selected = await _showCommunitySelectionDialog(
-          emergencyType, preSelectedIds: initialIds);
+        emergencyType,
+        preSelectedIds: initialIds,
+      );
       if (!mounted) return;
       if (selected != null && selected.isNotEmpty) {
         _showFinalConfirmationDialog(emergencyType, selected);
@@ -563,10 +619,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   Expanded(
                     child: Text(
                       l10n.quickAlertConfigureTypeCommunities(typeName),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.15,
-                      ),
+                      style: const TextStyle(fontSize: 13, height: 1.15),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -605,7 +658,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           ),
           backgroundColor: const Color(0xFF1C1C1E),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           margin: const EdgeInsets.all(16),
           dismissDirection: DismissDirection.down,
           duration: const Duration(milliseconds: 3200),
@@ -619,14 +674,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
   }
 
   Future<List<Map<String, dynamic>>?> _showCommunitySelectionDialog(
-      String emergencyType, {Set<String> preSelectedIds = const {}}) async {
+    String emergencyType, {
+    Set<String> preSelectedIds = const {},
+  }) async {
     if (!mounted) return null;
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) =>
-          const Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -677,237 +733,253 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               backgroundColor: Colors.transparent,
               child: SafeArea(
                 child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: (sw * 0.95).clamp(0.0, 420.0),
-                  maxHeight: sh * (isSmall ? 0.85 : 0.80),
-                ),
-                padding: EdgeInsets.all(dialogPadding),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
+                  constraints: BoxConstraints(
+                    maxWidth: (sw * 0.95).clamp(0.0, 420.0),
+                    maxHeight: sh * (isSmall ? 0.85 : 0.80),
+                  ),
+                  padding: EdgeInsets.all(dialogPadding),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(isSmall ? 6 : 8),
+                            decoration: BoxDecoration(
+                              color: _primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.people,
+                              color: _primary,
+                              size: isSmall ? 20 : 24,
+                            ),
+                          ),
+                          SizedBox(width: isSmall ? 8 : 12),
+                          Expanded(
+                            child: Text(
+                              l10n.selectCommunitiesDialogTitle,
+                              style: TextStyle(
+                                fontSize: titleFontSize,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1A1A1A),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, size: isSmall ? 20 : 24),
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: isSmall ? 32 : 40,
+                              minHeight: isSmall ? 32 : 40,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: isSmall ? 8 : 12),
+                      Text(
+                        l10n.selectCommunitiesSubtitle,
+                        style: TextStyle(
+                          fontSize: subtitleFontSize,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      if (selectedCommunityIds.isNotEmpty) ...[
+                        const SizedBox(height: 8),
                         Container(
-                          padding: EdgeInsets.all(isSmall ? 6 : 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: _primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Icon(
-                            Icons.people,
-                            color: _primary,
-                            size: isSmall ? 20 : 24,
-                          ),
-                        ),
-                        SizedBox(width: isSmall ? 8 : 12),
-                        Expanded(
                           child: Text(
-                            l10n.selectCommunitiesDialogTitle,
-                            style: TextStyle(
-                              fontSize: titleFontSize,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1A1A1A),
+                            '${selectedCommunityIds.length} seleccionada${selectedCommunityIds.length > 1 ? 's' : ''}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _primary,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close, size: isSmall ? 20 : 24),
-                          onPressed: () => Navigator.of(context).pop(),
-                          padding: EdgeInsets.zero,
-                          constraints: BoxConstraints(
-                            minWidth: isSmall ? 32 : 40,
-                            minHeight: isSmall ? 32 : 40,
                           ),
                         ),
                       ],
-                    ),
-                    SizedBox(height: isSmall ? 8 : 12),
-                    Text(
-                      l10n.selectCommunitiesSubtitle,
-                      style: TextStyle(
-                        fontSize: subtitleFontSize,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    if (selectedCommunityIds.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: _primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${selectedCommunityIds.length} seleccionada${selectedCommunityIds.length > 1 ? 's' : ''}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                    SizedBox(height: isSmall ? 10 : 14),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: communities.length,
-                        itemBuilder: (context, index) {
-                          final community = communities[index];
-                          final isEntity = community['is_entity'] as bool;
-                          final communityId = community['id'] as String;
-                          final isSelected = selectedCommunityIds.contains(communityId);
+                      SizedBox(height: isSmall ? 10 : 14),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: communities.length,
+                          itemBuilder: (context, index) {
+                            final community = communities[index];
+                            final isEntity = community['is_entity'] as bool;
+                            final communityId = community['id'] as String;
+                            final isSelected = selectedCommunityIds.contains(
+                              communityId,
+                            );
 
-                          return Card(
-                            margin: EdgeInsets.only(bottom: isSmall ? 6 : 8),
-                            color: isSelected
-                                ? _primary.withValues(alpha: 0.10)
-                                : Colors.white,
-                            child: ListTile(
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: isSmall ? 10 : 16,
-                                vertical: isSmall ? 2 : 4,
-                              ),
-                              leading: Container(
-                                width: isSmall ? 34 : 40,
-                                height: isSmall ? 34 : 40,
-                                decoration: BoxDecoration(
-                                  color: isEntity
-                                      ? _primary.withValues(alpha: 0.10)
-                                      : const Color(0xFF5AC8FA).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(8),
+                            return Card(
+                              margin: EdgeInsets.only(bottom: isSmall ? 6 : 8),
+                              color: isSelected
+                                  ? _primary.withValues(alpha: 0.10)
+                                  : Colors.white,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: isSmall ? 10 : 16,
+                                  vertical: isSmall ? 2 : 4,
                                 ),
-                                child: Icon(
-                                  isEntity ? Icons.shield : Icons.people,
-                                  color: isEntity ? _primary : const Color(0xFF5AC8FA),
-                                  size: isSmall ? 17 : 20,
+                                leading: Container(
+                                  width: isSmall ? 34 : 40,
+                                  height: isSmall ? 34 : 40,
+                                  decoration: BoxDecoration(
+                                    color: isEntity
+                                        ? _primary.withValues(alpha: 0.10)
+                                        : const Color(
+                                            0xFF5AC8FA,
+                                          ).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    isEntity ? Icons.shield : Icons.people,
+                                    color: isEntity
+                                        ? _primary
+                                        : const Color(0xFF5AC8FA),
+                                    size: isSmall ? 17 : 20,
+                                  ),
                                 ),
-                              ),
-                              title: Text(
-                                community['name'] ?? '',
-                                style: TextStyle(
-                                  fontSize: isSmall ? 14 : 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? _primary : _primaryDark,
+                                title: Text(
+                                  community['name'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: isSmall ? 14 : 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? _primary : _primaryDark,
+                                  ),
                                 ),
-                              ),
-                              subtitle: community['description'] != null
-                                  ? Text(
-                                      community['description'] ?? '',
-                                      style: TextStyle(
-                                        fontSize: isSmall ? 11 : 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
-                              trailing: Checkbox(
-                                value: isSelected,
-                                onChanged: (value) {
+                                subtitle: community['description'] != null
+                                    ? Text(
+                                        community['description'] ?? '',
+                                        style: TextStyle(
+                                          fontSize: isSmall ? 11 : 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
+                                    : null,
+                                trailing: Checkbox(
+                                  value: isSelected,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        selectedCommunityIds.add(communityId);
+                                      } else {
+                                        selectedCommunityIds.remove(
+                                          communityId,
+                                        );
+                                      }
+                                    });
+                                  },
+                                  activeColor: _primary,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onTap: () {
                                   setState(() {
-                                    if (value == true) {
-                                      selectedCommunityIds.add(communityId);
-                                    } else {
+                                    if (isSelected) {
                                       selectedCommunityIds.remove(communityId);
+                                    } else {
+                                      selectedCommunityIds.add(communityId);
                                     }
                                   });
                                 },
-                                activeColor: _primary,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
                               ),
-                              onTap: () {
-                                setState(() {
-                                  if (isSelected) {
-                                    selectedCommunityIds.remove(communityId);
-                                  } else {
-                                    selectedCommunityIds.add(communityId);
-                                  }
-                                });
-                              },
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    SizedBox(height: isSmall ? 10 : 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: isSmall ? 44 : 48,
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              style: OutlinedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                      SizedBox(height: isSmall ? 10 : 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: isSmall ? 44 : 48,
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  side: BorderSide(color: Colors.grey[300]!),
                                 ),
-                                side: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              child: Text(
-                                'Cancelar',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontSize: isSmall ? 13 : 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: isSmall ? 8 : 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: isSmall ? 44 : 48,
-                            child: ElevatedButton.icon(
-                              onPressed: selectedCommunityIds.isNotEmpty
-                                  ? () {
-                                      final selected = communities
-                                          .where((c) => selectedCommunityIds
-                                              .contains(c['id']))
-                                          .toList();
-                                      Navigator.of(context).pop(selected);
-                                    }
-                                  : null,
-                              icon: Icon(Icons.arrow_forward,
-                                  size: isSmall ? 16 : 18),
-                              label: Text(
-                                l10n.continueAction,
-                                style: TextStyle(
-                                  fontSize: isSmall ? 13 : 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedCommunityIds.isNotEmpty
-                                    ? _primaryDark
-                                    : Colors.grey,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                child: Text(
+                                  'Cancelar',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: isSmall ? 13 : 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                          SizedBox(width: isSmall ? 8 : 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: isSmall ? 44 : 48,
+                              child: ElevatedButton.icon(
+                                onPressed: selectedCommunityIds.isNotEmpty
+                                    ? () {
+                                        final selected = communities
+                                            .where(
+                                              (c) => selectedCommunityIds
+                                                  .contains(c['id']),
+                                            )
+                                            .toList();
+                                        Navigator.of(context).pop(selected);
+                                      }
+                                    : null,
+                                icon: Icon(
+                                  Icons.arrow_forward,
+                                  size: isSmall ? 16 : 18,
+                                ),
+                                label: Text(
+                                  l10n.continueAction,
+                                  style: TextStyle(
+                                    fontSize: isSmall ? 13 : 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      selectedCommunityIds.isNotEmpty
+                                      ? _primaryDark
+                                      : Colors.grey,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -932,12 +1004,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     }
   }
 
-  void _showFinalConfirmationDialog(String emergencyType, List<Map<String, dynamic>> selectedCommunities) {
+  void _showFinalConfirmationDialog(
+    String emergencyType,
+    List<Map<String, dynamic>> selectedCommunities,
+  ) {
     final emergencyData = EmergencyTypes.getTypeByName(emergencyType);
     if (emergencyData == null) return;
-    final translatedType = EmergencyTypes.getTranslatedType(emergencyType, context);
+    final translatedType = EmergencyTypes.getTranslatedType(
+      emergencyType,
+      context,
+    );
     final subtypeOptions = AlertDetailCatalog.getSubtypes(emergencyType);
-    String? selectedSubtype = subtypeOptions.isNotEmpty ? subtypeOptions.first.id : null;
+    String? selectedSubtype = subtypeOptions.isNotEmpty
+        ? subtypeOptions.first.id
+        : null;
     bool isAnonymous = false;
     final TextEditingController otherController = TextEditingController();
     final FocusNode otherFocus = FocusNode();
@@ -985,7 +1065,11 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
           await r.dispose();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.microphonePermissionSnack)),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.microphonePermissionSnack,
+              ),
+            ),
           );
           return;
         }
@@ -1011,7 +1095,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
         await r.dispose();
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.recordingFailed)),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.recordingFailed),
+          ),
         );
       }
     }
@@ -1022,12 +1108,21 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final l10n = AppLocalizations.of(ctx)!;
-          final requiresOtherDetail = selectedSubtype != null &&
-              AlertDetailCatalog.subtypeRequiresDetail(emergencyType, selectedSubtype!);
+          final requiresOtherDetail =
+              selectedSubtype != null &&
+              AlertDetailCatalog.subtypeRequiresDetail(
+                emergencyType,
+                selectedSubtype!,
+              );
 
           return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 20,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520, maxHeight: 720),
               child: Column(
@@ -1043,10 +1138,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             Navigator.of(ctx).pop();
                             otherFocus.dispose();
                             otherController.dispose();
-                            _showCommunitySelectionDialog(emergencyType).then((selection) {
+                            _showCommunitySelectionDialog(emergencyType).then((
+                              selection,
+                            ) {
                               if (!mounted) return;
                               if (selection != null && selection.isNotEmpty) {
-                                _showFinalConfirmationDialog(emergencyType, selection);
+                                _showFinalConfirmationDialog(
+                                  emergencyType,
+                                  selection,
+                                );
                               } else {
                                 _hideEmergencyOptions();
                               }
@@ -1058,7 +1158,10 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           child: Text(
                             l10n.alertDetailSheetTitle,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 40),
@@ -1081,12 +1184,19 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     color: _danger.withValues(alpha: 0.10),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(emergencyData['icon'], color: _danger, size: 34),
+                                  child: Icon(
+                                    emergencyData['icon'],
+                                    color: _danger,
+                                    size: 34,
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Text(
                                   translatedType,
-                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1097,7 +1207,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             decoration: BoxDecoration(
                               color: _surface,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _primary.withValues(alpha: 0.18)),
+                              border: Border.all(
+                                color: _primary.withValues(alpha: 0.18),
+                              ),
                             ),
                             child: Text(
                               '${l10n.selectedCommunitiesPrefix} ${selectedCommunities.map((c) => c['name']).join(', ')}',
@@ -1105,15 +1217,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             ),
                           ),
                           const SizedBox(height: 14),
-                          Text(l10n.subtypeOrReasonLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                            l10n.subtypeOrReasonLabel,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: selectedSubtype,
                             items: subtypeOptions
-                                .map((option) => DropdownMenuItem<String>(
-                                      value: option.id,
-                                      child: Text(option.label),
-                                    ))
+                                .map(
+                                  (option) => DropdownMenuItem<String>(
+                                    value: option.id,
+                                    child: Text(option.label),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) {
                               if (value == null) return;
@@ -1121,7 +1238,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 selectedSubtype = value;
                               });
                               if (value == AlertDetailCatalog.otherSubtypeId) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   if (otherFocus.canRequestFocus) {
                                     otherFocus.requestFocus();
                                   }
@@ -1133,7 +1252,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               fillColor: Colors.white,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                             ),
                           ),
@@ -1159,11 +1280,14 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                           ],
                           const SizedBox(height: 14),
                           SwitchListTile.adaptive(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                            ),
                             title: Text(l10n.sendAsAnonymousTitle),
                             subtitle: Text(l10n.sendAsAnonymousSubtitle),
                             value: isAnonymous,
-                            onChanged: (value) => setDialogState(() => isAnonymous = value),
+                            onChanged: (value) =>
+                                setDialogState(() => isAnonymous = value),
                           ),
                           const SizedBox(height: 8),
                           Container(
@@ -1171,7 +1295,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: _primary.withValues(alpha: 0.35)),
+                              border: Border.all(
+                                color: _primary.withValues(alpha: 0.35),
+                              ),
                               color: _primary.withValues(alpha: 0.08),
                             ),
                             child: Column(
@@ -1179,12 +1305,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                               children: [
                                 Text(
                                   l10n.photosAndAudioSection,
-                                  style: const TextStyle(fontWeight: FontWeight.w700, color: _primary),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: _primary,
+                                  ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  l10n.photosAndAudioPolicy(AlertAttachmentsService.maxImages),
-                                  style: TextStyle(fontSize: 12.5, color: Colors.grey[800]),
+                                  l10n.photosAndAudioPolicy(
+                                    AlertAttachmentsService.maxImages,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: Colors.grey[800],
+                                  ),
                                 ),
                                 const SizedBox(height: 10),
                                 Wrap(
@@ -1192,7 +1326,9 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                   runSpacing: 8,
                                   children: [
                                     OutlinedButton.icon(
-                                      onPressed: pickedImages.length >= AlertAttachmentsService.maxImages
+                                      onPressed:
+                                          pickedImages.length >=
+                                              AlertAttachmentsService.maxImages
                                           ? null
                                           : () async {
                                               final x = await picker.pickImage(
@@ -1202,16 +1338,23 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                               );
                                               if (x == null) return;
                                               setDialogState(() {
-                                                if (pickedImages.length < AlertAttachmentsService.maxImages) {
+                                                if (pickedImages.length <
+                                                    AlertAttachmentsService
+                                                        .maxImages) {
                                                   pickedImages.add(x);
                                                 }
                                               });
                                             },
-                                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                                      icon: const Icon(
+                                        Icons.photo_library_outlined,
+                                        size: 18,
+                                      ),
                                       label: Text(l10n.photoGallery),
                                     ),
                                     OutlinedButton.icon(
-                                      onPressed: pickedImages.length >= AlertAttachmentsService.maxImages
+                                      onPressed:
+                                          pickedImages.length >=
+                                              AlertAttachmentsService.maxImages
                                           ? null
                                           : () async {
                                               final x = await picker.pickImage(
@@ -1221,12 +1364,17 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                               );
                                               if (x == null) return;
                                               setDialogState(() {
-                                                if (pickedImages.length < AlertAttachmentsService.maxImages) {
+                                                if (pickedImages.length <
+                                                    AlertAttachmentsService
+                                                        .maxImages) {
                                                   pickedImages.add(x);
                                                 }
                                               });
                                             },
-                                      icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                                      icon: const Icon(
+                                        Icons.photo_camera_outlined,
+                                        size: 18,
+                                      ),
                                       label: Text(l10n.photoCamera),
                                     ),
                                   ],
@@ -1238,7 +1386,8 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     child: ListView.separated(
                                       scrollDirection: Axis.horizontal,
                                       itemCount: pickedImages.length,
-                                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: 10),
                                       itemBuilder: (context, i) {
                                         final path = pickedImages[i].path;
                                         return Stack(
@@ -1251,40 +1400,75 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                                   showDialog<void>(
                                                     context: context,
                                                     builder: (c) => Dialog(
-                                                      backgroundColor: Colors.black,
-                                                      insetPadding: const EdgeInsets.all(16),
+                                                      backgroundColor:
+                                                          Colors.black,
+                                                      insetPadding:
+                                                          const EdgeInsets.all(
+                                                            16,
+                                                          ),
                                                       child: InteractiveViewer(
                                                         minScale: 0.5,
                                                         maxScale: 4,
                                                         child: Image.file(
                                                           File(path),
                                                           fit: BoxFit.contain,
-                                                          errorBuilder: (_, __, ___) => Padding(
-                                                            padding: const EdgeInsets.all(24),
-                                                            child: Icon(Icons.broken_image_outlined,
-                                                                color: Colors.grey[400], size: 48),
-                                                          ),
+                                                          errorBuilder:
+                                                              (
+                                                                _,
+                                                                __,
+                                                                ___,
+                                                              ) => Padding(
+                                                                padding:
+                                                                    const EdgeInsets.all(
+                                                                      24,
+                                                                    ),
+                                                                child: Icon(
+                                                                  Icons
+                                                                      .broken_image_outlined,
+                                                                  color: Colors
+                                                                      .grey[400],
+                                                                  size: 48,
+                                                                ),
+                                                              ),
                                                         ),
                                                       ),
                                                     ),
                                                   );
                                                 },
-                                                borderRadius: BorderRadius.circular(10),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
                                                 child: Tooltip(
-                                                  message: l10n.photoChipLabel(i + 1),
+                                                  message: l10n.photoChipLabel(
+                                                    i + 1,
+                                                  ),
                                                   child: ClipRRect(
-                                                    borderRadius: BorderRadius.circular(10),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
                                                     child: SizedBox(
                                                       width: 80,
                                                       height: 80,
                                                       child: Image.file(
                                                         File(path),
                                                         fit: BoxFit.cover,
-                                                        errorBuilder: (_, __, ___) => ColoredBox(
-                                                          color: Colors.grey.shade300,
-                                                          child: Icon(Icons.broken_image_outlined,
-                                                              color: Colors.grey.shade600),
-                                                        ),
+                                                        errorBuilder:
+                                                            (
+                                                              _,
+                                                              __,
+                                                              ___,
+                                                            ) => ColoredBox(
+                                                              color: Colors
+                                                                  .grey
+                                                                  .shade300,
+                                                              child: Icon(
+                                                                Icons
+                                                                    .broken_image_outlined,
+                                                                color: Colors
+                                                                    .grey
+                                                                    .shade600,
+                                                              ),
+                                                            ),
                                                       ),
                                                     ),
                                                   ),
@@ -1299,11 +1483,20 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                                 shape: const CircleBorder(),
                                                 clipBehavior: Clip.antiAlias,
                                                 child: InkWell(
-                                                  onTap: () => setDialogState(() => pickedImages.removeAt(i)),
-                                                  customBorder: const CircleBorder(),
+                                                  onTap: () => setDialogState(
+                                                    () => pickedImages.removeAt(
+                                                      i,
+                                                    ),
+                                                  ),
+                                                  customBorder:
+                                                      const CircleBorder(),
                                                   child: const Padding(
                                                     padding: EdgeInsets.all(4),
-                                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                                    child: Icon(
+                                                      Icons.close,
+                                                      size: 16,
+                                                      color: Colors.white,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -1318,18 +1511,24 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 Row(
                                   children: [
                                     Icon(
-                                      isRecording ? Icons.fiber_manual_record : Icons.mic_none_rounded,
-                                      color: isRecording ? Colors.red : _primary,
+                                      isRecording
+                                          ? Icons.fiber_manual_record
+                                          : Icons.mic_none_rounded,
+                                      color: isRecording
+                                          ? Colors.red
+                                          : _primary,
                                       size: 22,
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         isRecording
-                                            ? l10n.recordingProgress(recordElapsedSec)
+                                            ? l10n.recordingProgress(
+                                                recordElapsedSec,
+                                              )
                                             : (audioFile != null
-                                                ? l10n.audioReadyToSend
-                                                : l10n.audioOptionalMaxTen),
+                                                  ? l10n.audioReadyToSend
+                                                  : l10n.audioOptionalMaxTen),
                                         style: const TextStyle(fontSize: 13),
                                       ),
                                     ),
@@ -1341,16 +1540,27 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                     Expanded(
                                       child: OutlinedButton.icon(
                                         onPressed: isRecording
-                                            ? () => stopRecording(setDialogState)
-                                            : () => startRecording(setDialogState),
-                                        icon: Icon(isRecording ? Icons.stop : Icons.mic),
-                                        label: Text(isRecording ? l10n.stopRecording : l10n.startRecording),
+                                            ? () =>
+                                                  stopRecording(setDialogState)
+                                            : () => startRecording(
+                                                setDialogState,
+                                              ),
+                                        icon: Icon(
+                                          isRecording ? Icons.stop : Icons.mic,
+                                        ),
+                                        label: Text(
+                                          isRecording
+                                              ? l10n.stopRecording
+                                              : l10n.startRecording,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     if (audioFile != null)
                                       TextButton(
-                                        onPressed: () => setDialogState(() => audioFile = null),
+                                        onPressed: () => setDialogState(
+                                          () => audioFile = null,
+                                        ),
                                         child: Text(l10n.removeAudio),
                                       ),
                                   ],
@@ -1397,24 +1607,30 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                             onPressed: () async {
                               if (selectedSubtype == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(l10n.selectSubtypeRequired)),
+                                  SnackBar(
+                                    content: Text(l10n.selectSubtypeRequired),
+                                  ),
                                 );
                                 return;
                               }
-                              if (requiresOtherDetail && otherController.text.trim().isEmpty) {
+                              if (requiresOtherDetail &&
+                                  otherController.text.trim().isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(l10n.describeOtherCaseRequired)),
+                                  SnackBar(
+                                    content: Text(
+                                      l10n.describeOtherCaseRequired,
+                                    ),
+                                  ),
                                 );
                                 return;
                               }
                               await stopRecording(setDialogState);
                               if (!ctx.mounted) return;
 
-                              final customDetailValue = otherController.text.trim();
-                              final prepared = await attachments.prepareForFirestore(
-                                pickedImages,
-                                audioFile,
-                              );
+                              final customDetailValue = otherController.text
+                                  .trim();
+                              final prepared = await attachments
+                                  .prepareForFirestore(pickedImages, audioFile);
                               final ph = List<String>.from(prepared.notes);
 
                               if (!ctx.mounted) return;
@@ -1429,12 +1645,15 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                                 subtype: selectedSubtype!,
                                 customDetail: customDetailValue,
                                 attachmentPlaceholders: ph,
-                                imageBase64:
-                                    prepared.imageBase64.isEmpty ? null : prepared.imageBase64,
+                                imageBase64: prepared.imageBase64.isEmpty
+                                    ? null
+                                    : prepared.imageBase64,
                                 audioBase64: prepared.audioBase64,
                               );
                             },
-                            child: Text(AppLocalizations.of(context)!.sendAlert),
+                            child: Text(
+                              AppLocalizations.of(context)!.sendAlert,
+                            ),
                           ),
                         ),
                       ],
@@ -1465,7 +1684,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final sendingLine = n == 1
         ? l10n.alertSendingToOne
         : l10n.alertSendingToMany(n);
-    
+
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
@@ -1482,23 +1701,26 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
               ),
             ),
             const SizedBox(width: 16),
-            Expanded(
-              child: Text(sendingLine),
-            ),
+            Expanded(child: Text(sendingLine)),
           ],
         ),
         backgroundColor: _primaryDark,
         duration: const Duration(milliseconds: 1200),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: EdgeInsets.fromLTRB(
+          12,
+          12,
+          12,
+          (bottomInset + 12).clamp(12.0, 40.0),
         ),
-        margin: EdgeInsets.fromLTRB(12, 12, 12, (bottomInset + 12).clamp(12.0, 40.0)),
       ),
     );
 
     // ── ONE call → ONE Firestore document with all destinations ───────────────
-    final communityIds = selectedCommunities.map((c) => c['id'] as String).toList();
+    final communityIds = selectedCommunities
+        .map((c) => c['id'] as String)
+        .toList();
     final success = await _alertHandler.sendSwipedAlert(
       alertType: alertType,
       isAnonymous: isAnonymous,
@@ -1525,7 +1747,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
       final sentLine = successCount == 1
           ? okL10n.alertSentToOneCommunity
           : okL10n.alertSentToManyCommunities(successCount);
-      
+
       messenger.showSnackBar(
         SnackBar(
           content: Container(
@@ -1560,10 +1782,7 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                       ),
                       Text(
                         sentLine,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
                   ),
@@ -1675,7 +1894,6 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     'left': math.pi,
   };
 
-
   // ===========================================================================
   // BUILD — Premium radial swipe menu
   // ===========================================================================
@@ -1684,21 +1902,18 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     final h = mq.size.height;
+    final isLandscape = mq.orientation == Orientation.landscape;
     final viewPad = mq.viewPadding;
-    // Teléfono estrecho / SE vs pantallas amplias / tablet en horizontal.
-    final hx = w < 360
-        ? 4.0
-        : w < 420
-            ? 6.0
-            : w < 600
-                ? 6.0
-                : w < 900
-                    ? 10.0
-                    : 16.0;
-    var vyTop = h < 520 ? 4.0 : h < 700 ? 8.0 : 10.0;
-    var vyBottom = h < 520 ? 2.0 : 6.0;
+    final widthT = _fluidScale(w, inMin: 320, inMax: 1280);
+    final heightT = _fluidScale(h, inMin: 480, inMax: 1100);
+    final hx = (_lerpDouble(4.0, 12.0, widthT) * (isLandscape ? 0.92 : 1.0))
+        .clamp(4.0, 12.0);
+    var vyTop = _lerpDouble(4.0, 10.0, heightT);
+    var vyBottom = _lerpDouble(2.0, 6.0, heightT);
     if (h > 640 && viewPad.top > 24) vyTop += 2;
-    if (viewPad.bottom > 16) vyBottom = math.max(vyBottom, viewPad.bottom * 0.35);
+    if (viewPad.bottom > 16) {
+      vyBottom = math.max(vyBottom, viewPad.bottom * 0.35);
+    }
     return EdgeInsets.fromLTRB(hx, vyTop, hx, vyBottom);
   }
 
@@ -1729,55 +1944,54 @@ class _AlertButtonState extends State<AlertButton> with TickerProviderStateMixin
                   width: useW,
                   height: useH,
                   child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanStart: (_) {
-                        HapticFeedback.lightImpact();
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: (_) {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _dragOffset = Offset.zero;
+                        _isGestureActive = false;
+                        _showDragFeedback = false;
+                        _currentDragDirection = null;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      _dragOffset += details.delta;
+                      final dir = _getDirection(
+                        _dragOffset,
+                        panDeadZone,
+                        maxAngleSlack: canvasSide < 292 ? 0.78 : 0.72,
+                      );
+                      if (dir != _currentDragDirection) {
+                        if (dir.isNotEmpty) HapticFeedback.selectionClick();
                         setState(() {
-                          _dragOffset = Offset.zero;
-                          _isGestureActive = false;
-                          _showDragFeedback = false;
-                          _currentDragDirection = null;
+                          _currentDragDirection = dir;
+                          _showDragFeedback = dir.isNotEmpty;
                         });
-                      },
-                      onPanUpdate: (details) {
-                        _dragOffset += details.delta;
-                        final dir = _getDirection(
-                          _dragOffset,
-                          panDeadZone,
-                          maxAngleSlack:
-                              canvasSide < 292 ? 0.78 : 0.72,
-                        );
-                        if (dir != _currentDragDirection) {
-                          if (dir.isNotEmpty) HapticFeedback.selectionClick();
-                          setState(() {
-                            _currentDragDirection = dir;
-                            _showDragFeedback = dir.isNotEmpty;
-                          });
-                        }
-                      },
-                      onPanEnd: (_) {
-                        if (_currentDragDirection != null &&
-                            _currentDragDirection!.isNotEmpty) {
-                          _handleGesture(_currentDragDirection!);
-                        }
-                        setState(() {
-                          _dragOffset = Offset.zero;
-                          _showDragFeedback = false;
-                          _currentDragDirection = null;
-                        });
-                      },
-                      child: _RadialMenu(
-                        metrics: metrics,
-                        availableWidth: useW,
-                        availableHeight: useH,
-                        dirAngles: _dirAngles,
-                        currentDragDirection: _currentDragDirection,
-                        showDragFeedback: _showDragFeedback,
-                        showEmergencyOptions: _showEmergencyOptions,
-                        currentEmergencyType: _currentEmergencyType,
-                        scaleAnimation: _scaleAnimation,
-                        onTapCenter: _sendQuickAlert,
-                      ),
+                      }
+                    },
+                    onPanEnd: (_) {
+                      if (_currentDragDirection != null &&
+                          _currentDragDirection!.isNotEmpty) {
+                        _handleGesture(_currentDragDirection!);
+                      }
+                      setState(() {
+                        _dragOffset = Offset.zero;
+                        _showDragFeedback = false;
+                        _currentDragDirection = null;
+                      });
+                    },
+                    child: _RadialMenu(
+                      metrics: metrics,
+                      availableWidth: useW,
+                      availableHeight: useH,
+                      dirAngles: _dirAngles,
+                      currentDragDirection: _currentDragDirection,
+                      showDragFeedback: _showDragFeedback,
+                      showEmergencyOptions: _showEmergencyOptions,
+                      currentEmergencyType: _currentEmergencyType,
+                      scaleAnimation: _scaleAnimation,
+                      onTapCenter: _sendQuickAlert,
+                    ),
                   ),
                 );
               },
@@ -1818,33 +2032,26 @@ class _EventualityBottomStrip extends StatelessWidget {
     final isTablet = shortest >= 600;
     final isLandscape = mq.orientation == Orientation.landscape;
     final isTabletLandscape = isTablet && isLandscape;
-    final hx = w < 360 ? 12.0 : w < 420 ? 16.0 : w < 720 ? 20.0 : 24.0;
-    final gap = isTabletLandscape
-        ? 20.0
-        : w < 360
-            ? 10.0
-            : w < 420
-                ? 12.0
-                : 14.0;
-    final bottomExtra =
-        mq.padding.bottom > 16 ? 4.0 : mq.padding.bottom > 0 ? 6.0 : 10.0;
-    final maxRow = isTablet
-        ? isTabletLandscape
-            ? 980.0
-            : 820.0
-        : w >= 840
-            ? 720.0
-            : double.infinity;
-    final cardMinH = (shortest *
-            (isTablet
-                ? isTabletLandscape
-                    ? 0.105
-                    : 0.12
-                : 0.11))
-        .clamp(
-      52.0,
-      isTablet ? 84.0 : 64.0,
-    );
+    final widthT = _fluidScale(w, inMin: 320, inMax: 1280);
+    final shortestT = _fluidScale(shortest, inMin: 320, inMax: 900);
+    final hx = _lerpDouble(10.0, 22.0, widthT).clamp(10.0, 22.0);
+    final baseGap = _lerpDouble(8.0, 14.0, widthT).clamp(8.0, 14.0);
+    final gap = isTabletLandscape ? baseGap + 2.0 : baseGap;
+    final bottomExtra = mq.padding.bottom > 16
+        ? 4.0
+        : mq.padding.bottom > 0
+        ? 6.0
+        : 10.0;
+    final maxRow = w >= 720
+        ? math.min(
+            w * (isTabletLandscape ? 0.94 : 0.92),
+            isTablet ? (isTabletLandscape ? 1180.0 : 980.0) : 860.0,
+          )
+        : double.infinity;
+    final cardMinH =
+        (_lerpDouble(54.0, isTablet ? 90.0 : 68.0, shortestT) +
+                (isTabletLandscape ? -2.0 : 0.0))
+            .clamp(52.0, isTablet ? 92.0 : 70.0);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
@@ -1901,25 +2108,21 @@ class _AppleCategoryCard extends StatelessWidget {
     final ss = MediaQuery.sizeOf(context).shortestSide;
     final w = MediaQuery.sizeOf(context).width;
     final isTablet = ss >= 600 || w >= 720;
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-    final circleD = (ss * (isTablet && isLandscape ? 0.086 : 0.10)).clamp(
-      36.0,
-      isTablet ? 54.0 : 48.0,
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final sizeT = _fluidScale(ss, inMin: 300, inMax: 900);
+    final circleFrac = _lerpDouble(
+      isLandscape ? 0.095 : 0.102,
+      isTablet && isLandscape ? 0.086 : 0.092,
+      sizeT,
     );
+    final circleD = (ss * circleFrac).clamp(36.0, isTablet ? 54.0 : 48.0);
     final iconSz = (circleD * 0.52).clamp(18.0, 26.0);
     final titleSz = MediaQuery.textScalerOf(context).scale(
-      ss < 340
-          ? 14.0
-          : ss < 400
-              ? 14.5
-              : isTablet
-                  ? isLandscape
-                      ? 16.0
-                      : 17.0
-                  : 15.0,
+      _lerpDouble(13.8, isTablet ? (isLandscape ? 16.1 : 17.0) : 15.2, sizeT),
     );
-    final padH = ss < 340 ? 10.0 : 12.0;
-    final padV = ss < 340 ? 12.0 : 14.0;
+    final padH = _lerpDouble(9.5, 13.0, sizeT);
+    final padV = _lerpDouble(11.0, 14.5, sizeT);
 
     final circle = Container(
       width: circleD,
@@ -1932,16 +2135,15 @@ class _AppleCategoryCard extends StatelessWidget {
       child: Icon(icon, color: accent, size: iconSz),
     );
 
-    final padVEff = math.max(padV, (minHeight - circleD) / 2 - 2).clamp(padV, 22.0);
+    final padVEff = math
+        .max(padV, (minHeight - circleD) / 2 - 2)
+        .clamp(padV, 22.0);
 
     return Container(
       decoration: BoxDecoration(
         color: _AppleEmergencyUX.cardSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _AppleEmergencyUX.separator,
-          width: 0.5,
-        ),
+        border: Border.all(color: _AppleEmergencyUX.separator, width: 0.5),
         boxShadow: _AppleEmergencyUX.cardShadow,
       ),
       child: Material(
@@ -2038,21 +2240,23 @@ class _RadialMenu extends StatelessWidget {
     final labelBleedPad = isTiny
         ? 5.0
         : isCompact
-            ? 4.0
-            : isTablet
-                ? 4.0
-                : 4.5;
+        ? 4.0
+        : isTablet
+        ? 4.0
+        : 4.5;
     final horizontalBleedPad = isCompact && !isTablet ? 2.0 : labelBleedPad;
     final verticalBleedPad = labelBleedPad;
     final orbitPullOut = isTiny
         ? 0.09
         : isCompact
-            ? 0.12
-            : isTablet
-                ? 0.06
-                : 0.07;
-    final effectiveOrbitFill =
-        (metrics.orbitFill + orbitPullOut).clamp(0.0, 0.92);
+        ? 0.12
+        : isTablet
+        ? 0.06
+        : 0.07;
+    final effectiveOrbitFill = (metrics.orbitFill + orbitPullOut).clamp(
+      0.0,
+      0.92,
+    );
 
     double maxOrbitForAngle(double angle) {
       final ca = math.cos(angle).abs();
@@ -2076,10 +2280,11 @@ class _RadialMenu extends StatelessWidget {
 
     final orbitByDir = <String, double>{
       for (final e in dirAngles.entries)
-        e.key: (minOrbit +
-                math.max(0.0, maxOrbitForAngle(e.value) - minOrbit) *
-                    effectiveOrbitFill)
-            .clamp(minOrbit, maxOrbitForAngle(e.value)),
+        e.key:
+            (minOrbit +
+                    math.max(0.0, maxOrbitForAngle(e.value) - minOrbit) *
+                        effectiveOrbitFill)
+                .clamp(minOrbit, maxOrbitForAngle(e.value)),
     };
     final orbitForRing = orbitByDir.values.isEmpty
         ? minOrbit
@@ -2112,22 +2317,24 @@ class _RadialMenu extends StatelessWidget {
               ),
 
             // ── 2. Chips secundarios (debajo del hub para no taparlo) ─────────
-            ...dirAngles.entries.map((e) => _buildLabel(
-                  context: context,
-                  dir: e.key,
-                  angle: e.value,
-                  orbit: orbitByDir[e.key] ?? minOrbit,
-                  cx: cx,
-                  cy: cy,
-                  availableWidth: availableWidth,
-                  availableHeight: availableHeight,
-                  labelW: labelW,
-                  labelH: labelH,
-                  safeInset: edgePad + labelBleedPad,
-                  isTinyLayout: isTiny,
-                  isCompactLayout: isCompact,
-                  isTabletLayout: isTablet,
-                )),
+            ...dirAngles.entries.map(
+              (e) => _buildLabel(
+                context: context,
+                dir: e.key,
+                angle: e.value,
+                orbit: orbitByDir[e.key] ?? minOrbit,
+                cx: cx,
+                cy: cy,
+                availableWidth: availableWidth,
+                availableHeight: availableHeight,
+                labelW: labelW,
+                labelH: labelH,
+                safeInset: edgePad + labelBleedPad,
+                isTinyLayout: isTiny,
+                isCompactLayout: isCompact,
+                isTabletLayout: isTablet,
+              ),
+            ),
 
             // ── 3. Hub Ayuda (protagonista, siempre encima) ───────────────────
             Center(
@@ -2174,7 +2381,10 @@ class _RadialMenu extends StatelessWidget {
     final isSelected = showDragFeedback && currentDragDirection == dir;
     final baseColor = typeData['color'] as Color;
     final icon = typeData['icon'] as IconData;
-    final name = EmergencyTypes.getTranslatedType(typeData['type'] as String, context);
+    final name = EmergencyTypes.getTranslatedType(
+      typeData['type'] as String,
+      context,
+    );
 
     final dx = orbit * math.cos(angle);
     final dy = orbit * math.sin(angle);
@@ -2183,15 +2393,15 @@ class _RadialMenu extends StatelessWidget {
     final rawFontSize = isTinyLayout
         ? 12.0
         : isCompactLayout
-            ? 12.5
-            : isTabletLayout
-                ? 15.0
-                : 14.0;
+        ? 12.5
+        : isTabletLayout
+        ? 15.0
+        : 14.0;
     final textTargetSize = math.min(
       MediaQuery.textScalerOf(context).scale(rawFontSize),
       labelH * 0.40,
     );
-    final textMaxH = labelH * 0.42;
+    final textMaxH = labelH * 0.48;
     final radius = (labelH * 0.20).clamp(10.0, 16.0);
     final hPad = (labelW * 0.04).clamp(3.0, 6.0);
     // Reserva para borde decorativo (el hijo no debe superar el rect interior).
@@ -2234,14 +2444,14 @@ class _RadialMenu extends StatelessWidget {
                       blurRadius: 12,
                       spreadRadius: 0,
                       offset: const Offset(0, 4),
-                    )
+                    ),
                   ]
                 : [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
-                    )
+                    ),
                   ],
           ),
           child: Padding(
@@ -2280,18 +2490,20 @@ class _RadialMenu extends StatelessWidget {
                     ),
                     child: AdaptiveFitText(
                       text: name,
-                      maxWidth: labelW -
+                      maxWidth:
+                          labelW -
                           2 * innerInset -
                           2 * math.max(0.0, hPad - innerInset),
                       maxHeight: textMaxH,
-                      maxLines: 1,
+                      maxLines: isTinyLayout ? 1 : 2,
+                      minFontSize: isTabletLayout ? 10.5 : 10.0,
                       style: TextStyle(
                         fontSize: textTargetSize,
                         fontWeight: FontWeight.w600,
                         color: isSelected
                             ? baseColor
                             : _AppleEmergencyUX.labelPrimary,
-                        height: 1.0,
+                        height: 1.05,
                         letterSpacing: -0.2,
                       ),
                     ),
@@ -2343,9 +2555,10 @@ class _CenterButtonState extends State<_CenterButton>
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
-      CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 0.97,
+      end: 1.03,
+    ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut));
   }
 
   @override
@@ -2361,7 +2574,9 @@ class _CenterButtonState extends State<_CenterButton>
     // Resolve active direction color
     Color accentColor = const Color(0xFFFF3B30);
     if (widget.showDragFeedback && widget.currentDragDirection != null) {
-      final td = EmergencyTypes.getTypeByDirection(widget.currentDragDirection!);
+      final td = EmergencyTypes.getTypeByDirection(
+        widget.currentDragDirection!,
+      );
       if (td != null) accentColor = td['color'] as Color;
     }
 
@@ -2382,20 +2597,17 @@ class _CenterButtonState extends State<_CenterButton>
             center: const Alignment(-0.3, -0.35),
             radius: 0.9,
             colors: widget.showDragFeedback
-                ? [
-                    accentColor.withValues(alpha: 0.88),
-                    accentColor,
-                  ]
-                : [
-                    const Color(0xFFFF6B6B),
-                    const Color(0xFFFF3B30),
-                  ],
+                ? [accentColor.withValues(alpha: 0.88), accentColor]
+                : [const Color(0xFFFF6B6B), const Color(0xFFFF3B30)],
           ),
           boxShadow: [
             // Primary colored shadow
             BoxShadow(
-              color: (widget.showDragFeedback ? accentColor : const Color(0xFFFF3B30))
-                  .withValues(alpha: widget.showDragFeedback ? 0.50 : 0.35),
+              color:
+                  (widget.showDragFeedback
+                          ? accentColor
+                          : const Color(0xFFFF3B30))
+                      .withValues(alpha: widget.showDragFeedback ? 0.50 : 0.35),
               blurRadius: size * 0.20,
               spreadRadius: widget.showDragFeedback ? size * 0.04 : 0,
               offset: Offset(0, size * 0.05),
@@ -2464,7 +2676,9 @@ class _CenterButtonState extends State<_CenterButton>
 
     // ── Mid-drag: show icon of hovered option ─────────────────────────────
     if (widget.showDragFeedback && widget.currentDragDirection != null) {
-      final td = EmergencyTypes.getTypeByDirection(widget.currentDragDirection!);
+      final td = EmergencyTypes.getTypeByDirection(
+        widget.currentDragDirection!,
+      );
       if (td != null) {
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 120),
@@ -2561,7 +2775,10 @@ class _LocalAudioPreviewState extends State<_LocalAudioPreview> {
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: _toggle,
-      icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 20),
+      icon: Icon(
+        _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+        size: 20,
+      ),
       label: Text(_playing ? widget.pauseLabel : widget.listenLabel),
     );
   }

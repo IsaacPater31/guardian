@@ -25,6 +25,7 @@ class _HomeViewState extends State<HomeView> {
   final UserService _userService = UserService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
+
   /// true = modo UP (mis alertas enviadas), false = modo DOWN (recibidas)
   bool _showingOwn = false;
 
@@ -46,7 +47,7 @@ class _HomeViewState extends State<HomeView> {
     super.initState();
     _initializeController();
     _checkServiceStatus();
-    
+
     // Refrescar el estado del servicio cada 2 segundos para sincronización
     _startServiceStatusRefresh();
   }
@@ -161,24 +162,24 @@ class _HomeViewState extends State<HomeView> {
 
     final fraction = isTablet
         ? isTabletLandscape
-            ? 0.12
-            : 0.15
+              ? 0.12
+              : 0.15
         : w < 360
-            ? 0.22
-            : w < 420
-                ? 0.19
-                : w < 600
-                    ? 0.17
-                    : 0.15;
+        ? 0.22
+        : w < 420
+        ? 0.19
+        : w < 600
+        ? 0.17
+        : 0.15;
     final desiredMin = isTablet
         ? isTabletLandscape
-            ? 126.0
-            : 138.0
+              ? 126.0
+              : 138.0
         : w < 360
-            ? 152.0
-            : w < 420
-                ? 148.0
-                : 136.0;
+        ? 152.0
+        : w < 420
+        ? 148.0
+        : 136.0;
     if (h < 520) {
       final cap = h * 0.30;
       return math.min(cap, math.max(132.0, h * fraction));
@@ -186,14 +187,14 @@ class _HomeViewState extends State<HomeView> {
     final maxPanel = math.min(
       isTablet
           ? isTabletLandscape
-              ? 196.0
-              : 230.0
+                ? 196.0
+                : 230.0
           : 224.0,
       h *
           (isTablet
               ? isTabletLandscape
-                  ? 0.20
-                  : 0.24
+                    ? 0.20
+                    : 0.24
               : 0.26),
     );
     final minPanel = math.min(desiredMin, maxPanel);
@@ -219,9 +220,7 @@ class _HomeViewState extends State<HomeView> {
             ),
 
             // Área principal del botón de alerta — gets all remaining space
-            Expanded(
-              child: _buildAlertButtonSection(),
-            ),
+            Expanded(child: _buildAlertButtonSection()),
           ],
         ),
       ),
@@ -290,7 +289,8 @@ class _HomeViewState extends State<HomeView> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                      '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}'),
+                    '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}',
+                  ),
                   duration: const Duration(seconds: 2),
                 ),
               );
@@ -312,9 +312,7 @@ class _HomeViewState extends State<HomeView> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsView(),
-                ),
+                MaterialPageRoute(builder: (context) => const SettingsView()),
               );
             },
           ),
@@ -414,7 +412,10 @@ class _HomeViewState extends State<HomeView> {
               // Count badge
               if (filtered.isNotEmpty) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -480,8 +481,8 @@ class _HomeViewState extends State<HomeView> {
             child: _isLoading
                 ? _buildLoadingState(compact: isCompact, dense: dense)
                 : filtered.isEmpty
-                    ? _buildNoAlertsState(compact: isCompact, dense: dense)
-                    : _buildAlertsList(filtered, compact: isCompact, dense: dense),
+                ? _buildNoAlertsState(compact: isCompact, dense: dense)
+                : _buildAlertsList(filtered, compact: isCompact, dense: dense),
           ),
         ],
       ),
@@ -557,7 +558,11 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildAlertsList(List<AlertModel> alerts, {bool compact = false, bool dense = false}) {
+  Widget _buildAlertsList(
+    List<AlertModel> alerts, {
+    bool compact = false,
+    bool dense = false,
+  }) {
     return RefreshIndicator(
       onRefresh: () async {
         setState(() => _isLoading = true);
@@ -587,7 +592,8 @@ class _HomeViewState extends State<HomeView> {
             tween: Tween(begin: 0, end: 1),
             duration: Duration(milliseconds: 200 + (index * 50).clamp(0, 300)),
             curve: Curves.easeOut,
-            builder: (context, value, child) => Opacity(opacity: value, child: child),
+            builder: (context, value, child) =>
+                Opacity(opacity: value, child: child),
             child: _buildAlertCard(alert, compact: compact, dense: dense),
           );
         },
@@ -603,16 +609,22 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-
-
-  Widget _buildAlertCard(AlertModel alert, {bool compact = false, bool dense = false}) {
-    final localizedType = EmergencyTypes.getTranslatedType(alert.alertType, context);
+  Widget _buildAlertCard(
+    AlertModel alert, {
+    bool compact = false,
+    bool dense = false,
+  }) {
+    final localizedType = EmergencyTypes.getTranslatedType(
+      alert.alertType,
+      context,
+    );
     final alertIcon = EmergencyTypes.getIcon(alert.alertType);
     final alertColor = EmergencyTypes.getColor(alert.alertType);
     final timeAgo = _getTimeAgo(alert.timestamp);
     final isAttended = alert.alertStatus == 'attended';
-    final statusColor =
-        isAttended ? const Color(0xFF34C759) : const Color(0xFFFF9F0A);
+    final statusColor = isAttended
+        ? const Color(0xFF34C759)
+        : const Color(0xFFFF9F0A);
 
     final iconBox = dense ? 5.0 : (compact ? 6.0 : 8.0);
     final iconGraphic = dense ? 16.0 : (compact ? 17.5 : 20.0);
@@ -719,7 +731,11 @@ class _HomeViewState extends State<HomeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.forward, size: dense ? 8 : (compact ? 9 : 10), color: Colors.blue[700]),
+              Icon(
+                Icons.forward,
+                size: dense ? 8 : (compact ? 9 : 10),
+                color: Colors.blue[700],
+              ),
               const SizedBox(width: 2),
               Text(
                 '${alert.forwardsCount}',
@@ -742,7 +758,11 @@ class _HomeViewState extends State<HomeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.report, size: dense ? 8 : (compact ? 9 : 10), color: Colors.orange[700]),
+              Icon(
+                Icons.report,
+                size: dense ? 8 : (compact ? 9 : 10),
+                color: Colors.orange[700],
+              ),
               const SizedBox(width: 2),
               Text(
                 '${alert.reportsCount}',
@@ -799,11 +819,7 @@ class _HomeViewState extends State<HomeView> {
                 color: alertColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                alertIcon,
-                color: alertColor,
-                size: iconGraphic,
-              ),
+              child: Icon(alertIcon, color: alertColor, size: iconGraphic),
             ),
             SizedBox(width: gap),
             Expanded(
@@ -897,14 +913,15 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
     final l10n = AppLocalizations.of(context)!;
 
     if (difference.inMinutes < 1) return l10n.timeNow;
-    if (difference.inMinutes < 60) return l10n.timeMinutesAgo(difference.inMinutes);
+    if (difference.inMinutes < 60) {
+      return l10n.timeMinutesAgo(difference.inMinutes);
+    }
     if (difference.inHours < 24) return l10n.timeHoursAgo(difference.inHours);
     if (difference.inDays == 1) return l10n.timeYesterday;
     return l10n.timeDaysAgo(difference.inDays);
@@ -921,34 +938,30 @@ class _HomeViewState extends State<HomeView> {
     final isTablet = shortest >= 600;
     final isWideWindow = sw >= 840;
     final isSmall = sw < 360;
-    final isLargePhone =
-        sw >= 420 && sh >= 720 && !isTablet && !landscape;
+    final isLargePhone = sw >= 420 && sh >= 720 && !isTablet && !landscape;
 
-    final titleSize = isSmall
-        ? (sw * 0.048).clamp(15.0, 17.0)
-        : isLargePhone
-            ? (sw * 0.052).clamp(18.0, 24.0)
-            : (sw * 0.05).clamp(16.0, 21.0);
+    final widthT = ((sw - 320) / (1280 - 320)).clamp(0.0, 1.0);
+    final shortestT = ((shortest - 320) / (960 - 320)).clamp(0.0, 1.0);
+    final titleSize =
+        (15.5 +
+                (21.5 - 15.5) * shortestT +
+                (isLargePhone ? 0.8 : 0.0) +
+                (isTablet && !landscape ? 0.6 : 0.0))
+            .clamp(15.0, 24.0);
 
-    final hPad = isSmall
-        ? 8.0
-        : isTablet
-            ? 20.0
-            : (sw >= 420 ? 16.0 : 14.0);
+    final hPad = (8.0 + (18.0 - 8.0) * widthT - (landscape ? 1.0 : 0.0)).clamp(
+      8.0,
+      18.0,
+    );
     final topPad = landscape && shortest < 500
         ? 2.0
-        : isSmall
-            ? 4.0
-            : isTablet
-                ? 8.0
-                : isLargePhone
-                    ? 10.0
-                    : 6.0;
+        : (4.0 + (10.0 - 4.0) * shortestT + (isTablet ? 0.6 : 0.0)).clamp(
+            4.0,
+            11.0,
+          );
     final bottomPad = landscape && shortest < 500
         ? 2.0
-        : isSmall
-            ? 4.0
-            : 6.0;
+        : (4.0 + (6.5 - 4.0) * shortestT).clamp(4.0, 6.5);
 
     return Container(
       padding: EdgeInsets.fromLTRB(hPad, topPad, hPad, bottomPad),
@@ -958,46 +971,43 @@ class _HomeViewState extends State<HomeView> {
           final tightVertical = maxH < 220;
           final titleBottom = tightVertical
               ? 2.0
-              : isSmall
-                  ? 6.0
-                  : isLargePhone
-                      ? 10.0
-                      : 8.0;
+              : (6.0 + (10.0 - 6.0) * shortestT + (isLargePhone ? 0.4 : 0.0))
+                    .clamp(6.0, 10.5);
 
           final column = Column(
             children: [
               if (!tightVertical)
                 Padding(
-                padding: EdgeInsets.only(
-                  bottom: titleBottom,
-                  top: isSmall ? 2 : 4,
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.emergencyButton,
-                  style: TextStyle(
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1A1A1A),
-                    height: 1.2,
-                    letterSpacing: isLargePhone ? 0.2 : 0,
+                  padding: EdgeInsets.only(
+                    bottom: titleBottom,
+                    top: isSmall ? 2 : 4,
                   ),
-                  textAlign: TextAlign.center,
+                  child: Text(
+                    AppLocalizations.of(context)!.emergencyButton,
+                    style: TextStyle(
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1A1A1A),
+                      height: 1.2,
+                      letterSpacing: isLargePhone ? 0.2 : 0,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: AlertButton(
-                  onPressed: () {},
-                ),
-              ),
+              Expanded(child: AlertButton(onPressed: () {})),
             ],
           );
 
           if (isTablet || isWideWindow) {
+            final maxRadialWidth = math.min(
+              isTablet
+                  ? (landscape ? 900.0 : 780.0)
+                  : (700.0 + (780.0 - 700.0) * widthT),
+              sw * 0.965,
+            );
             return Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: math.min(580.0, sw * 0.94),
-                ),
+                constraints: BoxConstraints(maxWidth: maxRadialWidth),
                 child: column,
               ),
             );
@@ -1013,10 +1023,7 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFE9ECEF),
-          width: 1,
-        ),
+        border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -1057,7 +1064,9 @@ class _HomeViewState extends State<HomeView> {
                 leading: const Text('🇪🇸', style: TextStyle(fontSize: 24)),
                 title: Text(AppLocalizations.of(context)!.spanish),
                 onTap: () {
-                  context.read<LocalizationService>().setLanguage(const Locale('es'));
+                  context.read<LocalizationService>().setLanguage(
+                    const Locale('es'),
+                  );
                   Navigator.of(context).pop();
                 },
               ),
@@ -1065,7 +1074,9 @@ class _HomeViewState extends State<HomeView> {
                 leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
                 title: Text(AppLocalizations.of(context)!.english),
                 onTap: () {
-                  context.read<LocalizationService>().setLanguage(const Locale('en'));
+                  context.read<LocalizationService>().setLanguage(
+                    const Locale('en'),
+                  );
                   Navigator.of(context).pop();
                 },
               ),
@@ -1075,5 +1086,4 @@ class _HomeViewState extends State<HomeView> {
       },
     );
   }
-
 }
