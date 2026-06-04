@@ -274,11 +274,17 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildLatestRecentAlertSection() {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmall = screenWidth < 360;
+    final t = ((screenWidth - 320) / (900 - 320)).clamp(0.0, 1.0);
+    final horizontalMargin = (10.0 + (16.0 - 10.0) * t).clamp(10.0, 16.0);
+    final sectionPadding = (10.0 + (14.0 - 10.0) * t).clamp(10.0, 14.0);
+    final titleSize = (13.0 + (14.0 - 13.0) * t).clamp(13.0, 14.0);
+    final iconSize = (15.0 + (17.0 - 15.0) * t).clamp(15.0, 17.0);
+    final iconPad = (5.0 + (6.0 - 5.0) * t).clamp(5.0, 6.0);
+    final headerGap = (6.0 + (10.0 - 6.0) * t).clamp(6.0, 10.0);
     final latest = _latestRecentAlert;
     return Container(
-      margin: EdgeInsets.fromLTRB(isSmall ? 10 : 16, 6, isSmall ? 10 : 16, 6),
-      padding: EdgeInsets.fromLTRB(isSmall ? 10 : 14, 8, isSmall ? 10 : 14, 8),
+      margin: EdgeInsets.fromLTRB(horizontalMargin, 6, horizontalMargin, 6),
+      padding: EdgeInsets.fromLTRB(sectionPadding, 8, sectionPadding, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -296,7 +302,7 @@ class _HomeViewState extends State<HomeView> {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isSmall ? 5 : 6),
+                padding: EdgeInsets.all(iconPad),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE3F2FD),
                   borderRadius: BorderRadius.circular(8),
@@ -304,15 +310,15 @@ class _HomeViewState extends State<HomeView> {
                 child: Icon(
                   Icons.warning_amber_rounded,
                   color: const Color(0xFF1976D2),
-                  size: isSmall ? 15 : 17,
+                  size: iconSize,
                 ),
               ),
-              SizedBox(width: isSmall ? 6 : 10),
+              SizedBox(width: headerGap),
               Expanded(
                 child: Text(
                   AppLocalizations.of(context)!.recentAlerts,
                   style: TextStyle(
-                    fontSize: isSmall ? 13.0 : 14.0,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1A1A1A),
                   ),
@@ -965,11 +971,12 @@ class _HomeViewState extends State<HomeView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: dense ? 3 : (compact ? 4 : 6)),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    Wrap(
+                      spacing: dense ? 6 : 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Flexible(child: statusBadge()),
-                        SizedBox(width: dense ? 6 : 8),
+                        statusBadge(),
                         Text(
                           timeAgo,
                           style: TextStyle(
@@ -1094,6 +1101,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildNearbyAlertsSection() {
     final now = DateTime.now();
+    final sw = MediaQuery.of(context).size.width;
     final nearby =
         _recentAlerts
             .where(
@@ -1106,7 +1114,19 @@ class _HomeViewState extends State<HomeView> {
             .toList()
           ..sort((a, b) => _distanceMeters(a).compareTo(_distanceMeters(b)));
     final topNearby = nearby.take(3).toList();
-    final compact = MediaQuery.of(context).size.width < 380;
+    final compact = sw < 380;
+    final columns = sw < 360
+        ? 1
+        : sw < 620
+        ? 2
+        : 3;
+    final tileAspect = sw < 360
+        ? 3.0
+        : sw < 460
+        ? 1.55
+        : sw < 620
+        ? 1.7
+        : 1.85;
     return Container(
       margin: EdgeInsets.fromLTRB(compact ? 10 : 14, 8, compact ? 10 : 14, 10),
       padding: EdgeInsets.fromLTRB(
@@ -1160,62 +1180,76 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ],
                 )
-              : Row(
-                  children: List.generate(topNearby.length, (i) {
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: topNearby.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: math.min(columns, topNearby.length),
+                    mainAxisSpacing: compact ? 8 : 10,
+                    crossAxisSpacing: compact ? 8 : 10,
+                    childAspectRatio: tileAspect,
+                  ),
+                  itemBuilder: (context, i) {
                     final alert = topNearby[i];
-                    return Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: i == 0 ? 0 : 4,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              EmergencyTypes.getIcon(alert.alertType),
-                              color: EmergencyTypes.getColor(alert.alertType),
-                              size: compact ? 22 : 26,
+                    final iconColor = EmergencyTypes.getColor(alert.alertType);
+                    return Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? 8 : 10,
+                        vertical: compact ? 8 : 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            EmergencyTypes.getIcon(alert.alertType),
+                            color: iconColor,
+                            size: compact ? 20 : 24,
+                          ),
+                          SizedBox(height: compact ? 4 : 5),
+                          Text(
+                            EmergencyTypes.getTranslatedType(
+                              alert.alertType,
+                              context,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              EmergencyTypes.getTranslatedType(
-                                alert.alertType,
-                                context,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: const Color(0xFF1A1A1A),
-                                fontWeight: FontWeight.w700,
-                                fontSize: compact ? 10.5 : 11.5,
-                              ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: const Color(0xFF1A1A1A),
+                              fontWeight: FontWeight.w700,
+                              fontSize: compact ? 10.0 : 11.0,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _distanceLabel(alert),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: compact ? 9.6 : 10.5,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _distanceLabel(alert),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: compact ? 9.2 : 10.0,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _getTimeAgo(alert.timestamp),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: compact ? 9.6 : 10.5,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _getTimeAgo(alert.timestamp),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: compact ? 9.2 : 10.0,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
-                  }),
+                  },
                 ),
         ],
       ),

@@ -18,6 +18,8 @@ class MenuNav extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
+    final shortest = mq.size.shortestSide;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final items = <_NavItemSpec>[
       _NavItemSpec(Icons.home, l10n.home),
       _NavItemSpec(Icons.people, l10n.communities),
@@ -26,9 +28,20 @@ class MenuNav extends StatelessWidget {
       _NavItemSpec(Icons.person, l10n.profile),
     ];
 
-    final iconSel = w < 360 ? 22.0 : 24.0;
-    final iconUnsel = w < 360 ? 20.0 : 22.0;
-    final labelBase = w < 320 ? 9.5 : w < 360 ? 10.0 : w < 400 ? 10.5 : 11.5;
+    final compact = shortest < 360;
+    final iconSel = compact ? 21.0 : (w < 420 ? 23.0 : 24.0);
+    final iconUnsel = compact ? 19.0 : (w < 420 ? 21.0 : 22.0);
+    final labelBase = compact
+        ? 9.2
+        : w < 360
+        ? 9.8
+        : w < 400
+        ? 10.2
+        : 11.0;
+    final navHeight = (kBottomNavigationBarHeight + (textScale - 1) * 12).clamp(
+      58.0,
+      74.0,
+    );
 
     return Material(
       color: Colors.white,
@@ -37,7 +50,7 @@ class MenuNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: kBottomNavigationBarHeight,
+          height: navHeight,
           child: Row(
             children: [
               for (var i = 0; i < items.length; i++)
@@ -92,10 +105,10 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? MenuNav._selected : MenuNav._unselected;
-    final labelMaxW = math.max(36.0, slotWidth - 4);
-    final iconS = math.min(iconSize, maxHeight * 0.44);
-    const gap = 2.0;
-    final textH = math.max(14.0, maxHeight - iconS - gap - 4);
+    final labelMaxW = math.max(36.0, slotWidth - 2);
+    final iconS = math.min(iconSize, maxHeight * 0.42);
+    final gap = maxHeight < 62 ? 1.0 : 2.0;
+    final textH = math.max(16.0, maxHeight - iconS - gap - 3);
 
     return InkWell(
       onTap: onTap,
@@ -106,7 +119,7 @@ class _NavTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(spec.icon, size: iconS, color: color),
-            const SizedBox(height: gap),
+            SizedBox(height: gap),
             SizedBox(
               width: labelMaxW,
               height: textH,
@@ -114,13 +127,13 @@ class _NavTile extends StatelessWidget {
                 text: spec.label,
                 maxWidth: labelMaxW,
                 maxHeight: textH,
-                maxLines: 1,
+                maxLines: 2,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: labelFontSize,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   color: color,
-                  height: 1.0,
+                  height: 1.05,
                 ),
               ),
             ),

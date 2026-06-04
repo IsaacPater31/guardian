@@ -2043,12 +2043,25 @@ class _AlertButtonState extends State<AlertButton>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sw = MediaQuery.of(context).size.width;
-        final cols = sw < 360
+        final containerW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width;
+        final t = _fluidScale(containerW, inMin: 300, inMax: 1100);
+        final cols = containerW < 360
             ? 2
-            : sw < 520
+            : containerW < 560
             ? 3
             : 4;
+        final sectionTitleSize = _lerpDouble(17.0, 20.0, t).clamp(17.0, 20.0);
+        final sectionGap = _lerpDouble(9.0, 14.0, t).clamp(9.0, 14.0);
+        final gridGap = _lerpDouble(8.0, 12.0, t).clamp(8.0, 12.0);
+        final aspect = containerW < 360
+            ? 0.98
+            : containerW < 460
+            ? 1.02
+            : containerW < 620
+            ? 1.08
+            : 1.14;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -2057,7 +2070,7 @@ class _AlertButtonState extends State<AlertButton>
               isBusy: _isQuickTriggerBusy,
               onConfirmed: _triggerQuickFromSlider,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: sectionGap),
             Row(
               children: [
                 Expanded(
@@ -2065,7 +2078,7 @@ class _AlertButtonState extends State<AlertButton>
                     '¿Qué tipo de ayuda necesitas?',
                     style: TextStyle(
                       color: _AppleEmergencyUX.labelPrimary,
-                      fontSize: sw < 380 ? 18 : 20,
+                      fontSize: sectionTitleSize,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -2079,16 +2092,16 @@ class _AlertButtonState extends State<AlertButton>
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: gridGap),
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: quickTypes.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: sw < 420 ? 1.05 : 1.12,
+                mainAxisSpacing: gridGap,
+                crossAxisSpacing: gridGap,
+                childAspectRatio: aspect,
               ),
               itemBuilder: (_, i) {
                 final type = quickTypes[i];
@@ -2098,6 +2111,7 @@ class _AlertButtonState extends State<AlertButton>
                   icon: data['icon'] as IconData,
                   color: data['color'] as Color,
                   title: EmergencyTypes.getTranslatedType(type, context),
+                  compact: containerW < 420,
                   onTap: () {
                     if (_showEmergencyOptions) return;
                     _showEmergencyDialog(type);
@@ -2105,7 +2119,7 @@ class _AlertButtonState extends State<AlertButton>
                 );
               },
             ),
-            const SizedBox(height: 14),
+            SizedBox(height: sectionGap),
             Row(
               children: [
                 Expanded(
@@ -2113,7 +2127,7 @@ class _AlertButtonState extends State<AlertButton>
                     'Reportes',
                     style: TextStyle(
                       color: _AppleEmergencyUX.labelPrimary,
-                      fontSize: sw < 380 ? 18 : 20,
+                      fontSize: sectionTitleSize,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -2127,7 +2141,7 @@ class _AlertButtonState extends State<AlertButton>
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: gridGap),
             _EventualityBottomStrip(
               onAmbiental: () {
                 if (_showEmergencyOptions) return;
@@ -2151,16 +2165,31 @@ class _QuickTypeTapCard extends StatelessWidget {
     required this.color,
     required this.title,
     required this.onTap,
+    this.compact = false,
   });
 
   final IconData icon;
   final Color color;
   final String title;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 380;
+    final w = MediaQuery.of(context).size.width;
+    final t = _fluidScale(w, inMin: 300, inMax: 900);
+    final iconSize = _lerpDouble(
+      compact ? 27.0 : 30.0,
+      34.0,
+      t,
+    ).clamp(compact ? 27.0 : 30.0, 34.0);
+    final labelSize = _lerpDouble(
+      compact ? 11.0 : 11.8,
+      12.8,
+      t,
+    ).clamp(compact ? 11.0 : 11.8, 12.8);
+    final padH = _lerpDouble(7.0, 10.0, t).clamp(7.0, 10.0);
+    final padV = _lerpDouble(8.0, 11.0, t).clamp(8.0, 11.0);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -2173,11 +2202,11 @@ class _QuickTypeTapCard extends StatelessWidget {
             border: Border.all(color: _AppleEmergencyUX.separator),
             boxShadow: _AppleEmergencyUX.cardShadow,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: compact ? 30 : 34),
+              Icon(icon, color: color, size: iconSize),
               const SizedBox(height: 8),
               Text(
                 title,
@@ -2187,7 +2216,7 @@ class _QuickTypeTapCard extends StatelessWidget {
                 style: TextStyle(
                   color: _AppleEmergencyUX.labelPrimary,
                   fontWeight: FontWeight.w700,
-                  fontSize: compact ? 11.5 : 12.5,
+                  fontSize: labelSize,
                   height: 1.1,
                 ),
               ),
@@ -2224,15 +2253,25 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.of(context).size.width < 380;
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardW = constraints.maxWidth;
-        final knobSize = compact ? 86.0 : 102.0;
+        final t = _fluidScale(cardW, inMin: 280, inMax: 960);
+        final compact = cardW < 380;
+        final contentHeight = _lerpDouble(96.0, 122.0, t).clamp(96.0, 122.0);
+        final knobSize = _lerpDouble(
+          compact ? 74.0 : 84.0,
+          102.0,
+          t,
+        ).clamp(compact ? 74.0 : 84.0, 102.0);
         final centerLeft = (cardW - knobSize) / 2;
         final rightLeft = math.max(centerLeft, cardW - knobSize - 10);
         final travel = rightLeft - centerLeft;
         final knobLeft = centerLeft + (travel * _progress);
+        final slideHintSize = _lerpDouble(10.5, 12.0, t).clamp(10.5, 12.0);
+        final titleSize = _lerpDouble(24.0, 33.0, t).clamp(24.0, 33.0);
+        final arrowsSize = _lerpDouble(26.0, 36.0, t).clamp(26.0, 36.0);
+        final sosSize = _lerpDouble(28.0, 40.0, t).clamp(28.0, 40.0);
 
         return GestureDetector(
           onHorizontalDragUpdate: (_sending || widget.isBusy)
@@ -2253,7 +2292,12 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
           },
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+            padding: EdgeInsets.fromLTRB(
+              _lerpDouble(12.0, 14.0, t).clamp(12.0, 14.0),
+              _lerpDouble(14.0, 16.0, t).clamp(14.0, 16.0),
+              _lerpDouble(12.0, 14.0, t).clamp(12.0, 14.0),
+              _lerpDouble(14.0, 16.0, t).clamp(14.0, 16.0),
+            ),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFFF2E2E), Color(0xFFE00000)],
@@ -2270,7 +2314,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
               ],
             ),
             child: SizedBox(
-              height: compact ? 108 : 122,
+              height: contentHeight,
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -2290,7 +2334,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
                                   'DESLIZA PARA',
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.88),
-                                    fontSize: compact ? 11 : 12,
+                                    fontSize: slideHintSize,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -2298,7 +2342,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
                                   'PEDIR\nAYUDA',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: compact ? 29 : 33,
+                                    fontSize: titleSize,
                                     height: 0.92,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -2312,7 +2356,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
                               '>>>',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.52),
-                                fontSize: compact ? 32 : 36,
+                                fontSize: arrowsSize,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -2323,7 +2367,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
                   ),
                   Positioned(
                     left: knobLeft,
-                    top: (compact ? 108 : 122) / 2 - knobSize / 2,
+                    top: contentHeight / 2 - knobSize / 2,
                     child: Container(
                       width: knobSize,
                       height: knobSize,
@@ -2351,7 +2395,7 @@ class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
                               'SOS',
                               style: TextStyle(
                                 color: const Color(0xFFFF2E2E),
-                                fontSize: compact ? 35 : 40,
+                                fontSize: sosSize,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
