@@ -324,7 +324,7 @@ class _AlertButtonState extends State<AlertButton>
 
   final AlertHandler _alertHandler = AlertHandler();
   final CommunityService _communityService = CommunityService();
-  final SwipeAlertConfigService _swipeConfig = SwipeAlertConfigService();
+  final TypedAlertConfigService _typedConfig = TypedAlertConfigService();
   bool _isQuickTriggerBusy = false;
 
   @override
@@ -346,7 +346,7 @@ class _AlertButtonState extends State<AlertButton>
   /// de cada tipo de alerta si aún no está configurada.
   Future<void> _initDefaultCommunities() async {
     try {
-      await _swipeConfig.initDefaults();
+      await _typedConfig.initDefaults();
     } catch (e) {
       // No bloquear la UI si falla la inicialización
     }
@@ -545,13 +545,13 @@ class _AlertButtonState extends State<AlertButton>
     if (emergencyData == null || emergencyData.isEmpty) return;
 
     // 1. Verificar si hay comunidades configuradas por defecto para este tipo
-    final configuredIds = await _swipeConfig.getCommunitiesForType(
+    final configuredIds = await _typedConfig.getCommunitiesForType(
       emergencyType,
     );
 
     if (configuredIds != null && configuredIds.isNotEmpty) {
       // Hay configuración guardada — obtener los datos de esas comunidades
-      final allCommunities = await _swipeConfig.getAvailableCommunities();
+      final allCommunities = await _typedConfig.getAvailableCommunities();
       final preselected = allCommunities
           .where((c) => configuredIds.contains(c['id'] as String))
           .toList();
@@ -575,7 +575,7 @@ class _AlertButtonState extends State<AlertButton>
     // 2. No hay config guardada — buscar por keyword por defecto
     final keyword = EmergencyTypes.getDefaultCommunityKeyword(emergencyType);
     if (keyword != null) {
-      final allCommunities = await _swipeConfig.getAvailableCommunities();
+      final allCommunities = await _typedConfig.getAvailableCommunities();
       final initialIds = allCommunities
           .where((c) {
             final name = (c['name'] as String? ?? '').toUpperCase();
@@ -610,9 +610,8 @@ class _AlertButtonState extends State<AlertButton>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Clear downward affordance (drag down) + handle.
               const Icon(
-                Icons.keyboard_double_arrow_down_rounded,
+                Icons.info_outline_rounded,
                 size: 18,
                 color: Colors.white70,
               ),
@@ -644,7 +643,7 @@ class _AlertButtonState extends State<AlertButton>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SwipeAlertConfigView(
+                          builder: (_) => TypedAlertConfigView(
                             initialAlertType: emergencyType,
                           ),
                         ),
@@ -1687,9 +1686,10 @@ class _AlertButtonState extends State<AlertButton>
     final alertType = emergencyType;
     final l10n = AppLocalizations.of(context)!;
     final n = selectedCommunities.length;
+    final readableType = EmergencyTypes.getTranslatedType(alertType, context);
     final sendingLine = n == 1
-        ? l10n.alertSendingToOne
-        : l10n.alertSendingToMany(n);
+        ? '${l10n.alertSendingToOne} ($readableType)'
+        : '${l10n.alertSendingToMany(n)} ($readableType)';
 
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final messenger = ScaffoldMessenger.of(context);
@@ -1727,7 +1727,7 @@ class _AlertButtonState extends State<AlertButton>
     final communityIds = selectedCommunities
         .map((c) => c['id'] as String)
         .toList();
-    final success = await _alertHandler.sendSwipedAlert(
+    final success = await _alertHandler.sendTypedAlert(
       alertType: alertType,
       isAnonymous: isAnonymous,
       communityIds: communityIds,
@@ -1741,7 +1741,7 @@ class _AlertButtonState extends State<AlertButton>
 
     // Persist selection so the same communities are pre-selected next time.
     if (success) {
-      _swipeConfig.setCommunitiesForType(alertType, communityIds);
+      _typedConfig.setCommunitiesForType(alertType, communityIds);
     }
 
     if (!mounted) return;
@@ -1779,7 +1779,7 @@ class _AlertButtonState extends State<AlertButton>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        okL10n.alertSent,
+                        '${okL10n.alertSent}: $readableType',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

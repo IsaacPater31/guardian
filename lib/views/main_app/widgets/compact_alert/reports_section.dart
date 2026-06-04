@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
-import 'package:guardian/generated/l10n/app_localizations.dart';
-import 'package:guardian/widgets/adaptive_fit_text.dart';
 import 'package:guardian/views/main_app/widgets/compact_alert/alert_compact_flow_interface.dart';
 
 class ReportsSection extends StatelessWidget {
@@ -88,7 +86,6 @@ class EventualityBottomStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     final shortest = mq.size.shortestSide;
@@ -111,39 +108,48 @@ class EventualityBottomStrip extends StatelessWidget {
             isTablet ? (isTabletLandscape ? 1180.0 : 980.0) : 860.0,
           )
         : double.infinity;
-    final cardMinH =
-        (_lerpDouble(54.0, isTablet ? 90.0 : 68.0, shortestT) +
-                (isTabletLandscape ? -2.0 : 0.0))
-            .clamp(52.0, isTablet ? 92.0 : 70.0);
+    final cardHeight =
+        (_lerpDouble(142.0, isTablet ? 174.0 : 156.0, shortestT) +
+                (isTabletLandscape ? -8.0 : 0.0))
+            .clamp(136.0, isTablet ? 182.0 : 164.0);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxRow),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: AppleCategoryCard(
-                  icon: Icons.eco_rounded,
-                  title: l10n.eventualityEnvironmentalTitle,
-                  accent: const Color(0xFF34C759),
-                  minHeight: cardMinH,
-                  onTap: onAmbiental,
+          child: SizedBox(
+            height: cardHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: AppleCategoryCard(
+                    icon: Icons.eco_rounded,
+                    title: 'REPORTE\nAMBIENTAL',
+                    subtitle:
+                        'Basura, derrames, olores, ruido y calidad del aire.',
+                    accent: const Color(0xFF22C55E),
+                    surfaceTint: const Color(0xFFF3FBF5),
+                    buttonLabel: 'Reportar',
+                    onTap: onAmbiental,
+                  ),
                 ),
-              ),
-              SizedBox(width: gap),
-              Expanded(
-                child: AppleCategoryCard(
-                  icon: Icons.local_police_rounded,
-                  title: l10n.eventualityPoliceTitle,
-                  accent: const Color(0xFF007AFF),
-                  minHeight: cardMinH,
-                  onTap: onPolicial,
+                SizedBox(width: gap),
+                Expanded(
+                  child: AppleCategoryCard(
+                    icon: Icons.security_rounded,
+                    title: 'REPORTE\nPOLICIAL',
+                    subtitle:
+                        'Hurtos, vandalismo, sospechosos, riñas y amenazas.',
+                    accent: const Color(0xFF2563EB),
+                    surfaceTint: const Color(0xFFF4F8FF),
+                    buttonLabel: 'Reportar',
+                    onTap: onPolicial,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -154,16 +160,20 @@ class EventualityBottomStrip extends StatelessWidget {
 class AppleCategoryCard extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String subtitle;
   final Color accent;
-  final double minHeight;
+  final Color surfaceTint;
+  final String buttonLabel;
   final VoidCallback onTap;
 
   const AppleCategoryCard({
     super.key,
     required this.icon,
     required this.title,
+    required this.subtitle,
     required this.accent,
-    this.minHeight = 52,
+    required this.surfaceTint,
+    required this.buttonLabel,
     required this.onTap,
   });
 
@@ -184,90 +194,117 @@ class AppleCategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ss = MediaQuery.sizeOf(context).shortestSide;
     final w = MediaQuery.sizeOf(context).width;
-    final isTablet = ss >= 600 || w >= 720;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
-    final sizeT = _fluidScale(ss, inMin: 300, inMax: 900);
-    final circleFrac = _lerpDouble(
-      isLandscape ? 0.095 : 0.102,
-      isTablet && isLandscape ? 0.086 : 0.092,
-      sizeT,
-    );
-    final circleD = (ss * circleFrac).clamp(36.0, isTablet ? 54.0 : 48.0);
-    final iconSz = (circleD * 0.52).clamp(18.0, 26.0);
-    final titleSz = MediaQuery.textScalerOf(context).scale(
-      _lerpDouble(13.8, isTablet ? (isLandscape ? 16.1 : 17.0) : 15.2, sizeT),
-    );
-    final padH = _lerpDouble(9.5, 13.0, sizeT);
-    final padV = _lerpDouble(11.0, 14.5, sizeT);
+    final scaleT = _fluidScale(ss, inMin: 300, inMax: 900);
+    final iconBox = _lerpDouble(34.0, 48.0, scaleT).clamp(34.0, 48.0);
+    final iconSize = _lerpDouble(20.0, 28.0, scaleT).clamp(20.0, 28.0);
+    final titleSize = _lerpDouble(12.8, 15.8, scaleT).clamp(12.8, 15.8);
+    final bodySize = _lerpDouble(10.3, 12.2, scaleT).clamp(10.3, 12.2);
+    final btnSize = _lerpDouble(11.4, 13.0, scaleT).clamp(11.4, 13.0);
+    final pad = _lerpDouble(10.0, 14.0, scaleT).clamp(10.0, 14.0);
+    final radius = _lerpDouble(12.0, 14.0, scaleT).clamp(12.0, 14.0);
+    final tiny = w < 360;
 
-    final circle = Container(
-      width: circleD,
-      height: circleD,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: accent, size: iconSz),
-    );
-
-    final padVEff = math
-        .max(padV, (minHeight - circleD) / 2 - 2)
-        .clamp(padV, 22.0);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5EA), width: 0.5),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          splashColor: accent.withValues(alpha: 0.15),
-          highlightColor: accent.withValues(alpha: 0.06),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: padH, vertical: padVEff),
-            child: LayoutBuilder(
-              builder: (context, rowConstraints) {
-                final textMaxW = math.max(
-                  48.0,
-                  rowConstraints.maxWidth - circleD - padH * 2 - 10,
-                );
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    circle,
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AdaptiveFitText(
-                        text: title,
-                        maxWidth: textMaxW,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: titleSz,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.28,
-                          color: const Color(0xFF1C1C1E),
-                          height: 1.05,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        splashColor: accent.withValues(alpha: 0.15),
+        highlightColor: accent.withValues(alpha: 0.06),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceTint,
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.25),
+              width: 0.9,
             ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 10,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: iconBox,
+                height: iconBox,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: iconSize),
+              ),
+              SizedBox(height: tiny ? 6 : 8),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: accent,
+                  fontWeight: FontWeight.w900,
+                  fontSize: titleSize,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              SizedBox(height: tiny ? 3 : 4),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  maxLines: tiny ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFF4B5563),
+                    fontSize: bodySize,
+                    height: 1.22,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: tiny ? 32 : 35,
+                child: FilledButton(
+                  onPressed: onTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          buttonLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: btnSize,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

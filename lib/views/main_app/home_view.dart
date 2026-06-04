@@ -288,15 +288,37 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
+    final isTiny = screenWidth < 330;
     final isSmall = screenWidth < 360;
-    final headerPadding = isSmall
+    final headerPadding = isTiny
+        ? const EdgeInsets.symmetric(horizontal: 10, vertical: 12)
+        : isSmall
         ? const EdgeInsets.symmetric(horizontal: 14, vertical: 14)
         : const EdgeInsets.all(20);
-    final titleFontSize = (screenWidth * 0.068).clamp(20.0, 28.0);
-    final subtitleFontSize = isSmall ? 12.0 : 14.0;
-    final buttonSize = isSmall ? 40.0 : 48.0;
-    final iconSize = isSmall ? 20.0 : 24.0;
-    final spacing = isSmall ? 8.0 : 12.0;
+    final titleFontSize = (screenWidth * 0.068).clamp(
+      isTiny ? 18.0 : 20.0,
+      28.0,
+    );
+    final subtitleFontSize = isTiny
+        ? 11.0
+        : isSmall
+        ? 12.0
+        : 14.0;
+    final buttonSize = isTiny
+        ? 36.0
+        : isSmall
+        ? 40.0
+        : 48.0;
+    final iconSize = isTiny
+        ? 18.0
+        : isSmall
+        ? 20.0
+        : 24.0;
+    final spacing = isTiny
+        ? 6.0
+        : isSmall
+        ? 8.0
+        : 12.0;
 
     return Container(
       padding: headerPadding,
@@ -334,6 +356,8 @@ class _HomeViewState extends State<HomeView> {
                     color: Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -835,22 +859,24 @@ class _HomeViewState extends State<HomeView> {
             ],
           ),
         ),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          alert.type.toUpperCase(),
-          style: TextStyle(
-            fontSize: dense ? 8 : (compact ? 9 : 10),
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.2,
+      if (alert.type == 'quick')
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+          ),
+          child: Text(
+            'URGENTE',
+            style: TextStyle(
+              fontSize: dense ? 8 : (compact ? 9 : 10),
+              color: Colors.red[700],
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
           ),
         ),
-      ),
     ];
 
     return GestureDetector(

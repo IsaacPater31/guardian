@@ -5,7 +5,7 @@ import android.graphics.Color
 
 /**
  * Tipos de emergencia alineados con [lib/core/alert_detail_catalog.dart] y
- * [lib/models/emergency_types.dart] (Firestore `alertType` y gesto radial).
+ * [lib/models/emergency_types.dart] (Firestore `alertType`).
  * Las notificaciones en segundo plano usan las mismas claves y títulos que la app.
  */
 object EmergencyTypes {
@@ -81,22 +81,6 @@ object EmergencyTypes {
             title = "URGENCY",
         ),
     )
-
-    /**
-     * Gesto radial (6 direcciones) + centro toque rápido — misma asignación que
-     * [EmergencyTypes.radialDirectionToType] en Dart.
-     */
-    val types: Map<String, EmergencyType> = mapOf(
-        "upLeft" to catalogTypes.getValue("FIRE"),
-        "upRight" to catalogTypes.getValue("casa"),
-        "left" to catalogTypes.getValue("acoso"),
-        "downLeft" to catalogTypes.getValue("seguridad"),
-        "downRight" to catalogTypes.getValue("vial"),
-        "right" to catalogTypes.getValue("HEALTH"),
-        "center" to catalogTypes.getValue("URGENCY"),
-    )
-
-    fun getTypeByDirection(direction: String): EmergencyType? = types[direction]
 
     /**
      * Resuelve por `alertType` de Firestore; acepta alias heredados.

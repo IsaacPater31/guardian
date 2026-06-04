@@ -6,7 +6,8 @@ import 'package:guardian/core/app_constants.dart';
 class AlertModel {
   final String? id;
 
-  /// Alert category: `'detailed'`, `'quick'`, or `'swiped'`.
+  /// Alert category: `'detailed'`, `'quick'`, or `'typed'`.
+  /// Legacy documents may still contain `'swiped'`.
   final String type;
 
   /// Emergency type identifier (Firestore), p. ej. `'FIRE'`, `'casa'`, `'policial'`.
@@ -23,6 +24,7 @@ class AlertModel {
   final String? userEmail;
   final String? userName;
   final List<String>? imageBase64;
+
   /// Nota corta en base64 (p. ej. AAC); tamaño debe mantenerse bajo el límite de Firestore.
   final String? audioBase64;
   final List<String> attachmentPlaceholders;
@@ -147,31 +149,31 @@ class AlertModel {
   }
 
   Map<String, dynamic> toFirestore() => {
-        'type': type,
-        'alertType': alertType,
-        'description': description,
-        'subtype': subtype,
-        'custom_detail': customDetail,
-        'timestamp': Timestamp.fromDate(timestamp),
-        'isAnonymous': isAnonymous,
-        'shareLocation': shareLocation,
-        'location': location?.toMap(),
-        'userId': userId,
-        'userEmail': userEmail,
-        'userName': userName,
-        'imageBase64': imageBase64,
-        AlertFields.audioBase64: audioBase64,
-        'attachment_placeholders': attachmentPlaceholders,
-        'viewedCount': viewedCount,
-        'viewedBy': viewedBy,
-        'community_ids': communityIds,   // new field (array)
-        // Note: community_id (singular) is intentionally NOT written
-        // so new documents only have community_ids.
-        'alert_status': alertStatus,
-        'forwards_count': forwardsCount,
-        'reports_count': reportsCount,
-        'reported_by': reportedBy,
-      };
+    'type': type,
+    'alertType': alertType,
+    'description': description,
+    'subtype': subtype,
+    'custom_detail': customDetail,
+    'timestamp': Timestamp.fromDate(timestamp),
+    'isAnonymous': isAnonymous,
+    'shareLocation': shareLocation,
+    'location': location?.toMap(),
+    'userId': userId,
+    'userEmail': userEmail,
+    'userName': userName,
+    'imageBase64': imageBase64,
+    AlertFields.audioBase64: audioBase64,
+    'attachment_placeholders': attachmentPlaceholders,
+    'viewedCount': viewedCount,
+    'viewedBy': viewedBy,
+    'community_ids': communityIds, // new field (array)
+    // Note: community_id (singular) is intentionally NOT written
+    // so new documents only have community_ids.
+    'alert_status': alertStatus,
+    'forwards_count': forwardsCount,
+    'reports_count': reportsCount,
+    'reported_by': reportedBy,
+  };
 
   AlertModel copyWith({
     String? id,
@@ -214,7 +216,8 @@ class AlertModel {
       userName: userName ?? this.userName,
       imageBase64: imageBase64 ?? this.imageBase64,
       audioBase64: audioBase64 ?? this.audioBase64,
-      attachmentPlaceholders: attachmentPlaceholders ?? this.attachmentPlaceholders,
+      attachmentPlaceholders:
+          attachmentPlaceholders ?? this.attachmentPlaceholders,
       viewedCount: viewedCount ?? this.viewedCount,
       viewedBy: viewedBy ?? this.viewedBy,
       communityIds: communityIds ?? this.communityIds,
@@ -231,18 +234,15 @@ class LocationData {
   final double latitude;
   final double longitude;
 
-  const LocationData({
-    required this.latitude,
-    required this.longitude,
-  });
+  const LocationData({required this.latitude, required this.longitude});
 
   factory LocationData.fromMap(Map<String, dynamic> map) => LocationData(
-        latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
-        longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
-      );
+    latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+    longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+  );
 
   Map<String, dynamic> toMap() => {
-        'latitude': latitude,
-        'longitude': longitude,
-      };
+    'latitude': latitude,
+    'longitude': longitude,
+  };
 }

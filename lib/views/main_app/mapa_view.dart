@@ -78,13 +78,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
       customEnd: _filters.customEnd,
     );
 
-    _alertsSubscription = stream.listen(
-      (alerts) {
-        if (mounted) setState(() => _alerts = alerts);
-        AppLogger.d('Map stream: ${alerts.length} alerts received');
-      },
-      onError: (error) => AppLogger.e('Map stream error', error),
-    );
+    _alertsSubscription = stream.listen((alerts) {
+      if (mounted) setState(() => _alerts = alerts);
+      AppLogger.d('Map stream: ${alerts.length} alerts received');
+    }, onError: (error) => AppLogger.e('Map stream error', error));
   }
 
   // ─── Aplicar nuevos filtros ────────────────────────────────────────────────
@@ -114,10 +111,8 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
         minChildSize: 0.4,
         maxChildSize: 0.92,
         expand: false,
-        builder: (_, scrollController) => MapFilterSheet(
-          initial: _filters,
-          onApply: _applyFilters,
-        ),
+        builder: (_, scrollController) =>
+            MapFilterSheet(initial: _filters, onApply: _applyFilters),
       ),
     );
   }
@@ -134,7 +129,9 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
       if (permission == LocationPermission.deniedForever) return;
 
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
@@ -160,8 +157,12 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     final double lat2Rad = p2.latitude * pi / 180;
     final double deltaLatRad = (p2.latitude - p1.latitude) * pi / 180;
     final double deltaLonRad = (p2.longitude - p1.longitude) * pi / 180;
-    final double a = sin(deltaLatRad / 2) * sin(deltaLatRad / 2) +
-        cos(lat1Rad) * cos(lat2Rad) * sin(deltaLonRad / 2) * sin(deltaLonRad / 2);
+    final double a =
+        sin(deltaLatRad / 2) * sin(deltaLatRad / 2) +
+        cos(lat1Rad) *
+            cos(lat2Rad) *
+            sin(deltaLonRad / 2) *
+            sin(deltaLonRad / 2);
     return earthRadius * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
@@ -175,13 +176,17 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
       final alert = alerts[i];
       if (alert.location == null) continue;
 
-      final originalLatLng = LatLng(alert.location!.latitude, alert.location!.longitude);
+      final originalLatLng = LatLng(
+        alert.location!.latitude,
+        alert.location!.longitude,
+      );
       LatLng adjustedLatLng = originalLatLng;
       int offsetLevel = 0;
 
       for (final existing in result) {
         final existingLatLng = existing['latLng'] as LatLng;
-        if (_calculateDistance(originalLatLng, existingLatLng) < overlapThreshold) {
+        if (_calculateDistance(originalLatLng, existingLatLng) <
+            overlapThreshold) {
           offsetLevel++;
           final angle = (offsetLevel * 2 * pi) / 8;
           final radius = offsetDistance * offsetLevel;
@@ -252,7 +257,11 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       color: Color(0xFF34C759),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 9),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 9,
+                    ),
                   ),
                 ),
               // Badge de offset
@@ -316,8 +325,12 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     final now = DateTime.now();
     final diff = now.difference(timestamp);
     if (diff.inMinutes < 1) return AppLocalizations.of(context)!.justNowMap;
-    if (diff.inMinutes < 60) return AppLocalizations.of(context)!.minutesAgoMap(diff.inMinutes);
-    if (diff.inHours < 24) return AppLocalizations.of(context)!.hoursAgoMap(diff.inHours);
+    if (diff.inMinutes < 60) {
+      return AppLocalizations.of(context)!.minutesAgoMap(diff.inMinutes);
+    }
+    if (diff.inHours < 24) {
+      return AppLocalizations.of(context)!.hoursAgoMap(diff.inHours);
+    }
     return AppLocalizations.of(context)!.daysAgoMap(diff.inDays);
   }
 
@@ -326,9 +339,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     if (_isLoading && _alerts.isEmpty) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final initialLocation = _currentLocation ?? const LatLng(4.7110, -74.0721);
@@ -374,11 +385,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
           ),
 
           // ── Botón de filtro (esquina superior derecha) ──
-          Positioned(
-            top: 16,
-            right: 16,
-            child: _buildFilterButton(),
-          ),
+          Positioned(top: 16, right: 16, child: _buildFilterButton()),
 
           // ── Chip: sin alertas ──
           if (_alerts.isEmpty && !_isLoading)
@@ -386,7 +393,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
               top: 16,
               left: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(10),
@@ -394,7 +404,11 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.info_outline_rounded, color: Colors.white, size: 14),
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       _filters.hasFilters
@@ -409,11 +423,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
           // ── Chip: conteo de resultados (cuando hay filtros activos) ──
           if (_filters.hasFilters && _alerts.isNotEmpty)
-            Positioned(
-              top: 16,
-              left: 16,
-              child: _buildResultCountChip(),
-            ),
+            Positioned(top: 16, left: 16, child: _buildResultCountChip()),
 
           // ── Loading overlay (actualizando) ──
           if (_isLoading && _alerts.isNotEmpty)
@@ -421,7 +431,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
               top: 16,
               left: 16,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(10),
@@ -606,7 +619,11 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(_getAlertIcon(alert.alertType), color: Colors.white, size: 20),
+                    child: Icon(
+                      _getAlertIcon(alert.alertType),
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -614,9 +631,14 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          EmergencyTypes.getTranslatedType(alert.alertType, context),
+                          EmergencyTypes.getTranslatedType(
+                            alert.alertType,
+                            context,
+                          ),
                           style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                         Row(
@@ -624,16 +646,22 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                             Text(
                               _getTimeAgo(alert.timestamp),
                               style: TextStyle(
-                                fontSize: 12, color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.8),
                               ),
                             ),
                             const SizedBox(width: 8),
                             // Badge de estado — Apple-style pill
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color:        isAttended
-                                    ? const Color(0xFF34C759).withValues(alpha: 0.25)
+                                color: isAttended
+                                    ? const Color(
+                                        0xFF34C759,
+                                      ).withValues(alpha: 0.25)
                                     : Colors.white.withValues(alpha: 0.18),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
@@ -656,10 +684,16 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                                   const SizedBox(width: 4),
                                   Text(
                                     isAttended
-                                        ? AppLocalizations.of(context)!.alertStatusAttendedShort
-                                        : AppLocalizations.of(context)!.alertStatusNotAttendedShort,
+                                        ? AppLocalizations.of(
+                                            context,
+                                          )!.alertStatusAttendedShort
+                                        : AppLocalizations.of(
+                                            context,
+                                          )!.alertStatusNotAttendedShort,
                                     style: const TextStyle(
-                                      fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
@@ -674,7 +708,10 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                     icon: const Icon(Icons.close_rounded, color: Colors.white),
                     onPressed: _hideAlertDetails,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
                 ],
               ),
@@ -689,7 +726,9 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                   Row(
                     children: [
                       Icon(
-                        alert.isAnonymous ? Icons.visibility_off_rounded : Icons.person_rounded,
+                        alert.isAnonymous
+                            ? Icons.visibility_off_rounded
+                            : Icons.person_rounded,
                         size: 15,
                         color: Colors.grey[600],
                       ),
@@ -698,7 +737,8 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                         child: Text(
                           alert.isAnonymous
                               ? AppLocalizations.of(context)!.anonymousReportMap
-                              : (alert.userName ?? AppLocalizations.of(context)!.unknownUser),
+                              : (alert.userName ??
+                                    AppLocalizations.of(context)!.unknownUser),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[700],
@@ -709,11 +749,15 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  if (alert.description != null && alert.description!.isNotEmpty) ...[
+                  if (alert.description != null &&
+                      alert.description!.isNotEmpty) ...[
                     const SizedBox(height: 10),
                     Text(
                       alert.description!,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF374151)),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF374151),
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -723,7 +767,15 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                     children: [
                       if (alert.shareLocation && alert.location != null)
                         _buildTag('📍 Ubicación', Colors.green),
-                      _buildTag(alert.type.toUpperCase(), _getAlertColor(alert.alertType)),
+                      _buildTag(
+                        EmergencyTypes.getTranslatedType(
+                          alert.alertType,
+                          context,
+                        ),
+                        _getAlertColor(alert.alertType),
+                      ),
+                      if (alert.type == 'quick')
+                        _buildTag('URGENTE', Colors.red),
                     ],
                   ),
                 ],
@@ -760,4 +812,3 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     super.dispose();
   }
 }
-

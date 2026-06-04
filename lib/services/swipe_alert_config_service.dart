@@ -8,17 +8,18 @@ import '../core/default_official_entities.dart';
 import '../models/emergency_types.dart';
 import '../repositories/community_repository.dart';
 
-/// Manages the per-alert-type community configuration for swipe alerts.
+/// Manages per-alert-type community configuration (type/subtype flow).
 ///
 /// Configuration is persisted in [SharedPreferences] using keys of the form
 /// `swipe_alert_communities_<ALERT_TYPE>`.
 ///
 /// Defaults are seeded from [EmergencyTypes.defaultCommunityKeyword] the first
 /// time a type is accessed without prior configuration.
-class SwipeAlertConfigService {
-  static final SwipeAlertConfigService _instance = SwipeAlertConfigService._internal();
-  factory SwipeAlertConfigService() => _instance;
-  SwipeAlertConfigService._internal();
+class TypedAlertConfigService {
+  static final TypedAlertConfigService _instance =
+      TypedAlertConfigService._internal();
+  factory TypedAlertConfigService() => _instance;
+  TypedAlertConfigService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final CommunityRepository _communities = CommunityRepository();
@@ -55,7 +56,7 @@ class SwipeAlertConfigService {
       _cache[alertType] = valid.isEmpty ? null : valid;
       return _cache[alertType];
     } catch (e) {
-      AppLogger.e('SwipeAlertConfigService.getCommunitiesForType', e);
+      AppLogger.e('TypedAlertConfigService.getCommunitiesForType', e);
       return null;
     }
   }
@@ -66,12 +67,17 @@ class SwipeAlertConfigService {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('${PrefKeys.swipeAlertPrefix}$alertType', communityIds);
+      await prefs.setStringList(
+        '${PrefKeys.swipeAlertPrefix}$alertType',
+        communityIds,
+      );
       _cache[alertType] = communityIds.isEmpty ? null : communityIds;
-      AppLogger.d('SwipeAlertConfig [$alertType] → ${communityIds.length} community(ies)');
+      AppLogger.d(
+        'SwipeAlertConfig [$alertType] → ${communityIds.length} community(ies)',
+      );
       return true;
     } catch (e) {
-      AppLogger.e('SwipeAlertConfigService.setCommunitiesForType', e);
+      AppLogger.e('TypedAlertConfigService.setCommunitiesForType', e);
       return false;
     }
   }
@@ -103,10 +109,13 @@ class SwipeAlertConfigService {
       if (userId == null) return [];
       return _communities.fetchUserCommunities(userId);
     } catch (e) {
-      AppLogger.e('SwipeAlertConfigService.getAvailableCommunities', e);
+      AppLogger.e('TypedAlertConfigService.getAvailableCommunities', e);
       return [];
     }
   }
 
   void invalidateCache() => _cache.clear();
 }
+
+@Deprecated('Use TypedAlertConfigService')
+typedef SwipeAlertConfigService = TypedAlertConfigService;

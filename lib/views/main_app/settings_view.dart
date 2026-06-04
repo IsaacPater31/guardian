@@ -9,15 +9,15 @@ import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/utils/text_case_utils.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const _kBg = Color(0xFFF2F2F7);         // iOS system grouped background
+const _kBg = Color(0xFFF2F2F7); // iOS system grouped background
 const _kCard = Color(0xFFFFFFFF);
-const _kPrimary = Color(0xFF1C1C1E);    // iOS label
-const _kSecondary = Color(0xFF636366);  // iOS secondary label
+const _kPrimary = Color(0xFF1C1C1E); // iOS label
+const _kSecondary = Color(0xFF636366); // iOS secondary label
 const _kSeparator = Color(0xFFD1D1D6); // iOS separator
-const _kBlue = Color(0xFF007AFF);       // iOS blue
-const _kGreen = Color(0xFF30D158);      // iOS green
-const _kOrange = Color(0xFFFF9F0A);     // iOS orange
-const _kRed = Color(0xFFFF3B30);        // iOS red
+const _kBlue = Color(0xFF007AFF); // iOS blue
+const _kGreen = Color(0xFF30D158); // iOS green
+const _kOrange = Color(0xFFFF9F0A); // iOS orange
+const _kRed = Color(0xFFFF3B30); // iOS red
 
 // =============================================================================
 // SettingsView
@@ -40,19 +40,24 @@ class SettingsView extends StatelessWidget {
               _AppleTile(
                 icon: Icons.bolt_rounded,
                 iconColor: _kOrange,
-                title: l10n.quickAlerts,
-                subtitle: l10n.configQuickAlerts,
-                onTap: () => Navigator.push(context,
-                    _slide(const QuickAlertConfigView())),
+                title: 'Urgencia (deslizante)',
+                subtitle: 'Configura destinos para la alerta de urgencia.',
+                onTap: () => Navigator.push(
+                  context,
+                  _slide(const QuickAlertConfigView()),
+                ),
               ),
               const _CardDivider(),
               _AppleTile(
-                icon: Icons.swipe_rounded,
+                icon: Icons.category_rounded,
                 iconColor: _kBlue,
-                title: l10n.configSwipeAlerts,
-                subtitle: l10n.swipeAlertsSubtitle,
-                onTap: () => Navigator.push(context,
-                    _slide(const SwipeAlertConfigView())),
+                title: 'Alertas por tipo y subtipo',
+                subtitle:
+                    'Agrupa por tipo/subtipo y define comunidades destino.',
+                onTap: () => Navigator.push(
+                  context,
+                  _slide(const TypedAlertConfigView()),
+                ),
               ),
             ],
           ),
@@ -101,7 +106,9 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
   void initState() {
     super.initState();
     _saveAnim = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 300));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _loadConfiguration();
   }
 
@@ -131,8 +138,9 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
   Future<void> _save() async {
     HapticFeedback.mediumImpact();
     setState(() => _isSaving = true);
-    final success =
-        await _configService.updateQuickAlertDestinations(_selectedIds.toList());
+    final success = await _configService.updateQuickAlertDestinations(
+      _selectedIds.toList(),
+    );
     if (mounted) {
       setState(() => _isSaving = false);
       _showSaveToast(success);
@@ -150,12 +158,18 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
         duration: const Duration(seconds: 2),
         content: Row(
           children: [
-            Icon(success ? Icons.check_circle_rounded : Icons.error_rounded,
-                color: Colors.white, size: 20),
+            Icon(
+              success ? Icons.check_circle_rounded : Icons.error_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Text(
               success ? l10n.configSaved : l10n.errorSavingConfig,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -166,19 +180,22 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final entities = _destinations.where((d) => d['is_entity'] == true).toList();
-    final communities = _destinations.where((d) => d['is_entity'] != true).toList();
+    final entities = _destinations
+        .where((d) => d['is_entity'] == true)
+        .toList();
+    final communities = _destinations
+        .where((d) => d['is_entity'] != true)
+        .toList();
 
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: _AppleAppBar(title: l10n.quickAlertsTitle, actions: [
-        if (!_isLoading)
-          _NavBarAction(
-            label: l10n.save,
-            loading: _isSaving,
-            onTap: _save,
-          ),
-      ]),
+      appBar: _AppleAppBar(
+        title: l10n.quickAlertsTitle,
+        actions: [
+          if (!_isLoading)
+            _NavBarAction(label: l10n.save, loading: _isSaving, onTap: _save),
+        ],
+      ),
       body: _isLoading
           ? const _Loader()
           : CustomScrollView(
@@ -195,74 +212,70 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                 ),
                 if (entities.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _SectionLabel(l10n.officialEntities.toUpperCase(),
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6)),
+                    child: _SectionLabel(
+                      l10n.officialEntities.toUpperCase(),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+                    ),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _AppleCard(
-                        children: entities
-                            .asMap()
-                            .entries
-                            .map((entry) {
-                              final d = entry.value;
-                              final isLast = entry.key == entities.length - 1;
-                              return Column(
-                                children: [
-                                  _CommunityCheckTile(
-                                    community: d,
-                                    isSelected:
-                                        _selectedIds.contains(d['id'] as String),
-                                    onChanged: (val) => setState(() {
-                                      val == true
-                                          ? _selectedIds.add(d['id'] as String)
-                                          : _selectedIds
-                                              .remove(d['id'] as String);
-                                    }),
-                                  ),
-                                  if (!isLast) const _CardDivider(),
-                                ],
-                              );
-                            })
-                            .toList(),
+                        children: entities.asMap().entries.map((entry) {
+                          final d = entry.value;
+                          final isLast = entry.key == entities.length - 1;
+                          return Column(
+                            children: [
+                              _CommunityCheckTile(
+                                community: d,
+                                isSelected: _selectedIds.contains(
+                                  d['id'] as String,
+                                ),
+                                onChanged: (val) => setState(() {
+                                  val == true
+                                      ? _selectedIds.add(d['id'] as String)
+                                      : _selectedIds.remove(d['id'] as String);
+                                }),
+                              ),
+                              if (!isLast) const _CardDivider(),
+                            ],
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),
                 ],
                 if (communities.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                    child: _SectionLabel(l10n.myCommunities.toUpperCase(),
-                        padding: const EdgeInsets.fromLTRB(16, 24, 16, 6)),
+                    child: _SectionLabel(
+                      l10n.myCommunities.toUpperCase(),
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 6),
+                    ),
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: _AppleCard(
-                        children: communities
-                            .asMap()
-                            .entries
-                            .map((entry) {
-                              final d = entry.value;
-                              final isLast = entry.key == communities.length - 1;
-                              return Column(
-                                children: [
-                                  _CommunityCheckTile(
-                                    community: d,
-                                    isSelected:
-                                        _selectedIds.contains(d['id'] as String),
-                                    onChanged: (val) => setState(() {
-                                      val == true
-                                          ? _selectedIds.add(d['id'] as String)
-                                          : _selectedIds
-                                              .remove(d['id'] as String);
-                                    }),
-                                  ),
-                                  if (!isLast) const _CardDivider(),
-                                ],
-                              );
-                            })
-                            .toList(),
+                        children: communities.asMap().entries.map((entry) {
+                          final d = entry.value;
+                          final isLast = entry.key == communities.length - 1;
+                          return Column(
+                            children: [
+                              _CommunityCheckTile(
+                                community: d,
+                                isSelected: _selectedIds.contains(
+                                  d['id'] as String,
+                                ),
+                                onChanged: (val) => setState(() {
+                                  val == true
+                                      ? _selectedIds.add(d['id'] as String)
+                                      : _selectedIds.remove(d['id'] as String);
+                                }),
+                              ),
+                              if (!isLast) const _CardDivider(),
+                            ],
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),
@@ -282,18 +295,18 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
 }
 
 // =============================================================================
-// SwipeAlertConfigView — rediseño Apple
+// TypedAlertConfigView — rediseño Apple
 // =============================================================================
-class SwipeAlertConfigView extends StatefulWidget {
+class TypedAlertConfigView extends StatefulWidget {
   final String? initialAlertType;
-  const SwipeAlertConfigView({super.key, this.initialAlertType});
+  const TypedAlertConfigView({super.key, this.initialAlertType});
 
   @override
-  State<SwipeAlertConfigView> createState() => _SwipeAlertConfigViewState();
+  State<TypedAlertConfigView> createState() => _TypedAlertConfigViewState();
 }
 
-class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
-  final SwipeAlertConfigService _configService = SwipeAlertConfigService();
+class _TypedAlertConfigViewState extends State<TypedAlertConfigView> {
+  final TypedAlertConfigService _configService = TypedAlertConfigService();
   List<Map<String, dynamic>> _communities = [];
   final Map<String, Set<String>> _selectedByType = {};
   bool _isLoading = true;
@@ -335,7 +348,9 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
     int saved = 0;
     for (final entry in _selectedByType.entries) {
       final ok = await _configService.setCommunitiesForType(
-          entry.key, entry.value.toList());
+        entry.key,
+        entry.value.toList(),
+      );
       if (ok) saved++;
     }
     await _load();
@@ -362,7 +377,9 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
               child: Text(
                 success ? l10n.swipeConfigSaved : l10n.swipeConfigSavePartial,
                 style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w500),
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -374,21 +391,25 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
   @override
   Widget build(BuildContext context) {
     final types = AlertDetailCatalog.supportedAlertTypes
-        .map((typeName) => MapEntry(typeName, EmergencyTypes.typeMetadata[typeName]!))
+        .map(
+          (typeName) =>
+              MapEntry(typeName, EmergencyTypes.typeMetadata[typeName]!),
+        )
         .toList();
 
     return Scaffold(
       backgroundColor: _kBg,
       appBar: _AppleAppBar(
-          title: AppLocalizations.of(context)!.swipeAlertsByTypeTitle,
-          actions: [
-        if (!_isLoading)
-          _NavBarAction(
-            label: AppLocalizations.of(context)!.save,
-            loading: _isSaving,
-            onTap: _saveAll,
-          ),
-      ]),
+        title: AppLocalizations.of(context)!.swipeAlertsByTypeTitle,
+        actions: [
+          if (!_isLoading)
+            _NavBarAction(
+              label: AppLocalizations.of(context)!.save,
+              loading: _isSaving,
+              onTap: _saveAll,
+            ),
+        ],
+      ),
       body: _isLoading
           ? const _Loader()
           : CustomScrollView(
@@ -397,60 +418,64 @@ class _SwipeAlertConfigViewState extends State<SwipeAlertConfigView> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                     child: _InfoBanner(
-                      icon: Icons.swipe_rounded,
+                      icon: Icons.category_rounded,
                       color: _kBlue,
-                      text: AppLocalizations.of(context)!.swipeAlertsByTypeBanner,
+                      text:
+                          'Configura comunidades por tipo y subtipo. Si un tipo no está configurado, se pedirá al enviar.',
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: _SectionLabel(
-                      AppLocalizations.of(context)!.swipeAlertsSectionLabel,
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6)),
+                    AppLocalizations.of(context)!.swipeAlertsSectionLabel,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+                  ),
                 ),
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final entry = types[index];
-                        final typeData = entry.value;
-                        final typeName = typeData['type'] as String;
-                        final color = typeData['color'] as Color;
-                        final icon = typeData['icon'] as IconData;
-                        final label =
-                            EmergencyTypes.getTranslatedType(typeName, context);
-                        final selected = _selectedByType[typeName] ?? {};
-                        final isHighlighted = widget.initialAlertType == typeName;
-                        final isExpanded = _expandedType == typeName;
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final entry = types[index];
+                      final typeData = entry.value;
+                      final typeName = typeData['type'] as String;
+                      final color = typeData['color'] as Color;
+                      final icon = typeData['icon'] as IconData;
+                      final label = EmergencyTypes.getTranslatedType(
+                        typeName,
+                        context,
+                      );
+                      final selected = _selectedByType[typeName] ?? {};
+                      final isHighlighted = widget.initialAlertType == typeName;
+                      final isExpanded = _expandedType == typeName;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _AlertTypeCard(
-                            typeName: typeName,
-                            label: label,
-                            color: color,
-                            icon: icon,
-                            selected: selected,
-                            communities: _communities,
-                            isHighlighted: isHighlighted,
-                            isExpanded: isExpanded,
-                            onExpansionChanged: (val) => setState(() {
-                              _expandedType = val ? typeName : null;
-                            }),
-                            onToggleCommunity: (communityId, val) {
-                              setState(() {
-                                final set = Set<String>.from(
-                                    _selectedByType[typeName] ?? {});
-                                val ? set.add(communityId) : set.remove(communityId);
-                                _selectedByType[typeName] = set;
-                              });
-                            },
-                          ),
-                        );
-                      },
-                      childCount: types.length,
-                    ),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _AlertTypeCard(
+                          typeName: typeName,
+                          label: label,
+                          color: color,
+                          icon: icon,
+                          selected: selected,
+                          communities: _communities,
+                          isHighlighted: isHighlighted,
+                          isExpanded: isExpanded,
+                          onExpansionChanged: (val) => setState(() {
+                            _expandedType = val ? typeName : null;
+                          }),
+                          onToggleCommunity: (communityId, val) {
+                            setState(() {
+                              final set = Set<String>.from(
+                                _selectedByType[typeName] ?? {},
+                              );
+                              val
+                                  ? set.add(communityId)
+                                  : set.remove(communityId);
+                              _selectedByType[typeName] = set;
+                            });
+                          },
+                        ),
+                      );
+                    }, childCount: types.length),
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 40)),
@@ -533,8 +558,10 @@ class _SectionLabel extends StatelessWidget {
   final String text;
   final EdgeInsets padding;
 
-  const _SectionLabel(this.text,
-      {this.padding = const EdgeInsets.fromLTRB(16, 0, 16, 6)});
+  const _SectionLabel(
+    this.text, {
+    this.padding = const EdgeInsets.fromLTRB(16, 0, 16, 6),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -575,10 +602,7 @@ class _AppleCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
       ),
     );
   }
@@ -639,17 +663,17 @@ class _AppleTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: _kSecondary,
-                      ),
+                      style: const TextStyle(fontSize: 13, color: _kSecondary),
                     ),
                   ],
                 ),
               ),
               if (showChevron)
-                const Icon(Icons.chevron_right_rounded,
-                    color: _kSecondary, size: 20),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: _kSecondary,
+                  size: 20,
+                ),
             ],
           ),
         ),
@@ -677,8 +701,11 @@ class _InfoBanner extends StatelessWidget {
   final Color color;
   final String text;
 
-  const _InfoBanner(
-      {required this.icon, required this.color, required this.text});
+  const _InfoBanner({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -765,8 +792,7 @@ class _CommunityCheckTile extends StatelessWidget {
                         letterSpacing: -0.2,
                       ),
                     ),
-                    if (isEntity)
-                      const SizedBox(height: 2),
+                    if (isEntity) const SizedBox(height: 2),
                     if (isEntity)
                       Text(
                         l10n.officialEntity,
@@ -793,8 +819,11 @@ class _CommunityCheckTile extends StatelessWidget {
                   ),
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 14)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      )
                     : null,
               ),
             ],
@@ -805,7 +834,7 @@ class _CommunityCheckTile extends StatelessWidget {
   }
 }
 
-/// Alert type card with expandable community list (SwipeAlertConfigView)
+/// Alert type card with expandable community list (TypedAlertConfigView)
 class _AlertTypeCard extends StatelessWidget {
   final String typeName;
   final String label;
@@ -864,7 +893,9 @@ class _AlertTypeCard extends StatelessWidget {
                 onTap: () => onExpansionChanged(!isExpanded),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       // Color icon
@@ -911,8 +942,11 @@ class _AlertTypeCard extends StatelessWidget {
                       AnimatedRotation(
                         turns: isExpanded ? 0.25 : 0,
                         duration: const Duration(milliseconds: 200),
-                        child: const Icon(Icons.chevron_right_rounded,
-                            color: _kSecondary, size: 20),
+                        child: const Icon(
+                          Icons.chevron_right_rounded,
+                          color: _kSecondary,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -931,16 +965,20 @@ class _AlertTypeCard extends StatelessWidget {
               secondChild: Column(
                 children: [
                   Divider(
-                      height: 1,
-                      color: color.withValues(alpha: 0.15),
-                      indent: 0,
-                      endIndent: 0),
+                    height: 1,
+                    color: color.withValues(alpha: 0.15),
+                    indent: 0,
+                    endIndent: 0,
+                  ),
                   if (communities.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
                         l10n.noCommunitiesAvailableSnack,
-                        style: const TextStyle(color: _kSecondary, fontSize: 14),
+                        style: const TextStyle(
+                          color: _kSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                     )
                   else
@@ -948,8 +986,7 @@ class _AlertTypeCard extends StatelessWidget {
                       final i = entry.key;
                       final community = entry.value;
                       final id = community['id'] as String;
-                      final isEntity =
-                          community['is_entity'] as bool? ?? false;
+                      final isEntity = community['is_entity'] as bool? ?? false;
                       final communityColor = isEntity ? _kBlue : _kGreen;
                       final isSel = selected.contains(id);
 
@@ -961,17 +998,19 @@ class _AlertTypeCard extends StatelessWidget {
                               onTap: () => onToggleCommunity(id, !isSel),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 child: Row(
                                   children: [
                                     Container(
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: communityColor
-                                            .withValues(alpha: 0.1),
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        color: communityColor.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Icon(
                                         isEntity
@@ -995,12 +1034,15 @@ class _AlertTypeCard extends StatelessWidget {
                                       ),
                                     ),
                                     AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 200),
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
                                       width: 22,
                                       height: 22,
                                       decoration: BoxDecoration(
-                                        color: isSel ? color : Colors.transparent,
+                                        color: isSel
+                                            ? color
+                                            : Colors.transparent,
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                           color: isSel ? color : _kSeparator,
@@ -1008,8 +1050,11 @@ class _AlertTypeCard extends StatelessWidget {
                                         ),
                                       ),
                                       child: isSel
-                                          ? const Icon(Icons.check_rounded,
-                                              color: Colors.white, size: 13)
+                                          ? const Icon(
+                                              Icons.check_rounded,
+                                              color: Colors.white,
+                                              size: 13,
+                                            )
                                           : null,
                                     ),
                                   ],
@@ -1020,8 +1065,7 @@ class _AlertTypeCard extends StatelessWidget {
                           if (i < communities.length - 1)
                             const Padding(
                               padding: EdgeInsets.only(left: 60),
-                              child: Divider(
-                                  height: 1, color: _kSeparator),
+                              child: Divider(height: 1, color: _kSeparator),
                             ),
                         ],
                       );
@@ -1072,9 +1116,7 @@ class _Loader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CupertinoActivityIndicator(radius: 14),
-    );
+    return const Center(child: CupertinoActivityIndicator(radius: 14));
   }
 }
 

@@ -41,7 +41,8 @@ class AlertService {
         _cachedEntityCommunityIds != null &&
         _cachedUserRolesByCommunityId != null &&
         _cacheTimestamp != null &&
-        DateTime.now().difference(_cacheTimestamp!) < AppDurations.communityIdCache) {
+        DateTime.now().difference(_cacheTimestamp!) <
+            AppDurations.communityIdCache) {
       return _UserCommunityAccess(
         communityIds: _cachedUserCommunityIds!,
         entityCommunityIds: _cachedEntityCommunityIds!,
@@ -60,17 +61,22 @@ class AlertService {
       }
 
       final communities = await _communityRepository.fetchUserCommunities(uid);
-      _cachedUserCommunityIds = communities.map((c) => c['id'] as String).toList();
+      _cachedUserCommunityIds = communities
+          .map((c) => c['id'] as String)
+          .toList();
       _cachedEntityCommunityIds = communities
           .where((c) => (c[CommunityFields.isEntity] as bool? ?? false))
           .map((c) => c['id'] as String)
           .toSet();
 
-      final memberships = await _communityRepository.queryMembershipsForUser(uid);
+      final memberships = await _communityRepository.queryMembershipsForUser(
+        uid,
+      );
       _cachedUserRolesByCommunityId = {
         for (final doc in memberships.docs)
           (doc.data()[MemberFields.communityId] as String):
-              (doc.data()[MemberFields.role] as String? ?? MemberFields.roleMember),
+              (doc.data()[MemberFields.role] as String? ??
+              MemberFields.roleMember),
       };
 
       _cacheTimestamp = DateTime.now();
@@ -97,7 +103,11 @@ class AlertService {
     final membershipSet = access.communityIds.toSet();
 
     return alerts.where((alert) {
-      if (!_userService.canUserViewAlert(alert.userId, alert.userEmail, alert.isAnonymous)) {
+      if (!_userService.canUserViewAlert(
+        alert.userId,
+        alert.userEmail,
+        alert.isAnonymous,
+      )) {
         return false;
       }
       if (alert.communityIds.isEmpty) return true;
@@ -108,8 +118,10 @@ class AlertService {
         final isEntity = access.entityCommunityIds.contains(communityId);
         if (!isEntity) return true;
 
-        final role = access.rolesByCommunityId[communityId] ?? MemberFields.roleMember;
-        if (role == MemberFields.roleOfficial || role == MemberFields.roleAdmin) {
+        final role =
+            access.rolesByCommunityId[communityId] ?? MemberFields.roleMember;
+        if (role == MemberFields.roleOfficial ||
+            role == MemberFields.roleAdmin) {
           return true;
         }
         if (uid != null && alert.userId == uid) {
@@ -126,7 +138,10 @@ class AlertService {
     try {
       final since = DateTime.now().subtract(AppDurations.alertFeedWindow);
       final raw = await _alertRepository.fetchRecentAlertsSince(since);
-      return _filterByPermissionsAndCommunity(raw, await _getUserCommunityAccess());
+      return _filterByPermissionsAndCommunity(
+        raw,
+        await _getUserCommunityAccess(),
+      );
     } catch (e) {
       AppLogger.e('AlertService.getRecentAlerts', e);
       return [];
@@ -135,9 +150,14 @@ class AlertService {
 
   Stream<List<AlertModel>> getRecentAlertsStream() {
     final since = DateTime.now().subtract(AppDurations.alertFeedWindow);
-    return _alertRepository.watchRecentAlertsSince(since).asyncMap((snapshot) async {
+    return _alertRepository.watchRecentAlertsSince(since).asyncMap((
+      snapshot,
+    ) async {
       final raw = snapshot.docs.map(AlertModel.fromFirestore).toList();
-      return _filterByPermissionsAndCommunity(raw, await _getUserCommunityAccess());
+      return _filterByPermissionsAndCommunity(
+        raw,
+        await _getUserCommunityAccess(),
+      );
     });
   }
 
@@ -147,9 +167,16 @@ class AlertService {
       final raw = await _alertRepository.fetchMapAlertsSince(since);
       final visible = raw.where((a) {
         if (!a.shareLocation || a.location == null) return false;
-        return _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous);
+        return _userService.canUserViewAlert(
+          a.userId,
+          a.userEmail,
+          a.isAnonymous,
+        );
       }).toList();
-      return _filterByPermissionsAndCommunity(visible, await _getUserCommunityAccess());
+      return _filterByPermissionsAndCommunity(
+        visible,
+        await _getUserCommunityAccess(),
+      );
     } catch (e) {
       AppLogger.e('AlertService.getMapAlerts', e);
       return [];
@@ -158,15 +185,26 @@ class AlertService {
 
   Stream<List<AlertModel>> getMapAlertsStream() {
     final since = DateTime.now().subtract(AppDurations.mapAlertsWindow);
-    return _alertRepository.watchMapAlertsSince(since).asyncMap((snapshot) async {
+    return _alertRepository.watchMapAlertsSince(since).asyncMap((
+      snapshot,
+    ) async {
       final visible = snapshot.docs
           .map(AlertModel.fromFirestore)
-          .where((a) =>
-              a.shareLocation &&
-              a.location != null &&
-              _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
+          .where(
+            (a) =>
+                a.shareLocation &&
+                a.location != null &&
+                _userService.canUserViewAlert(
+                  a.userId,
+                  a.userEmail,
+                  a.isAnonymous,
+                ),
+          )
           .toList();
-      return _filterByPermissionsAndCommunity(visible, await _getUserCommunityAccess());
+      return _filterByPermissionsAndCommunity(
+        visible,
+        await _getUserCommunityAccess(),
+      );
     });
   }
 
@@ -182,44 +220,67 @@ class AlertService {
 
     return _alertRepository
         .watchMapAlertsFiltered(
-      selectedTypes: selectedTypes,
-      filterStatus: filterStatus,
-      filterDateRange: filterDateRange,
-      customStart: customStart,
-      customEnd: customEnd,
-    )
+          selectedTypes: selectedTypes,
+          filterStatus: filterStatus,
+          filterDateRange: filterDateRange,
+          customStart: customStart,
+          customEnd: customEnd,
+        )
         .asyncMap((snapshot) async {
-      var alerts = snapshot.docs.map(AlertModel.fromFirestore).toList();
+          var alerts = snapshot.docs.map(AlertModel.fromFirestore).toList();
 
-      alerts = alerts
-          .where((a) =>
-              a.shareLocation &&
-              a.location != null &&
-              _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
-          .toList();
+          alerts = alerts
+              .where(
+                (a) =>
+                    a.shareLocation &&
+                    a.location != null &&
+                    _userService.canUserViewAlert(
+                      a.userId,
+                      a.userEmail,
+                      a.isAnonymous,
+                    ),
+              )
+              .toList();
 
-      if (hasType && selectedTypes.length > 1) {
-        alerts = alerts.where((a) => selectedTypes.contains(a.alertType)).toList();
-      }
+          if (hasType && selectedTypes.length > 1) {
+            alerts = alerts
+                .where((a) => selectedTypes.contains(a.alertType))
+                .toList();
+          }
 
-      if (hasStatus) {
-        alerts = alerts.where((a) {
-          if (filterStatus == 'attended') return a.alertStatus == 'attended';
-          return a.alertStatus != 'attended';
-        }).toList();
-      }
+          if (hasStatus) {
+            alerts = alerts.where((a) {
+              if (filterStatus == 'attended') {
+                return a.alertStatus == 'attended';
+              }
+              return a.alertStatus != 'attended';
+            }).toList();
+          }
 
-      return _filterByPermissionsAndCommunity(alerts, await _getUserCommunityAccess());
-    });
+          return _filterByPermissionsAndCommunity(
+            alerts,
+            await _getUserCommunityAccess(),
+          );
+        });
   }
 
   Future<List<AlertModel>> getCommunityAlerts(String communityId) async {
     try {
-      final filtered = (await _alertRepository.fetchCommunityAlerts(communityId))
-          .where((a) => _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
-          .toList();
+      final filtered =
+          (await _alertRepository.fetchCommunityAlerts(communityId))
+              .where(
+                (a) => _userService.canUserViewAlert(
+                  a.userId,
+                  a.userEmail,
+                  a.isAnonymous,
+                ),
+              )
+              .toList();
       final access = await _getUserCommunityAccess();
-      return _filterByPermissionsAndCommunity(filtered, access).take(50).toList();
+      return _filterByPermissionsAndCommunity(
+        filtered,
+        access,
+      ).take(50).toList();
     } catch (e) {
       AppLogger.e('AlertService.getCommunityAlerts', e);
       return [];
@@ -227,14 +288,26 @@ class AlertService {
   }
 
   Stream<List<AlertModel>> getCommunityAlertsStream(String communityId) {
-    return _alertRepository.watchCommunityAlerts(communityId).asyncMap((snapshot) async {
-      final filtered = snapshot.docs
-          .map(AlertModel.fromFirestore)
-          .where((a) => _userService.canUserViewAlert(a.userId, a.userEmail, a.isAnonymous))
-          .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return _alertRepository.watchCommunityAlerts(communityId).asyncMap((
+      snapshot,
+    ) async {
+      final filtered =
+          snapshot.docs
+              .map(AlertModel.fromFirestore)
+              .where(
+                (a) => _userService.canUserViewAlert(
+                  a.userId,
+                  a.userEmail,
+                  a.isAnonymous,
+                ),
+              )
+              .toList()
+            ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
       final access = await _getUserCommunityAccess();
-      return _filterByPermissionsAndCommunity(filtered, access).take(50).toList();
+      return _filterByPermissionsAndCommunity(
+        filtered,
+        access,
+      ).take(50).toList();
     });
   }
 
@@ -254,7 +327,10 @@ class AlertService {
     return _alertRepository.watchOwnAlertsInCommunity(communityId, uid);
   }
 
-  Stream<List<AlertModel>> getOthersAlertsStream(String communityId, String uid) {
+  Stream<List<AlertModel>> getOthersAlertsStream(
+    String communityId,
+    String uid,
+  ) {
     return _alertRepository.watchOthersAlertsInCommunity(communityId, uid);
   }
 
@@ -277,7 +353,8 @@ class AlertService {
       final alerts = await getRecentAlerts();
       final stats = <String, int>{};
       for (final alert in alerts) {
-        stats[alert.alertType] = (stats[alert.alertType] ?? 0) + alert.viewedCount;
+        stats[alert.alertType] =
+            (stats[alert.alertType] ?? 0) + alert.viewedCount;
       }
       return stats;
     } catch (e) {
@@ -359,16 +436,23 @@ class AlertService {
 
       LocationData? locationData;
       if (shareLocation) {
-        final hasPermission = await PermissionService.requestLocationPermissionForAlerts();
+        final hasPermission =
+            await PermissionService.requestLocationPermissionForAlerts();
         if (!hasPermission) {
-          throw Exception('Permisos de ubicación requeridos para enviar alertas con ubicación');
+          throw Exception(
+            'Permisos de ubicación requeridos para enviar alertas con ubicación',
+          );
         }
         locationData = await LocationService().getCurrentLocation();
-        if (locationData == null) throw Exception('No se pudo obtener la ubicación');
+        if (locationData == null) {
+          throw Exception('No se pudo obtener la ubicación');
+        }
       }
 
       final userInfo = _userService.getUserInfoForAlert();
-      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
+      final userName = _userService.getUserDisplayName(
+        isAnonymous: isAnonymous,
+      );
 
       final alert = AlertModel(
         type: 'detailed',
@@ -403,20 +487,28 @@ class AlertService {
         throw Exception('Usuario no autenticado');
       }
 
-      final hasPermission = await PermissionService.requestLocationPermissionForAlerts();
+      final hasPermission =
+          await PermissionService.requestLocationPermissionForAlerts();
       if (!hasPermission) {
-        throw Exception('Permisos de ubicación requeridos para alertas rápidas');
+        throw Exception(
+          'Permisos de ubicación requeridos para alertas rápidas',
+        );
       }
 
       final locationData = await LocationService().getCurrentLocation();
-      if (locationData == null) throw Exception('No se pudo obtener la ubicación');
+      if (locationData == null) {
+        throw Exception('No se pudo obtener la ubicación');
+      }
 
       final userInfo = _userService.getUserInfoForAlert();
-      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
+      final userName = _userService.getUserDisplayName(
+        isAnonymous: isAnonymous,
+      );
 
-      final destinations = await QuickAlertConfigService().getQuickAlertDestinations();
+      final destinations = await QuickAlertConfigService()
+          .getQuickAlertDestinations();
       if (destinations.isEmpty) {
-        throw Exception('No hay destinos configurados para quick alerts');
+        throw Exception('No hay destinos configurados para alerta de urgencia');
       }
 
       final alert = AlertModel(
@@ -437,7 +529,9 @@ class AlertService {
       );
 
       await _alertRepository.saveAlert(alert);
-      AppLogger.d('Quick alert sent to ${destinations.length} communities in 1 document');
+      AppLogger.d(
+        'Quick alert sent to ${destinations.length} communities in 1 document',
+      );
       return true;
     } catch (e) {
       AppLogger.e('AlertService.sendQuickAlert', e);
@@ -445,7 +539,7 @@ class AlertService {
     }
   }
 
-  Future<bool> sendSwipedAlert({
+  Future<bool> sendTypedAlert({
     required String alertType,
     required bool isAnonymous,
     required List<String> communityIds,
@@ -460,19 +554,26 @@ class AlertService {
         throw Exception('Usuario no autenticado');
       }
 
-      final hasPermission = await PermissionService.requestLocationPermissionForAlerts();
+      final hasPermission =
+          await PermissionService.requestLocationPermissionForAlerts();
       if (!hasPermission) {
-        throw Exception('Permisos de ubicación requeridos para alertas deslizadas');
+        throw Exception('Permisos de ubicación requeridos para enviar alertas');
       }
 
       final locationData = await LocationService().getCurrentLocation();
-      if (locationData == null) throw Exception('No se pudo obtener la ubicación');
+      if (locationData == null) {
+        throw Exception('No se pudo obtener la ubicación');
+      }
 
       final userInfo = _userService.getUserInfoForAlert();
-      final userName = _userService.getUserDisplayName(isAnonymous: isAnonymous);
+      final userName = _userService.getUserDisplayName(
+        isAnonymous: isAnonymous,
+      );
 
       final alert = AlertModel(
-        type: 'swiped',
+        // New flow is type/subtype-based (tap groups), not direction-based swipe.
+        // Keep quick as a special flow for urgency; grouped types use `typed`.
+        type: 'typed',
         alertType: alertType,
         subtype: subtype,
         customDetail: customDetail,
@@ -494,13 +595,36 @@ class AlertService {
       );
 
       await _alertRepository.saveAlert(alert);
-      AppLogger.d('Swiped alert sent to ${communityIds.length} communities in 1 document');
+      AppLogger.d(
+        'Typed alert sent to ${communityIds.length} communities in 1 document',
+      );
       return true;
     } catch (e) {
-      AppLogger.e('AlertService.sendSwipedAlert', e);
+      AppLogger.e('AlertService.sendTypedAlert', e);
       return false;
     }
   }
+
+  @Deprecated('Use sendTypedAlert')
+  Future<bool> sendSwipedAlert({
+    required String alertType,
+    required bool isAnonymous,
+    required List<String> communityIds,
+    String? subtype,
+    String? customDetail,
+    List<String> attachmentPlaceholders = const [],
+    List<String>? imageBase64,
+    String? audioBase64,
+  }) => sendTypedAlert(
+    alertType: alertType,
+    isAnonymous: isAnonymous,
+    communityIds: communityIds,
+    subtype: subtype,
+    customDetail: customDetail,
+    attachmentPlaceholders: attachmentPlaceholders,
+    imageBase64: imageBase64,
+    audioBase64: audioBase64,
+  );
 
   Future<int> forwardAlert({
     required String alertId,
@@ -520,20 +644,25 @@ class AlertService {
     final originalAlert = AlertModel.fromFirestore(alertDoc);
 
     if (originalAlert.communityIds.isNotEmpty) {
-      final originCommunity =
-          await _communityRepository.getCommunityById(originalAlert.communityIds.first);
+      final originCommunity = await _communityRepository.getCommunityById(
+        originalAlert.communityIds.first,
+      );
 
       if (originCommunity != null && !originCommunity.allowForwardToEntities) {
         final userId = _userService.currentUserId;
         if (userId == null) throw Exception('Usuario no autenticado');
 
-        final allCommunities = await _communityRepository.fetchUserCommunities(userId);
+        final allCommunities = await _communityRepository.fetchUserCommunities(
+          userId,
+        );
         final targets = allCommunities
             .where((c) => targetCommunityIds.contains(c['id'] as String))
             .toList();
 
         if (targets.any((c) => c[CommunityFields.isEntity] == true)) {
-          throw Exception('Esta comunidad no permite reenviar alertas a entidades');
+          throw Exception(
+            'Esta comunidad no permite reenviar alertas a entidades',
+          );
         }
       }
     }
@@ -577,7 +706,9 @@ class AlertService {
     }
 
     if (forwardedAlerts.isEmpty) {
-      throw Exception('Todas las comunidades seleccionadas ya tienen esta alerta');
+      throw Exception(
+        'Todas las comunidades seleccionadas ya tienen esta alerta',
+      );
     }
 
     final count = await _alertRepository.commitForwardBatch(
@@ -590,9 +721,11 @@ class AlertService {
     return count;
   }
 
-  Future<bool> hasLocationPermission() => LocationService().hasLocationPermission();
+  Future<bool> hasLocationPermission() =>
+      LocationService().hasLocationPermission();
 
-  Future<bool> requestLocationPermission() => LocationService().requestLocationPermission();
+  Future<bool> requestLocationPermission() =>
+      LocationService().requestLocationPermission();
 }
 
 class _UserCommunityAccess {

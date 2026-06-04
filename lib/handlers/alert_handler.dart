@@ -16,21 +16,43 @@ class AlertHandler {
     List<File>? images,
     required bool shareLocation,
     required bool isAnonymous,
-  }) =>
-      _alertService.sendDetailedAlert(
-        alertType: alertType,
-        description: description,
-        images: images,
-        shareLocation: shareLocation,
-        isAnonymous: isAnonymous,
-      );
+  }) => _alertService.sendDetailedAlert(
+    alertType: alertType,
+    description: description,
+    images: images,
+    shareLocation: shareLocation,
+    isAnonymous: isAnonymous,
+  );
 
   Future<bool> sendQuickAlert({
     required String alertType,
     required bool isAnonymous,
-  }) =>
-      _alertService.sendQuickAlert(alertType: alertType, isAnonymous: isAnonymous);
+  }) => _alertService.sendQuickAlert(
+    alertType: alertType,
+    isAnonymous: isAnonymous,
+  );
 
+  Future<bool> sendTypedAlert({
+    required String alertType,
+    required bool isAnonymous,
+    required List<String> communityIds,
+    String? subtype,
+    String? customDetail,
+    List<String> attachmentPlaceholders = const [],
+    List<String>? imageBase64,
+    String? audioBase64,
+  }) => _alertService.sendTypedAlert(
+    alertType: alertType,
+    isAnonymous: isAnonymous,
+    communityIds: communityIds,
+    subtype: subtype,
+    customDetail: customDetail,
+    attachmentPlaceholders: attachmentPlaceholders,
+    imageBase64: imageBase64,
+    audioBase64: audioBase64,
+  );
+
+  @Deprecated('Use sendTypedAlert')
   Future<bool> sendSwipedAlert({
     required String alertType,
     required bool isAnonymous,
@@ -40,29 +62,33 @@ class AlertHandler {
     List<String> attachmentPlaceholders = const [],
     List<String>? imageBase64,
     String? audioBase64,
-  }) =>
-      _alertService.sendSwipedAlert(
-        alertType: alertType,
-        isAnonymous: isAnonymous,
-        communityIds: communityIds,
-        subtype: subtype,
-        customDetail: customDetail,
-        attachmentPlaceholders: attachmentPlaceholders,
-        imageBase64: imageBase64,
-        audioBase64: audioBase64,
-      );
+  }) => sendTypedAlert(
+    alertType: alertType,
+    isAnonymous: isAnonymous,
+    communityIds: communityIds,
+    subtype: subtype,
+    customDetail: customDetail,
+    attachmentPlaceholders: attachmentPlaceholders,
+    imageBase64: imageBase64,
+    audioBase64: audioBase64,
+  );
 
   Future<int> forwardAlert({
     required String alertId,
     required List<String> targetCommunityIds,
-  }) =>
-      _alertService.forwardAlert(alertId: alertId, targetCommunityIds: targetCommunityIds);
+  }) => _alertService.forwardAlert(
+    alertId: alertId,
+    targetCommunityIds: targetCommunityIds,
+  );
 
-  Future<void> markAlertAsViewed(String alertId) => _alertService.markAlertAsViewed(alertId);
+  Future<void> markAlertAsViewed(String alertId) =>
+      _alertService.markAlertAsViewed(alertId);
 
-  Future<void> reportAlert(String alertId) => _alertService.reportAlert(alertId);
+  Future<void> reportAlert(String alertId) =>
+      _alertService.reportAlert(alertId);
 
   Future<bool> hasLocationPermission() => _alertService.hasLocationPermission();
 
-  Future<bool> requestLocationPermission() => _alertService.requestLocationPermission();
+  Future<bool> requestLocationPermission() =>
+      _alertService.requestLocationPermission();
 }
