@@ -291,8 +291,13 @@ abstract final class _AppleEmergencyUX {
 
 class AlertButton extends StatefulWidget {
   final VoidCallback onPressed;
+  final bool compactTriggerMode;
 
-  const AlertButton({super.key, required this.onPressed});
+  const AlertButton({
+    super.key,
+    required this.onPressed,
+    this.compactTriggerMode = false,
+  });
 
   @override
   State<AlertButton> createState() => _AlertButtonState();
@@ -320,6 +325,7 @@ class _AlertButtonState extends State<AlertButton>
   final AlertHandler _alertHandler = AlertHandler();
   final CommunityService _communityService = CommunityService();
   final SwipeAlertConfigService _swipeConfig = SwipeAlertConfigService();
+  bool _isQuickTriggerBusy = false;
 
   @override
   void initState() {
@@ -370,7 +376,7 @@ class _AlertButtonState extends State<AlertButton>
     }
   }
 
-  void _sendQuickAlert() async {
+  Future<void> _sendQuickAlert() async {
     HapticFeedback.heavyImpact();
 
     // Obtener los destinos configurados para alertas rápidas
@@ -1919,6 +1925,9 @@ class _AlertButtonState extends State<AlertButton>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.compactTriggerMode) {
+      return _buildCompactTriggerLayout(context);
+    }
     final radialPad = _radialSafePadding(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2009,6 +2018,351 @@ class _AlertButtonState extends State<AlertButton>
           },
         ),
       ],
+    );
+  }
+
+  Future<void> _triggerQuickFromSlider() async {
+    if (_isQuickTriggerBusy) return;
+    setState(() => _isQuickTriggerBusy = true);
+    try {
+      await _sendQuickAlert();
+    } finally {
+      if (mounted) setState(() => _isQuickTriggerBusy = false);
+    }
+  }
+
+  Widget _buildCompactTriggerLayout(BuildContext context) {
+    final quickTypes = <String>[
+      AlertDetailCatalog.fire,
+      AlertDetailCatalog.homeHelp,
+      AlertDetailCatalog.health,
+      AlertDetailCatalog.roadEmergency,
+      AlertDetailCatalog.securityBreach,
+      AlertDetailCatalog.harassment,
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sw = MediaQuery.of(context).size.width;
+        final cols = sw < 360
+            ? 2
+            : sw < 520
+            ? 3
+            : 4;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SlideToConfirmQuick(
+              isBusy: _isQuickTriggerBusy,
+              onConfirmed: _triggerQuickFromSlider,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '¿Qué tipo de ayuda necesitas?',
+                    style: TextStyle(
+                      color: _AppleEmergencyUX.labelPrimary,
+                      fontSize: sw < 380 ? 18 : 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  AppLocalizations.of(context)!.viewAction,
+                  style: const TextStyle(
+                    color: _AppleEmergencyUX.accentBlue,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: quickTypes.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: sw < 420 ? 1.05 : 1.12,
+              ),
+              itemBuilder: (_, i) {
+                final type = quickTypes[i];
+                final data = EmergencyTypes.getTypeByName(type);
+                if (data == null) return const SizedBox.shrink();
+                return _QuickTypeTapCard(
+                  icon: data['icon'] as IconData,
+                  color: data['color'] as Color,
+                  title: EmergencyTypes.getTranslatedType(type, context),
+                  onTap: () {
+                    if (_showEmergencyOptions) return;
+                    _showEmergencyDialog(type);
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Reportes',
+                    style: TextStyle(
+                      color: _AppleEmergencyUX.labelPrimary,
+                      fontSize: sw < 380 ? 18 : 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Ver mapa',
+                  style: const TextStyle(
+                    color: _AppleEmergencyUX.accentBlue,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _EventualityBottomStrip(
+              onAmbiental: () {
+                if (_showEmergencyOptions) return;
+                _showEmergencyDialog(AlertDetailCatalog.environmental);
+              },
+              onPolicial: () {
+                if (_showEmergencyOptions) return;
+                _showEmergencyDialog(AlertDetailCatalog.police);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _QuickTypeTapCard extends StatelessWidget {
+  const _QuickTypeTapCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 380;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _AppleEmergencyUX.separator),
+            boxShadow: _AppleEmergencyUX.cardShadow,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: compact ? 30 : 34),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _AppleEmergencyUX.labelPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: compact ? 11.5 : 12.5,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SlideToConfirmQuick extends StatefulWidget {
+  const _SlideToConfirmQuick({required this.onConfirmed, required this.isBusy});
+
+  final Future<void> Function() onConfirmed;
+  final bool isBusy;
+
+  @override
+  State<_SlideToConfirmQuick> createState() => _SlideToConfirmQuickState();
+}
+
+class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
+  static const double _triggerAt = 0.9;
+  double _progress = 0;
+  bool _sending = false;
+
+  void _reset() {
+    if (!mounted) return;
+    setState(() {
+      _progress = 0;
+      _sending = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = MediaQuery.of(context).size.width < 380;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardW = constraints.maxWidth;
+        final knobSize = compact ? 86.0 : 102.0;
+        final centerLeft = (cardW - knobSize) / 2;
+        final rightLeft = math.max(centerLeft, cardW - knobSize - 10);
+        final travel = rightLeft - centerLeft;
+        final knobLeft = centerLeft + (travel * _progress);
+
+        return GestureDetector(
+          onHorizontalDragUpdate: (_sending || widget.isBusy)
+              ? null
+              : (details) {
+                  final delta = details.delta.dx / (travel <= 0 ? 1 : travel);
+                  final next = (_progress + delta).clamp(0.0, 1.0);
+                  setState(() => _progress = next);
+                },
+          onHorizontalDragEnd: (_) async {
+            if (_sending || widget.isBusy) return;
+            final shouldSend = _progress >= _triggerAt;
+            setState(() => _progress = 0);
+            if (!shouldSend) return;
+            setState(() => _sending = true);
+            await widget.onConfirmed();
+            _reset();
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFF2E2E), Color(0xFFE00000)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF2E2E).withValues(alpha: 0.28),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              height: compact ? 108 : 122,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: compact ? 18 : 22,
+                        right: compact ? 18 : 22,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'DESLIZA PARA',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.88),
+                                    fontSize: compact ? 11 : 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  'PEDIR\nAYUDA',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: compact ? 29 : 33,
+                                    height: 0.92,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '>>>',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.52),
+                                fontSize: compact ? 32 : 36,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: knobLeft,
+                    top: (compact ? 108 : 122) / 2 - knobSize / 2,
+                    child: Container(
+                      width: knobSize,
+                      height: knobSize,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            blurRadius: 18,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: (_sending || widget.isBusy)
+                          ? const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                              ),
+                            )
+                          : Text(
+                              'SOS',
+                              style: TextStyle(
+                                color: const Color(0xFFFF2E2E),
+                                fontSize: compact ? 35 : 40,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

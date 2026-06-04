@@ -6,9 +6,8 @@ import 'native_background_service.dart';
 
 /// Manages runtime-permission requests for the Guardian app.
 ///
-/// On the first launch, it requests notification and battery-optimisation
-/// permissions with appropriate delays to avoid overwhelming the user.
-/// Location permissions are requested on-demand (when the user sends an alert).
+/// On the first launch, it requests notification and location permissions
+/// first, then Android battery-optimisation exemption if needed.
 class PermissionService {
   static const String _firstLaunchKey = 'guardian_first_launch';
 
@@ -26,7 +25,7 @@ class PermissionService {
 
   // ─── First-launch permission flow ────────────────────────────────────────
 
-  /// Requests essential permissions on first launch with UX-friendly delays.
+  /// Requests essential permissions on first launch with UX-friendly pacing.
   ///
   /// Safe to call on every startup — it is a no-op on subsequent launches.
   static Future<void> requestAllPermissionsOnFirstLaunch() async {
@@ -39,10 +38,11 @@ class PermissionService {
 
     try {
       await _requestNotificationPermission();
-      AppLogger.d('PermissionService: waiting 3 s for user to enable notifications');
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(milliseconds: 700));
+      await _requestLocationPermissionOnboarding();
 
       if (Platform.isAndroid) {
+        await Future.delayed(const Duration(milliseconds: 350));
         await _requestBatteryOptimisation();
       }
 
@@ -56,11 +56,16 @@ class PermissionService {
 
   // ─── Essential-permissions check ─────────────────────────────────────────
 
-  /// Returns whether notification permission is granted.
+  /// Returns whether notification + location permissions are granted.
   static Future<bool> essentialPermissionsGranted() async {
+    final locationGranted = await Permission.locationWhenInUse.isGranted;
+    if (!locationGranted) return false;
+
     if (Platform.isAndroid) {
       try {
-        return await NativeBackgroundService.checkNotificationPermissions();
+        final notificationsGranted =
+            await NativeBackgroundService.checkNotificationPermissions();
+        return notificationsGranted;
       } catch (e) {
         AppLogger.e('PermissionService.essentialPermissionsGranted', e);
         return Permission.notification.isGranted;
@@ -97,7 +102,8 @@ class PermissionService {
   }
 
   /// Alias for [hasNotificationPermission] — kept for call-site compatibility.
-  static Future<bool> checkNotificationPermissions() => hasNotificationPermission();
+  static Future<bool> checkNotificationPermissions() =>
+      hasNotificationPermission();
 
   static Future<bool> hasLocationPermission() async =>
       Permission.locationWhenInUse.isGranted;
@@ -134,7 +140,11 @@ class PermissionService {
     try {
       if (!await hasNotificationPermission()) {
         await _requestNotificationPermission();
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(milliseconds: 600));
+      }
+
+      if (!await hasLocationPermission()) {
+        await _requestLocationPermissionOnboarding();
       }
 
       if (Platform.isAndroid && !await hasBatteryOptimizationExemption()) {
@@ -202,7 +212,9 @@ class PermissionService {
     if (Platform.isAndroid) {
       try {
         await NativeBackgroundService.requestNotificationPermissions();
-        AppLogger.d('PermissionService: Android notification permission requested');
+        AppLogger.d(
+          'PermissionService: Android notification permission requested',
+        );
       } catch (e) {
         AppLogger.e('PermissionService._requestNotificationPermission', e);
         await Permission.notification.request();
@@ -216,9 +228,24 @@ class PermissionService {
     if (!Platform.isAndroid) return;
     try {
       await NativeBackgroundService.requestBatteryOptimizationExemption();
-      AppLogger.d('PermissionService: battery optimisation exemption requested');
+      AppLogger.d(
+        'PermissionService: battery optimisation exemption requested',
+      );
     } catch (e) {
       AppLogger.e('PermissionService._requestBatteryOptimisation', e);
+    }
+  }
+
+  static Future<void> _requestLocationPermissionOnboarding() async {
+    try {
+      final status = await Permission.locationWhenInUse.status;
+      if (status.isGranted || status.isPermanentlyDenied) return;
+      await Permission.locationWhenInUse.request();
+      AppLogger.d(
+        'PermissionService: location permission requested on onboarding',
+      );
+    } catch (e) {
+      AppLogger.e('PermissionService._requestLocationPermissionOnboarding', e);
     }
   }
 }

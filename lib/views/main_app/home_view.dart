@@ -3,12 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/core/app_logger.dart';
+import 'package:guardian/core/default_official_entities.dart';
 import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/handlers/home_handler.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
+import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/localization_service.dart';
+import 'package:guardian/services/location_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
@@ -23,8 +26,12 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   final HomeHandler _homeHandler = HomeHandler();
   final UserService _userService = UserService();
+  final CommunityService _communityService = CommunityService();
+  final LocationService _locationService = LocationService();
   List<AlertModel> _recentAlerts = [];
   bool _isLoading = true;
+  LocationData? _currentLocation;
+  Set<String> _userNonOfficialCommunityIds = <String>{};
 
   /// true = modo UP (mis alertas enviadas), false = modo DOWN (recibidas)
   bool _showingOwn = false;
@@ -42,14 +49,58 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  AlertModel? get _latestRecentAlert {
+    final eligible = _recentAlerts.where((a) {
+      final fromOtherUser = !_userService.isUserOwnerOfAlert(
+        a.userId,
+        a.userEmail,
+      );
+      if (!fromOtherUser) return false;
+      if (_userNonOfficialCommunityIds.isEmpty) return false;
+      return a.communityIds.any(_userNonOfficialCommunityIds.contains);
+    }).toList();
+    if (eligible.isEmpty) return null;
+    return eligible.first;
+  }
+
   @override
   void initState() {
     super.initState();
     _initializeController();
     _checkServiceStatus();
+    _loadCurrentLocationForNearby();
+    _loadUserNonOfficialCommunities();
 
     // Refrescar el estado del servicio cada 2 segundos para sincronización
     _startServiceStatusRefresh();
+  }
+
+  Future<void> _loadCurrentLocationForNearby() async {
+    try {
+      final location = await _locationService.getCurrentLocation();
+      if (!mounted) return;
+      setState(() => _currentLocation = location);
+    } catch (e) {
+      AppLogger.e('HomeView._loadCurrentLocationForNearby', e);
+    }
+  }
+
+  Future<void> _loadUserNonOfficialCommunities() async {
+    try {
+      final communities = await _communityService.getMyCommunities();
+      if (!mounted) return;
+      final ids = communities
+          .where((c) {
+            final id = (c['id'] as String?) ?? '';
+            return id.isNotEmpty &&
+                !DefaultOfficialEntities.communityIds.contains(id);
+          })
+          .map((c) => c['id'] as String)
+          .toSet();
+      setState(() => _userNonOfficialCommunityIds = ids);
+    } catch (e) {
+      AppLogger.e('HomeView._loadUserNonOfficialCommunities', e);
+    }
   }
 
   void _startServiceStatusRefresh() {
@@ -146,6 +197,7 @@ class _HomeViewState extends State<HomeView> {
   ///
   /// La parte más sensible al tamaño de pantalla está aquí: en horizontal o tablet
   /// se reduce el panel para que el radial reciba más alto útil.
+  // ignore: unused_element
   double _recentAlertsPanelHeight(BuildContext context) {
     final mq = MediaQuery.of(context);
     final h = mq.size.height;
@@ -203,26 +255,99 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
-    final alertsPanelHeight = _recentAlertsPanelHeight(context);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
-        child: Column(
+        child: ListView(
+          physics: const BouncingScrollPhysics(),
           children: [
-            // Header
             _buildHeader(),
-
-            // Sección de alertas recientes con altura adaptativa
-            SizedBox(
-              height: alertsPanelHeight,
-              child: _buildRecentAlertsSection(panelHeight: alertsPanelHeight),
-            ),
-
-            // Área principal del botón de alerta — gets all remaining space
-            Expanded(child: _buildAlertButtonSection()),
+            _buildLatestRecentAlertSection(),
+            _buildAlertButtonSection(),
+            _buildNearbyAlertsSection(),
+            const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLatestRecentAlertSection() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 360;
+    final latest = _latestRecentAlert;
+    return Container(
+      margin: EdgeInsets.fromLTRB(isSmall ? 10 : 16, 6, isSmall ? 10 : 16, 6),
+      padding: EdgeInsets.fromLTRB(isSmall ? 10 : 14, 8, isSmall ? 10 : 14, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(isSmall ? 5 : 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: const Color(0xFF1976D2),
+                  size: isSmall ? 15 : 17,
+                ),
+              ),
+              SizedBox(width: isSmall ? 6 : 10),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.recentAlerts,
+                  style: TextStyle(
+                    fontSize: isSmall ? 13.0 : 14.0,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A1A1A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (latest != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    '1',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (_isLoading)
+            _buildLoadingState(compact: true, dense: true)
+          else if (latest == null)
+            _buildNoAlertsState(compact: true, dense: true)
+          else
+            _buildAlertCard(latest, compact: true, dense: true),
+        ],
       ),
     );
   }
@@ -344,6 +469,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildRecentAlertsSection({required double panelHeight}) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmall = screenWidth < 360;
@@ -932,72 +1058,20 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildAlertButtonSection() {
     final mq = MediaQuery.of(context);
     final sw = mq.size.width;
-    final sh = mq.size.height;
     final shortest = mq.size.shortestSide;
     final landscape = mq.orientation == Orientation.landscape;
     final isTablet = shortest >= 600;
     final isWideWindow = sw >= 840;
-    final isSmall = sw < 360;
-    final isLargePhone = sw >= 420 && sh >= 720 && !isTablet && !landscape;
-
     final widthT = ((sw - 320) / (1280 - 320)).clamp(0.0, 1.0);
-    final shortestT = ((shortest - 320) / (960 - 320)).clamp(0.0, 1.0);
-    final titleSize =
-        (15.5 +
-                (21.5 - 15.5) * shortestT +
-                (isLargePhone ? 0.8 : 0.0) +
-                (isTablet && !landscape ? 0.6 : 0.0))
-            .clamp(15.0, 24.0);
-
     final hPad = (8.0 + (18.0 - 8.0) * widthT - (landscape ? 1.0 : 0.0)).clamp(
       8.0,
       18.0,
     );
-    final topPad = landscape && shortest < 500
-        ? 2.0
-        : (4.0 + (10.0 - 4.0) * shortestT + (isTablet ? 0.6 : 0.0)).clamp(
-            4.0,
-            11.0,
-          );
-    final bottomPad = landscape && shortest < 500
-        ? 2.0
-        : (4.0 + (6.5 - 4.0) * shortestT).clamp(4.0, 6.5);
 
     return Container(
-      padding: EdgeInsets.fromLTRB(hPad, topPad, hPad, bottomPad),
+      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 4),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final maxH = constraints.maxHeight;
-          final tightVertical = maxH < 220;
-          final titleBottom = tightVertical
-              ? 2.0
-              : (6.0 + (10.0 - 6.0) * shortestT + (isLargePhone ? 0.4 : 0.0))
-                    .clamp(6.0, 10.5);
-
-          final column = Column(
-            children: [
-              if (!tightVertical)
-                Padding(
-                  padding: EdgeInsets.only(
-                    bottom: titleBottom,
-                    top: isSmall ? 2 : 4,
-                  ),
-                  child: Text(
-                    AppLocalizations.of(context)!.emergencyButton,
-                    style: TextStyle(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1A1A1A),
-                      height: 1.2,
-                      letterSpacing: isLargePhone ? 0.2 : 0,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              Expanded(child: AlertButton(onPressed: () {})),
-            ],
-          );
-
           if (isTablet || isWideWindow) {
             final maxRadialWidth = math.min(
               isTablet
@@ -1008,14 +1082,164 @@ class _HomeViewState extends State<HomeView> {
             return Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxRadialWidth),
-                child: column,
+                child: AlertButton(onPressed: () {}, compactTriggerMode: true),
               ),
             );
           }
-          return column;
+          return AlertButton(onPressed: () {}, compactTriggerMode: true);
         },
       ),
     );
+  }
+
+  Widget _buildNearbyAlertsSection() {
+    final now = DateTime.now();
+    final nearby =
+        _recentAlerts
+            .where(
+              (a) =>
+                  !_userService.isUserOwnerOfAlert(a.userId, a.userEmail) &&
+                  a.timestamp.year == now.year &&
+                  a.timestamp.month == now.month &&
+                  a.timestamp.day == now.day,
+            )
+            .toList()
+          ..sort((a, b) => _distanceMeters(a).compareTo(_distanceMeters(b)));
+    final topNearby = nearby.take(3).toList();
+    final compact = MediaQuery.of(context).size.width < 380;
+    return Container(
+      margin: EdgeInsets.fromLTRB(compact ? 10 : 14, 8, compact ? 10 : 14, 10),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 10 : 12,
+        10,
+        compact ? 10 : 12,
+        10,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Alertas cerca de ti',
+                  style: TextStyle(
+                    color: const Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.w800,
+                    fontSize: compact ? 16.0 : 17.0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          topNearby.isEmpty
+              ? Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: Colors.grey[500]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No hay alertas cercanas hoy',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: List.generate(topNearby.length, (i) {
+                    final alert = topNearby[i];
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: i == 0 ? 0 : 4,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              EmergencyTypes.getIcon(alert.alertType),
+                              color: EmergencyTypes.getColor(alert.alertType),
+                              size: compact ? 22 : 26,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              EmergencyTypes.getTranslatedType(
+                                alert.alertType,
+                                context,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: const Color(0xFF1A1A1A),
+                                fontWeight: FontWeight.w700,
+                                fontSize: compact ? 10.5 : 11.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _distanceLabel(alert),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: compact ? 9.6 : 10.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _getTimeAgo(alert.timestamp),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: compact ? 9.6 : 10.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+        ],
+      ),
+    );
+  }
+
+  double _distanceMeters(AlertModel alert) {
+    if (alert.location == null || _currentLocation == null) {
+      return double.maxFinite;
+    }
+    return _locationService.calculateDistance(
+      _currentLocation!,
+      alert.location!,
+    );
+  }
+
+  String _distanceLabel(AlertModel alert) {
+    if (alert.location == null || _currentLocation == null) {
+      return 'Distancia --';
+    }
+    final meters = _distanceMeters(alert);
+    if (!meters.isFinite) return 'Distancia --';
+    if (meters < 1000) return 'A ${meters.toStringAsFixed(0)} m';
+    return 'A ${(meters / 1000).toStringAsFixed(1)} km';
   }
 
   // Método para construir el botón de idioma
