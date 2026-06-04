@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/core/default_official_entities.dart';
-import 'package:guardian/views/main_app/widgets/alert_button.dart';
 import 'package:guardian/handlers/home_handler.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
+import 'package:guardian/views/main_app/widgets/home_sections/alert_trigger_section.dart';
+import 'package:guardian/views/main_app/widgets/home_sections/latest_recent_alert_section.dart';
+import 'package:guardian/views/main_app/widgets/home_sections/nearby_alerts_section.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/localization_service.dart';
@@ -273,88 +275,14 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildLatestRecentAlertSection() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final t = ((screenWidth - 320) / (900 - 320)).clamp(0.0, 1.0);
-    final horizontalMargin = (10.0 + (16.0 - 10.0) * t).clamp(10.0, 16.0);
-    final sectionPadding = (10.0 + (14.0 - 10.0) * t).clamp(10.0, 14.0);
-    final titleSize = (13.0 + (14.0 - 13.0) * t).clamp(13.0, 14.0);
-    final iconSize = (15.0 + (17.0 - 15.0) * t).clamp(15.0, 17.0);
-    final iconPad = (5.0 + (6.0 - 5.0) * t).clamp(5.0, 6.0);
-    final headerGap = (6.0 + (10.0 - 6.0) * t).clamp(6.0, 10.0);
     final latest = _latestRecentAlert;
-    return Container(
-      margin: EdgeInsets.fromLTRB(horizontalMargin, 6, horizontalMargin, 6),
-      padding: EdgeInsets.fromLTRB(sectionPadding, 8, sectionPadding, 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(iconPad),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.warning_amber_rounded,
-                  color: const Color(0xFF1976D2),
-                  size: iconSize,
-                ),
-              ),
-              SizedBox(width: headerGap),
-              Expanded(
-                child: Text(
-                  AppLocalizations.of(context)!.recentAlerts,
-                  style: TextStyle(
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (latest != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    '1',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (_isLoading)
-            _buildLoadingState(compact: true, dense: true)
-          else if (latest == null)
-            _buildNoAlertsState(compact: true, dense: true)
-          else
-            _buildAlertCard(latest, compact: true, dense: true),
-        ],
-      ),
+    return LatestRecentAlertSection(
+      hasAlert: latest != null,
+      child: _isLoading
+          ? _buildLoadingState(compact: true, dense: true)
+          : latest == null
+          ? _buildNoAlertsState(compact: true, dense: true)
+          : _buildAlertCard(latest, compact: true, dense: true),
     );
   }
 
@@ -1063,45 +991,11 @@ class _HomeViewState extends State<HomeView> {
   /// Área del menú radial: padding y tope de ancho según dispositivo (tablet / ventana ancha).
   /// [LayoutBuilder] ajusta márgenes si el alto útil es muy bajo (horizontal, split-screen).
   Widget _buildAlertButtonSection() {
-    final mq = MediaQuery.of(context);
-    final sw = mq.size.width;
-    final shortest = mq.size.shortestSide;
-    final landscape = mq.orientation == Orientation.landscape;
-    final isTablet = shortest >= 600;
-    final isWideWindow = sw >= 840;
-    final widthT = ((sw - 320) / (1280 - 320)).clamp(0.0, 1.0);
-    final hPad = (8.0 + (18.0 - 8.0) * widthT - (landscape ? 1.0 : 0.0)).clamp(
-      8.0,
-      18.0,
-    );
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(hPad, 4, hPad, 4),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (isTablet || isWideWindow) {
-            final maxRadialWidth = math.min(
-              isTablet
-                  ? (landscape ? 900.0 : 780.0)
-                  : (700.0 + (780.0 - 700.0) * widthT),
-              sw * 0.965,
-            );
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxRadialWidth),
-                child: AlertButton(onPressed: () {}, compactTriggerMode: true),
-              ),
-            );
-          }
-          return AlertButton(onPressed: () {}, compactTriggerMode: true);
-        },
-      ),
-    );
+    return const AlertTriggerSection();
   }
 
   Widget _buildNearbyAlertsSection() {
     final now = DateTime.now();
-    final sw = MediaQuery.of(context).size.width;
     final nearby =
         _recentAlerts
             .where(
@@ -1113,147 +1007,14 @@ class _HomeViewState extends State<HomeView> {
             )
             .toList()
           ..sort((a, b) => _distanceMeters(a).compareTo(_distanceMeters(b)));
-    final topNearby = nearby.take(3).toList();
-    final compact = sw < 380;
-    final columns = sw < 360
-        ? 1
-        : sw < 620
-        ? 2
-        : 3;
-    final tileAspect = sw < 360
-        ? 3.0
-        : sw < 460
-        ? 1.55
-        : sw < 620
-        ? 1.7
-        : 1.85;
-    return Container(
-      margin: EdgeInsets.fromLTRB(compact ? 10 : 14, 8, compact ? 10 : 14, 10),
-      padding: EdgeInsets.fromLTRB(
-        compact ? 10 : 12,
-        10,
-        compact ? 10 : 12,
-        10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Alertas cerca de ti',
-                  style: TextStyle(
-                    color: const Color(0xFF1A1A1A),
-                    fontWeight: FontWeight.w800,
-                    fontSize: compact ? 16.0 : 17.0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          topNearby.isEmpty
-              ? Row(
-                  children: [
-                    Icon(Icons.check_circle_outline, color: Colors.grey[500]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'No hay alertas cercanas hoy',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: topNearby.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: math.min(columns, topNearby.length),
-                    mainAxisSpacing: compact ? 8 : 10,
-                    crossAxisSpacing: compact ? 8 : 10,
-                    childAspectRatio: tileAspect,
-                  ),
-                  itemBuilder: (context, i) {
-                    final alert = topNearby[i];
-                    final iconColor = EmergencyTypes.getColor(alert.alertType);
-                    return Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? 8 : 10,
-                        vertical: compact ? 8 : 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            EmergencyTypes.getIcon(alert.alertType),
-                            color: iconColor,
-                            size: compact ? 20 : 24,
-                          ),
-                          SizedBox(height: compact ? 4 : 5),
-                          Text(
-                            EmergencyTypes.getTranslatedType(
-                              alert.alertType,
-                              context,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: const Color(0xFF1A1A1A),
-                              fontWeight: FontWeight.w700,
-                              fontSize: compact ? 10.0 : 11.0,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _distanceLabel(alert),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: compact ? 9.2 : 10.0,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _getTimeAgo(alert.timestamp),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: compact ? 9.2 : 10.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ],
-      ),
-    );
+    final viewItems = nearby.take(3).map((alert) {
+      return NearbyAlertItemViewData(
+        alertType: alert.alertType,
+        distanceLabel: _distanceLabel(alert),
+        timeAgoLabel: _getTimeAgo(alert.timestamp),
+      );
+    }).toList();
+    return NearbyAlertsSection(items: viewItems);
   }
 
   double _distanceMeters(AlertModel alert) {

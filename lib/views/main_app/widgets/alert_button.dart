@@ -15,6 +15,10 @@ import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/swipe_alert_config_service.dart';
 import 'package:guardian/services/quick_alert_config_service.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
+import 'package:guardian/views/main_app/widgets/compact_alert/alert_compact_flow_interface.dart';
+import 'package:guardian/views/main_app/widgets/compact_alert/help_types_horizontal_section.dart';
+import 'package:guardian/views/main_app/widgets/compact_alert/reports_section.dart';
+import 'package:guardian/views/main_app/widgets/compact_alert/slide_to_confirm_quick.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/widgets/adaptive_fit_text.dart';
 
@@ -282,11 +286,6 @@ abstract final class _AppleEmergencyUX {
   static const Color labelSecondary = Color(0xFF8E8E93);
   static const Color separator = Color(0xFFE5E5EA);
   static const Color cardSurface = Color(0xFFFFFFFF);
-  static const Color accentGreen = Color(0xFF34C759);
-  static const Color accentBlue = Color(0xFF007AFF);
-  static const List<BoxShadow> cardShadow = [
-    BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
-  ];
 }
 
 class AlertButton extends StatefulWidget {
@@ -304,7 +303,8 @@ class AlertButton extends StatefulWidget {
 }
 
 class _AlertButtonState extends State<AlertButton>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin
+    implements AlertCompactFlowInterface {
   static const Color _primary = Color(0xFF007AFF);
   static const Color _primaryDark = Color(0xFF1C1C1E);
   static const Color _danger = Color(0xFFFF3B30);
@@ -2007,7 +2007,7 @@ class _AlertButtonState extends State<AlertButton>
             ),
           ),
         ),
-        _EventualityBottomStrip(
+        EventualityBottomStrip(
           onAmbiental: () {
             if (_showEmergencyOptions) return;
             _showEmergencyDialog(AlertDetailCatalog.environmental);
@@ -2031,6 +2031,20 @@ class _AlertButtonState extends State<AlertButton>
     }
   }
 
+  @override
+  bool get isQuickTriggerBusy => _isQuickTriggerBusy;
+
+  @override
+  bool get isEmergencyFlowLocked => _showEmergencyOptions;
+
+  @override
+  Future<void> triggerQuickAlert() => _triggerQuickFromSlider();
+
+  @override
+  void openEmergencyFlow(String emergencyType) {
+    _showEmergencyDialog(emergencyType);
+  }
+
   Widget _buildCompactTriggerLayout(BuildContext context) {
     final quickTypes = <String>[
       AlertDetailCatalog.fire,
@@ -2047,545 +2061,39 @@ class _AlertButtonState extends State<AlertButton>
             ? constraints.maxWidth
             : MediaQuery.of(context).size.width;
         final t = _fluidScale(containerW, inMin: 300, inMax: 1100);
-        final cols = containerW < 360
-            ? 2
-            : containerW < 560
-            ? 3
-            : 4;
         final sectionTitleSize = _lerpDouble(17.0, 20.0, t).clamp(17.0, 20.0);
         final sectionGap = _lerpDouble(9.0, 14.0, t).clamp(9.0, 14.0);
-        final gridGap = _lerpDouble(8.0, 12.0, t).clamp(8.0, 12.0);
-        final aspect = containerW < 360
-            ? 0.98
-            : containerW < 460
-            ? 1.02
-            : containerW < 620
-            ? 1.08
-            : 1.14;
+        final rowGap = _lerpDouble(8.0, 12.0, t).clamp(8.0, 12.0);
+        final cardWidth = _lerpDouble(98.0, 132.0, t).clamp(98.0, 132.0);
+        final cardHeight = _lerpDouble(104.0, 128.0, t).clamp(104.0, 128.0);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _SlideToConfirmQuick(
-              isBusy: _isQuickTriggerBusy,
-              onConfirmed: _triggerQuickFromSlider,
+            SlideToConfirmQuick(
+              isBusy: isQuickTriggerBusy,
+              onConfirmed: triggerQuickAlert,
             ),
-            SizedBox(height: sectionGap),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '¿Qué tipo de ayuda necesitas?',
-                    style: TextStyle(
-                      color: _AppleEmergencyUX.labelPrimary,
-                      fontSize: sectionTitleSize,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  AppLocalizations.of(context)!.viewAction,
-                  style: const TextStyle(
-                    color: _AppleEmergencyUX.accentBlue,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            HelpTypesHorizontalSection(
+              title: '¿Qué tipo de ayuda necesitas?',
+              titleSize: sectionTitleSize,
+              topGap: sectionGap,
+              rowGap: rowGap,
+              cardHeight: cardHeight,
+              cardWidth: cardWidth,
+              compact: containerW < 420,
+              quickTypes: quickTypes,
+              flow: this,
             ),
-            SizedBox(height: gridGap),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: quickTypes.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                mainAxisSpacing: gridGap,
-                crossAxisSpacing: gridGap,
-                childAspectRatio: aspect,
-              ),
-              itemBuilder: (_, i) {
-                final type = quickTypes[i];
-                final data = EmergencyTypes.getTypeByName(type);
-                if (data == null) return const SizedBox.shrink();
-                return _QuickTypeTapCard(
-                  icon: data['icon'] as IconData,
-                  color: data['color'] as Color,
-                  title: EmergencyTypes.getTranslatedType(type, context),
-                  compact: containerW < 420,
-                  onTap: () {
-                    if (_showEmergencyOptions) return;
-                    _showEmergencyDialog(type);
-                  },
-                );
-              },
-            ),
-            SizedBox(height: sectionGap),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Reportes',
-                    style: TextStyle(
-                      color: _AppleEmergencyUX.labelPrimary,
-                      fontSize: sectionTitleSize,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  'Ver mapa',
-                  style: const TextStyle(
-                    color: _AppleEmergencyUX.accentBlue,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: gridGap),
-            _EventualityBottomStrip(
-              onAmbiental: () {
-                if (_showEmergencyOptions) return;
-                _showEmergencyDialog(AlertDetailCatalog.environmental);
-              },
-              onPolicial: () {
-                if (_showEmergencyOptions) return;
-                _showEmergencyDialog(AlertDetailCatalog.police);
-              },
+            ReportsSection(
+              titleSize: sectionTitleSize,
+              topGap: sectionGap,
+              rowGap: rowGap,
+              flow: this,
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class _QuickTypeTapCard extends StatelessWidget {
-  const _QuickTypeTapCard({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final VoidCallback onTap;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final t = _fluidScale(w, inMin: 300, inMax: 900);
-    final iconSize = _lerpDouble(
-      compact ? 27.0 : 30.0,
-      34.0,
-      t,
-    ).clamp(compact ? 27.0 : 30.0, 34.0);
-    final labelSize = _lerpDouble(
-      compact ? 11.0 : 11.8,
-      12.8,
-      t,
-    ).clamp(compact ? 11.0 : 11.8, 12.8);
-    final padH = _lerpDouble(7.0, 10.0, t).clamp(7.0, 10.0);
-    final padV = _lerpDouble(8.0, 11.0, t).clamp(8.0, 11.0);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _AppleEmergencyUX.separator),
-            boxShadow: _AppleEmergencyUX.cardShadow,
-          ),
-          padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: iconSize),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _AppleEmergencyUX.labelPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: labelSize,
-                  height: 1.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SlideToConfirmQuick extends StatefulWidget {
-  const _SlideToConfirmQuick({required this.onConfirmed, required this.isBusy});
-
-  final Future<void> Function() onConfirmed;
-  final bool isBusy;
-
-  @override
-  State<_SlideToConfirmQuick> createState() => _SlideToConfirmQuickState();
-}
-
-class _SlideToConfirmQuickState extends State<_SlideToConfirmQuick> {
-  static const double _triggerAt = 0.9;
-  double _progress = 0;
-  bool _sending = false;
-
-  void _reset() {
-    if (!mounted) return;
-    setState(() {
-      _progress = 0;
-      _sending = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardW = constraints.maxWidth;
-        final t = _fluidScale(cardW, inMin: 280, inMax: 960);
-        final compact = cardW < 380;
-        final contentHeight = _lerpDouble(96.0, 122.0, t).clamp(96.0, 122.0);
-        final knobSize = _lerpDouble(
-          compact ? 74.0 : 84.0,
-          102.0,
-          t,
-        ).clamp(compact ? 74.0 : 84.0, 102.0);
-        final centerLeft = (cardW - knobSize) / 2;
-        final rightLeft = math.max(centerLeft, cardW - knobSize - 10);
-        final travel = rightLeft - centerLeft;
-        final knobLeft = centerLeft + (travel * _progress);
-        final slideHintSize = _lerpDouble(10.5, 12.0, t).clamp(10.5, 12.0);
-        final titleSize = _lerpDouble(24.0, 33.0, t).clamp(24.0, 33.0);
-        final arrowsSize = _lerpDouble(26.0, 36.0, t).clamp(26.0, 36.0);
-        final sosSize = _lerpDouble(28.0, 40.0, t).clamp(28.0, 40.0);
-
-        return GestureDetector(
-          onHorizontalDragUpdate: (_sending || widget.isBusy)
-              ? null
-              : (details) {
-                  final delta = details.delta.dx / (travel <= 0 ? 1 : travel);
-                  final next = (_progress + delta).clamp(0.0, 1.0);
-                  setState(() => _progress = next);
-                },
-          onHorizontalDragEnd: (_) async {
-            if (_sending || widget.isBusy) return;
-            final shouldSend = _progress >= _triggerAt;
-            setState(() => _progress = 0);
-            if (!shouldSend) return;
-            setState(() => _sending = true);
-            await widget.onConfirmed();
-            _reset();
-          },
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(
-              _lerpDouble(12.0, 14.0, t).clamp(12.0, 14.0),
-              _lerpDouble(14.0, 16.0, t).clamp(14.0, 16.0),
-              _lerpDouble(12.0, 14.0, t).clamp(12.0, 14.0),
-              _lerpDouble(14.0, 16.0, t).clamp(14.0, 16.0),
-            ),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF2E2E), Color(0xFFE00000)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF2E2E).withValues(alpha: 0.28),
-                  blurRadius: 22,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: SizedBox(
-              height: contentHeight,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: compact ? 18 : 22,
-                        right: compact ? 18 : 22,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'DESLIZA PARA',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.88),
-                                    fontSize: slideHintSize,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                Text(
-                                  'PEDIR\nAYUDA',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: titleSize,
-                                    height: 0.92,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(
-                              '>>>',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.52),
-                                fontSize: arrowsSize,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: knobLeft,
-                    top: contentHeight / 2 - knobSize / 2,
-                    child: Container(
-                      width: knobSize,
-                      height: knobSize,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.white.withValues(alpha: 0.45),
-                            blurRadius: 18,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: (_sending || widget.isBusy)
-                          ? const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                              ),
-                            )
-                          : Text(
-                              'SOS',
-                              style: TextStyle(
-                                color: const Color(0xFFFF2E2E),
-                                fontSize: sosSize,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Dos categorías inferiores — tarjetas blancas, borde fino y acento sistema (estilo iOS).
-class _EventualityBottomStrip extends StatelessWidget {
-  final VoidCallback onAmbiental;
-  final VoidCallback onPolicial;
-
-  const _EventualityBottomStrip({
-    required this.onAmbiental,
-    required this.onPolicial,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final mq = MediaQuery.of(context);
-    final w = mq.size.width;
-    final shortest = mq.size.shortestSide;
-    final isTablet = shortest >= 600;
-    final isLandscape = mq.orientation == Orientation.landscape;
-    final isTabletLandscape = isTablet && isLandscape;
-    final widthT = _fluidScale(w, inMin: 320, inMax: 1280);
-    final shortestT = _fluidScale(shortest, inMin: 320, inMax: 900);
-    final hx = _lerpDouble(10.0, 22.0, widthT).clamp(10.0, 22.0);
-    final baseGap = _lerpDouble(8.0, 14.0, widthT).clamp(8.0, 14.0);
-    final gap = isTabletLandscape ? baseGap + 2.0 : baseGap;
-    final bottomExtra = mq.padding.bottom > 16
-        ? 4.0
-        : mq.padding.bottom > 0
-        ? 6.0
-        : 10.0;
-    final maxRow = w >= 720
-        ? math.min(
-            w * (isTabletLandscape ? 0.94 : 0.92),
-            isTablet ? (isTabletLandscape ? 1180.0 : 980.0) : 860.0,
-          )
-        : double.infinity;
-    final cardMinH =
-        (_lerpDouble(54.0, isTablet ? 90.0 : 68.0, shortestT) +
-                (isTabletLandscape ? -2.0 : 0.0))
-            .clamp(52.0, isTablet ? 92.0 : 70.0);
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(hx, 6, hx, bottomExtra),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxRow),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: _AppleCategoryCard(
-                  icon: Icons.eco_rounded,
-                  title: l10n.eventualityEnvironmentalTitle,
-                  accent: _AppleEmergencyUX.accentGreen,
-                  minHeight: cardMinH,
-                  onTap: onAmbiental,
-                ),
-              ),
-              SizedBox(width: gap),
-              Expanded(
-                child: _AppleCategoryCard(
-                  icon: Icons.local_police_rounded,
-                  title: l10n.eventualityPoliceTitle,
-                  accent: _AppleEmergencyUX.accentBlue,
-                  minHeight: cardMinH,
-                  onTap: onPolicial,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AppleCategoryCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Color accent;
-  final double minHeight;
-  final VoidCallback onTap;
-
-  const _AppleCategoryCard({
-    required this.icon,
-    required this.title,
-    required this.accent,
-    this.minHeight = 52,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ss = MediaQuery.sizeOf(context).shortestSide;
-    final w = MediaQuery.sizeOf(context).width;
-    final isTablet = ss >= 600 || w >= 720;
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
-    final sizeT = _fluidScale(ss, inMin: 300, inMax: 900);
-    final circleFrac = _lerpDouble(
-      isLandscape ? 0.095 : 0.102,
-      isTablet && isLandscape ? 0.086 : 0.092,
-      sizeT,
-    );
-    final circleD = (ss * circleFrac).clamp(36.0, isTablet ? 54.0 : 48.0);
-    final iconSz = (circleD * 0.52).clamp(18.0, 26.0);
-    final titleSz = MediaQuery.textScalerOf(context).scale(
-      _lerpDouble(13.8, isTablet ? (isLandscape ? 16.1 : 17.0) : 15.2, sizeT),
-    );
-    final padH = _lerpDouble(9.5, 13.0, sizeT);
-    final padV = _lerpDouble(11.0, 14.5, sizeT);
-
-    final circle = Container(
-      width: circleD,
-      height: circleD,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: accent, size: iconSz),
-    );
-
-    final padVEff = math
-        .max(padV, (minHeight - circleD) / 2 - 2)
-        .clamp(padV, 22.0);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _AppleEmergencyUX.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _AppleEmergencyUX.separator, width: 0.5),
-        boxShadow: _AppleEmergencyUX.cardShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          splashColor: accent.withValues(alpha: 0.15),
-          highlightColor: accent.withValues(alpha: 0.06),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: padH, vertical: padVEff),
-            child: LayoutBuilder(
-              builder: (context, rowConstraints) {
-                final textMaxW = math.max(
-                  48.0,
-                  rowConstraints.maxWidth - circleD - padH * 2 - 10,
-                );
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    circle,
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AdaptiveFitText(
-                        text: title,
-                        maxWidth: textMaxW,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: titleSz,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.28,
-                          color: _AppleEmergencyUX.labelPrimary,
-                          height: 1.05,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
