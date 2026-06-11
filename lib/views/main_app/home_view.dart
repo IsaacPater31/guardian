@@ -21,7 +21,9 @@ import 'package:guardian/services/location_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:guardian/services/active_alert_highlight_service.dart';
 import 'package:guardian/widgets/adaptive_fit_text.dart';
+import 'package:guardian/widgets/pulsing_highlight_wrapper.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -39,6 +41,9 @@ class _HomeViewState extends State<HomeView> {
   bool _isLoading = true;
   LocationData? _currentLocation;
   Set<String> _userNonOfficialCommunityIds = <String>{};
+  final ActiveAlertHighlightService _highlightService =
+      ActiveAlertHighlightService.instance;
+  late final VoidCallback _highlightListener;
 
   /// true = modo UP (mis alertas enviadas), false = modo DOWN (recibidas)
   bool _showingOwn = false;
@@ -63,6 +68,7 @@ class _HomeViewState extends State<HomeView> {
         a.userEmail,
       );
       if (!fromOtherUser) return false;
+      if (!a.isPendingAttention) return false;
       if (_userNonOfficialCommunityIds.isEmpty) return false;
       return a.communityIds.any(_userNonOfficialCommunityIds.contains);
     }).toList();
@@ -73,6 +79,10 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    _highlightListener = () {
+      if (mounted) setState(() {});
+    };
+    _highlightService.addListener(_highlightListener);
     _initializeController();
     _checkServiceStatus();
     _loadCurrentLocationForNearby();
@@ -194,6 +204,7 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   void dispose() {
+    _highlightService.removeListener(_highlightListener);
     // NO llamar dispose aquí - el controlador debe permanecer activo
     // Solo se limpia cuando la app se cierra completamente
     super.dispose();
@@ -281,13 +292,19 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildLatestRecentAlertSection() {
     final latest = _latestRecentAlert;
+    final isPulsing =
+        latest?.id != null && _highlightService.isHighlighted(latest!.id);
     return LatestRecentAlertSection(
       hasAlert: latest != null,
       child: _isLoading
           ? _buildLoadingState(compact: true, dense: true)
           : latest == null
           ? _buildNoAlertsState(compact: true, dense: true)
-          : _buildAlertCard(latest, compact: true, dense: true),
+          : PulsingHighlightWrapper(
+              active: isPulsing,
+              borderRadius: 12,
+              child: _buildAlertCard(latest, compact: true, dense: true),
+            ),
     );
   }
 
@@ -1102,6 +1119,7 @@ class _HomeViewState extends State<HomeView> {
             .where(
               (a) =>
                   !_userService.isUserOwnerOfAlert(a.userId, a.userEmail) &&
+                  a.isPendingAttention &&
                   a.timestamp.year == now.year &&
                   a.timestamp.month == now.month &&
                   a.timestamp.day == now.day &&

@@ -11,7 +11,9 @@ import '../../models/emergency_types.dart';
 import '../../handlers/map_handler.dart' as map_data;
 import '../../utils/alert_subtype_display.dart';
 import '../../generated/l10n/app_localizations.dart';
+import '../../services/active_alert_highlight_service.dart';
 import 'widgets/map_filter_sheet.dart';
+import 'widgets/pulsing_map_marker.dart';
 
 class MapaView extends StatefulWidget {
   final AlertModel? selectedAlert;
@@ -35,9 +37,23 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   // ─── Filtros ───────────────────────────────────────────────────────────────
   MapFilters _filters = MapFilters.empty;
 
+  String? get _latestPendingAlertId {
+    final pending = _alerts.where((a) => a.isPendingAttention).toList();
+    if (pending.isEmpty) return null;
+    pending.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return pending.first.id;
+  }
+  final ActiveAlertHighlightService _highlightService =
+      ActiveAlertHighlightService.instance;
+  late final VoidCallback _highlightListener;
+
   @override
   void initState() {
     super.initState();
+    _highlightListener = () {
+      if (mounted) setState(() {});
+    };
+    _highlightService.addListener(_highlightListener);
     _initializeMap();
   }
 
@@ -204,80 +220,23 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
       final offsetLevel = data['offsetLevel'] as int;
       final isAttended = alert.alertStatus == 'attended';
 
+      final isHighlighted =
+          _highlightService.isHighlighted(alert.id) ||
+          (alert.id != null && alert.id == _latestPendingAlertId);
+
       return flutter_map.Marker(
         point: latLng,
-        width: 44,
-        height: 44,
+        width: isHighlighted ? 52 : 44,
+        height: isHighlighted ? 52 : 44,
         child: GestureDetector(
           onTap: () => _showAlertDetails(alert),
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: _getAlertColor(alert.alertType),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: hasOffset ? Colors.yellow : Colors.white,
-                    width: hasOffset ? 3 : 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  _getAlertIcon(alert.alertType),
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              // Badge "atendida" — checkmark verde
-              if (isAttended)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF34C759),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 9,
-                    ),
-                  ),
-                ),
-              // Badge de offset
-              if (hasOffset && !isAttended)
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: Colors.yellow,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${offsetLevel + 1}',
-                        style: const TextStyle(
-                          fontSize: 6,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          child: PulsingMapMarker(
+            color: _getAlertColor(alert.alertType),
+            icon: _getAlertIcon(alert.alertType),
+            isHighlighted: isHighlighted,
+            isAttended: isAttended,
+            hasOffset: hasOffset,
+            offsetLevel: offsetLevel,
           ),
         ),
       );
@@ -807,6 +766,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _highlightService.removeListener(_highlightListener);
     _mapController.dispose();
     _alertsSubscription?.cancel();
     super.dispose();

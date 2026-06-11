@@ -123,6 +123,11 @@ abstract final class AppDurations {
 
   /// Delay before retrying missing permissions on first launch.
   static const Duration permissionRetryDelay = Duration(seconds: 3);
+
+  /// How long vibration + UI pulse run when a new pending alert arrives.
+  /// Change here for Flutter UI; keep in sync with
+  /// `GuardianBackgroundService.ACTIVE_ALERT_FEEDBACK_MS` (Android background).
+  static const Duration activeAlertFeedback = Duration(seconds: 10);
 }
 
 /// Geographic thresholds for location-based UI.

@@ -22,6 +22,9 @@ class GuardianBackgroundService : Service() {
         private const val CHANNEL_ID = "guardian_background_service"
         private const val ALERTS_CHANNEL_ID = "emergency_alerts"
 
+        /** Background vibration duration — keep in sync with Flutter [AppDurations.activeAlertFeedback]. */
+        const val ACTIVE_ALERT_FEEDBACK_MS = 10_000L
+
         private var isServiceRunning = false
         
         fun isRunning(): Boolean = isServiceRunning
@@ -316,6 +319,12 @@ class GuardianBackgroundService : Service() {
             return
         }
 
+        val alertStatus = alertData["alert_status"] as? String ?: "pending"
+        if (alertStatus == "attended") {
+            println("✅ Alert already attended, skipping notification: $alertType")
+            return
+        }
+
         val viewedBy = alertData["viewedBy"] as? List<String> ?: emptyList()
         if (viewedBy.contains(currentUser.uid)) {
             println("👁️ User already viewed this alert, skipping notification: $alertType")
@@ -492,7 +501,7 @@ class GuardianBackgroundService : Service() {
                 
                 // Patrón de vibración más agresivo para alertas de emergencia
                 val emergencyPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
-                val continuousDurationMs = 10000L // 10 segundos
+                val continuousDurationMs = ACTIVE_ALERT_FEEDBACK_MS
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     try {

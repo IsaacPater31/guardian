@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../core/app_logger.dart';
 import '../models/alert_model.dart';
+import '../services/active_alert_highlight_service.dart';
 import '../services/alert_service.dart';
 import '../services/native_background_service.dart';
 import '../services/user_service.dart';
@@ -180,13 +181,22 @@ class HomeHandler {
             .where((a) => !_userService.isUserOwnerOfAlert(a.userId, a.userEmail))
             .toList();
 
-        if (othersAlerts.isNotEmpty) {
-          final latest = othersAlerts.first;
-          if (latest.id != null && !_processedAlertIds.contains(latest.id)) {
-            _processedAlertIds.add(latest.id!);
-            onNewAlertReceived?.call(latest);
-            AppLogger.d('New alert: ${latest.alertType}');
+        AlertModel? newPending;
+        for (final alert in othersAlerts) {
+          if (!alert.isPendingAttention) continue;
+          if (alert.id == null || _processedAlertIds.contains(alert.id)) {
+            continue;
           }
+          if (newPending == null ||
+              alert.timestamp.isAfter(newPending.timestamp)) {
+            newPending = alert;
+          }
+        }
+        if (newPending != null) {
+          _processedAlertIds.add(newPending.id!);
+          unawaited(ActiveAlertHighlightService.instance.activate(newPending));
+          onNewAlertReceived?.call(newPending);
+          AppLogger.d('New pending alert: ${newPending.alertType}');
         }
 
         _lastKnownAlerts = alerts;

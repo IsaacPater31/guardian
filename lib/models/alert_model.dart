@@ -78,6 +78,9 @@ class AlertModel {
   /// `true` if this alert belongs to at least one community.
   bool get hasCommunity => communityIds.isNotEmpty;
 
+  /// Pending attention (not marked attended).
+  bool get isPendingAttention => alertStatus != 'attended';
+
   /// First community ID, or `null` — for forward-compat usage.
   String? get communityId => communityIds.isEmpty ? null : communityIds.first;
 
