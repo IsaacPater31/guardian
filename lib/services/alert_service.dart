@@ -242,9 +242,10 @@ class AlertService {
               )
               .toList();
 
-          if (hasType && selectedTypes.length > 1) {
+          if (hasType) {
+            final selected = selectedTypes.toSet();
             alerts = alerts
-                .where((a) => selectedTypes.contains(a.alertType))
+                .where((a) => selected.contains(a.alertType))
                 .toList();
           }
 

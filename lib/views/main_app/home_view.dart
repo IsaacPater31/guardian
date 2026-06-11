@@ -2,11 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/core/default_official_entities.dart';
 import 'package:guardian/handlers/home_handler.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
+import 'package:guardian/utils/alert_subtype_display.dart';
+import 'package:guardian/views/main_app/shared/main_tab_navigation.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/alert_trigger_section.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/latest_recent_alert_section.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/nearby_alerts_section.dart';
@@ -17,6 +20,7 @@ import 'package:guardian/services/location_service.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:guardian/widgets/adaptive_fit_text.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -287,41 +291,9 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildHeader() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isTiny = screenWidth < 330;
-    final isSmall = screenWidth < 360;
-    final headerPadding = isTiny
-        ? const EdgeInsets.symmetric(horizontal: 10, vertical: 12)
-        : isSmall
-        ? const EdgeInsets.symmetric(horizontal: 14, vertical: 14)
-        : const EdgeInsets.all(20);
-    final titleFontSize = (screenWidth * 0.068).clamp(
-      isTiny ? 18.0 : 20.0,
-      28.0,
-    );
-    final subtitleFontSize = isTiny
-        ? 11.0
-        : isSmall
-        ? 12.0
-        : 14.0;
-    final buttonSize = isTiny
-        ? 36.0
-        : isSmall
-        ? 40.0
-        : 48.0;
-    final iconSize = isTiny
-        ? 18.0
-        : isSmall
-        ? 20.0
-        : 24.0;
-    final spacing = isTiny
-        ? 6.0
-        : isSmall
-        ? 8.0
-        : 12.0;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
-      padding: headerPadding,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -332,76 +304,173 @@ class _HomeViewState extends State<HomeView> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Logo y título
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.appTitle,
-                  style: TextStyle(
-                    fontSize: titleFontSize,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1A1A1A),
-                    letterSpacing: isSmall ? 0.8 : 1.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  AppLocalizations.of(context)!.safetyPriority,
-                  style: TextStyle(
-                    fontSize: subtitleFontSize,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final innerW = constraints.maxWidth;
+          final isTiny = innerW < 330;
+          final isSmall = innerW < 400;
+          final isWide = innerW >= 720;
+          final stacked = innerW < 390;
+          final headerPadding = isTiny
+              ? const EdgeInsets.symmetric(horizontal: 10, vertical: 12)
+              : isSmall
+              ? const EdgeInsets.symmetric(horizontal: 14, vertical: 14)
+              : const EdgeInsets.all(20);
+          final titleFontSize = (innerW * 0.062).clamp(
+            isTiny ? 17.0 : 19.0,
+            isWide ? 30.0 : 28.0,
+          );
+          final subtitleFontSize = isTiny
+              ? 11.0
+              : isSmall
+              ? 12.0
+              : isWide
+              ? 15.0
+              : 14.0;
+          final buttonSize = isTiny
+              ? 34.0
+              : isSmall
+              ? 38.0
+              : isWide
+              ? 50.0
+              : 46.0;
+          final iconSize = isTiny
+              ? 17.0
+              : isSmall
+              ? 19.0
+              : isWide
+              ? 25.0
+              : 23.0;
+          final spacing = isTiny ? 5.0 : (isSmall ? 7.0 : 10.0);
+          final actionsWidth = buttonSize * 3 + spacing * 2;
+          final textMaxW = stacked
+              ? innerW - headerPadding.horizontal
+              : math.max(
+                  120.0,
+                  innerW - headerPadding.horizontal - actionsWidth - 6,
+                );
 
-          // Botón de notificaciones
-          _buildHeaderButton(
-            icon: Icons.notifications_outlined,
+          final titleBlock = _buildHeaderTitleBlock(
+            l10n: l10n,
+            textMaxWidth: textMaxW,
+            titleFontSize: titleFontSize,
+            subtitleFontSize: subtitleFontSize,
+            compactLetterSpacing: isSmall,
+          );
+
+          final actions = _buildHeaderActions(
             iconSize: iconSize,
             buttonSize: buttonSize,
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}',
+            spacing: spacing,
+          );
+
+          return Padding(
+            padding: headerPadding,
+            child: stacked
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      titleBlock,
+                      SizedBox(height: spacing + 2),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: actions,
+                      ),
+                    ],
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: titleBlock),
+                      ...actions,
+                    ],
                   ),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-          ),
-
-          SizedBox(width: spacing),
-
-          // Botón de idioma
-          _buildLanguageButton(buttonSize: buttonSize),
-
-          SizedBox(width: spacing),
-
-          // Botón de configuración
-          _buildHeaderButton(
-            icon: Icons.settings_outlined,
-            iconSize: iconSize,
-            buttonSize: buttonSize,
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsView()),
-              );
-            },
-          ),
-        ],
+          );
+        },
       ),
     );
+  }
+
+  Widget _buildHeaderTitleBlock({
+    required AppLocalizations l10n,
+    required double textMaxWidth,
+    required double titleFontSize,
+    required double subtitleFontSize,
+    required bool compactLetterSpacing,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: textMaxWidth,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              l10n.appTitle,
+              style: TextStyle(
+                fontSize: titleFontSize,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A1A1A),
+                letterSpacing: compactLetterSpacing ? 0.6 : 1.2,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        AdaptiveFitText(
+          text: l10n.safetyPriority,
+          maxWidth: textMaxWidth,
+          maxLines: 2,
+          minFontSize: 9.5,
+          style: TextStyle(
+            fontSize: subtitleFontSize,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+            height: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildHeaderActions({
+    required double iconSize,
+    required double buttonSize,
+    required double spacing,
+  }) {
+    return [
+      _buildHeaderButton(
+        icon: Icons.notifications_outlined,
+        iconSize: iconSize,
+        buttonSize: buttonSize,
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}',
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+      SizedBox(width: spacing),
+      _buildLanguageButton(buttonSize: buttonSize),
+      SizedBox(width: spacing),
+      _buildHeaderButton(
+        icon: Icons.settings_outlined,
+        iconSize: iconSize,
+        buttonSize: buttonSize,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SettingsView()),
+          );
+        },
+      ),
+    ];
   }
 
   Widget _buildHeaderButton({
@@ -1022,6 +1091,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildNearbyAlertsSection() {
     final now = DateTime.now();
+    final maxMeters = AppGeoLimits.nearbyAlertsMaxDistanceMeters;
     final nearby =
         _recentAlerts
             .where(
@@ -1029,18 +1099,39 @@ class _HomeViewState extends State<HomeView> {
                   !_userService.isUserOwnerOfAlert(a.userId, a.userEmail) &&
                   a.timestamp.year == now.year &&
                   a.timestamp.month == now.month &&
-                  a.timestamp.day == now.day,
+                  a.timestamp.day == now.day &&
+                  a.shareLocation &&
+                  a.location != null &&
+                  _currentLocation != null &&
+                  _isWithinNearbyRadius(a, maxMeters),
             )
             .toList()
           ..sort((a, b) => _distanceMeters(a).compareTo(_distanceMeters(b)));
     final viewItems = nearby.take(3).map((alert) {
+      final subtypeLine = AlertSubtypeDisplay.line(
+        context,
+        alert.alertType,
+        alert.subtype,
+        alert.customDetail,
+      );
+      final title = subtypeLine.isNotEmpty
+          ? subtypeLine
+          : EmergencyTypes.getTranslatedType(alert.alertType, context);
       return NearbyAlertItemViewData(
         alertType: alert.alertType,
+        title: title,
         distanceLabel: _distanceLabel(alert),
         timeAgoLabel: _getTimeAgo(alert.timestamp),
+        onTap: () =>
+            MainTabNavigation.maybeOf(context)?.openMapOnAlert(alert),
       );
     }).toList();
     return NearbyAlertsSection(items: viewItems);
+  }
+
+  bool _isWithinNearbyRadius(AlertModel alert, double maxMeters) {
+    final meters = _distanceMeters(alert);
+    return meters.isFinite && meters <= maxMeters;
   }
 
   double _distanceMeters(AlertModel alert) {

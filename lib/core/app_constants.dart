@@ -125,6 +125,12 @@ abstract final class AppDurations {
   static const Duration permissionRetryDelay = Duration(seconds: 3);
 }
 
+/// Geographic thresholds for location-based UI.
+abstract final class AppGeoLimits {
+  /// Home "Alertas cercanas recientes": max distance from the user's position.
+  static const double nearbyAlertsMaxDistanceMeters = 500;
+}
+
 /// Caps on Firestore query size (one read per document returned).
 abstract final class AppFirestoreLimits {
   /// Recent-alerts window (home, streams, stats): newest documents only.

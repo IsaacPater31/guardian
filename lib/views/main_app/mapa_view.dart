@@ -9,6 +9,7 @@ import '../../core/app_logger.dart';
 import '../../models/alert_model.dart';
 import '../../models/emergency_types.dart';
 import '../../handlers/map_handler.dart' as map_data;
+import '../../utils/alert_subtype_display.dart';
 import '../../generated/l10n/app_localizations.dart';
 import 'widgets/map_filter_sheet.dart';
 
@@ -34,18 +35,6 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
   // ─── Filtros ───────────────────────────────────────────────────────────────
   MapFilters _filters = MapFilters.empty;
 
-  // Usar el sistema centralizado de tipos de emergencia
-  Map<String, Map<String, dynamic>> get _alertTypes {
-    final Map<String, Map<String, dynamic>> alertTypes = {};
-    for (final typeName in EmergencyTypes.allTypesForFilters) {
-      alertTypes[typeName] = {
-        'icon': EmergencyTypes.getIcon(typeName),
-        'color': EmergencyTypes.getColor(typeName),
-      };
-    }
-    return alertTypes;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -58,7 +47,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
     if (widget.selectedAlert != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _centerMapOnAlert(widget.selectedAlert!);
+        _focusOnAlert(widget.selectedAlert!);
       });
     }
 
@@ -313,13 +302,27 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
     );
   }
 
+  void _focusOnAlert(AlertModel alert) {
+    _centerMapOnAlert(alert);
+    _showAlertDetails(alert);
+  }
+
   // ─── Helpers de tipo ───────────────────────────────────────────────────────
 
-  IconData _getAlertIcon(String alertType) =>
-      _alertTypes[alertType]?['icon'] ?? Icons.warning;
+  IconData _getAlertIcon(String alertType) => EmergencyTypes.getIcon(alertType);
 
-  Color _getAlertColor(String alertType) =>
-      _alertTypes[alertType]?['color'] ?? Colors.grey;
+  Color _getAlertColor(String alertType) => EmergencyTypes.getColor(alertType);
+
+  String _alertTitle(AlertModel alert) {
+    final subtypeLine = AlertSubtypeDisplay.line(
+      context,
+      alert.alertType,
+      alert.subtype,
+      alert.customDetail,
+    );
+    if (subtypeLine.isNotEmpty) return subtypeLine;
+    return EmergencyTypes.getTranslatedType(alert.alertType, context);
+  }
 
   String _getTimeAgo(DateTime timestamp) {
     final now = DateTime.now();
@@ -371,7 +374,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
               ),
               onMapReady: () {
                 if (widget.selectedAlert != null) {
-                  _centerMapOnAlert(widget.selectedAlert!);
+                  _focusOnAlert(widget.selectedAlert!);
                 }
               },
             ),
@@ -631,10 +634,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          EmergencyTypes.getTranslatedType(
-                            alert.alertType,
-                            context,
-                          ),
+                          _alertTitle(alert),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -775,7 +775,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                         _getAlertColor(alert.alertType),
                       ),
                       if (alert.type == 'quick')
-                        _buildTag('URGENTE', Colors.red),
+                        _buildTag('URGENTE', const Color(0xFFFF3B30)),
                     ],
                   ),
                 ],

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/handlers/main_handler.dart';
+import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
+import 'package:guardian/views/main_app/shared/main_tab_navigation.dart';
 import 'package:guardian/views/main_app/shared/menu_nav.dart';
 import 'package:guardian/views/main_app/home_view.dart';
 import 'package:guardian/views/main_app/comunidades_view.dart';
@@ -19,14 +21,6 @@ class MainView extends StatefulWidget {
 
 class _MainViewState extends State<MainView> {
   final MainHandler _controller = MainHandler();
-
-  final List<Widget> _views = const [
-    HomeView(),
-    ComunidadesView(),
-    EstadisticasView(),
-    MapaView(),
-    PerfilView(),
-  ];
 
   @override
   void initState() {
@@ -56,17 +50,52 @@ class _MainViewState extends State<MainView> {
     }
   }
 
+  void _goToTab(int index) {
+    setState(() {
+      _controller.currentIndex = index;
+    });
+  }
+
+  void _openMap() {
+    setState(() {
+      _controller.mapFocusAlert = null;
+      _controller.currentIndex = MainTabNavigation.mapIndex;
+    });
+  }
+
+  void _openMapOnAlert(AlertModel alert) {
+    setState(() {
+      _controller.mapFocusAlert = alert;
+      _controller.currentIndex = MainTabNavigation.mapIndex;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _views[_controller.currentIndex],
-      bottomNavigationBar: MenuNav(
-        currentIndex: _controller.currentIndex,
-        onTap: (i) {
-          setState(() {
-            _controller.currentIndex = i;
-          });
-        },
+    final mapFocus = _controller.mapFocusAlert;
+
+    return MainTabNavigation(
+      goToTab: _goToTab,
+      openMap: _openMap,
+      openMapOnAlert: _openMapOnAlert,
+      child: Scaffold(
+        body: IndexedStack(
+          index: _controller.currentIndex,
+          children: [
+            const HomeView(),
+            const ComunidadesView(),
+            const EstadisticasView(),
+            MapaView(
+              key: ValueKey(mapFocus?.id ?? 'map-default'),
+              selectedAlert: mapFocus,
+            ),
+            const PerfilView(),
+          ],
+        ),
+        bottomNavigationBar: MenuNav(
+          currentIndex: _controller.currentIndex,
+          onTap: _goToTab,
+        ),
       ),
     );
   }

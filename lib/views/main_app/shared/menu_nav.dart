@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
-import 'package:guardian/widgets/adaptive_fit_text.dart';
 
 class MenuNav extends StatelessWidget {
   final int currentIndex;
@@ -19,7 +18,8 @@ class MenuNav extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final w = mq.size.width;
     final shortest = mq.size.shortestSide;
-    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textScale = textScaler.scale(1.0);
     final items = <_NavItemSpec>[
       _NavItemSpec(Icons.home, l10n.home),
       _NavItemSpec(Icons.people, l10n.communities),
@@ -29,51 +29,116 @@ class MenuNav extends StatelessWidget {
     ];
 
     final compact = shortest < 360;
-    final iconSel = compact ? 21.0 : (w < 420 ? 23.0 : 24.0);
-    final iconUnsel = compact ? 19.0 : (w < 420 ? 21.0 : 22.0);
-    final labelBase = compact
-        ? 9.2
-        : w < 360
-        ? 9.8
-        : w < 400
-        ? 10.2
-        : 11.0;
-    final navHeight = (kBottomNavigationBarHeight + (textScale - 1) * 12).clamp(
-      58.0,
-      74.0,
-    );
+    final iconSel = compact ? 20.0 : (w < 420 ? 22.0 : 24.0);
+    final iconUnsel = compact ? 18.0 : (w < 420 ? 20.0 : 22.0);
+    final labelBase = compact ? 10.0 : (w < 400 ? 10.5 : 11.0);
+    final navHeight = (60.0 + (textScale - 1) * 8).clamp(58.0, 72.0);
 
     return Material(
       color: Colors.white,
       elevation: 8,
       shadowColor: Colors.black26,
+      clipBehavior: Clip.hardEdge,
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: navHeight,
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return _NavTile(
-                        spec: items[i],
-                        selected: currentIndex == i,
-                        onTap: () => onTap(i),
-                        iconSize: currentIndex == i ? iconSel : iconUnsel,
-                        labelFontSize: labelBase,
-                        slotWidth: constraints.maxWidth,
-                        maxHeight: constraints.maxHeight,
-                      );
-                    },
-                  ),
-                ),
-            ],
+        child: MediaQuery.withClampedTextScaling(
+          minScaleFactor: 0.9,
+          maxScaleFactor: 1.12,
+          child: SizedBox(
+            height: navHeight,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final slotW = constraints.maxWidth / items.length;
+                const hPad = 3.0;
+                final innerLabelW = math.max(24.0, slotW - hPad * 2);
+                final labels = items.map((item) => item.label).toList();
+                final iconSlotH = math.min(iconSel, navHeight * 0.4);
+                const gap = 2.0;
+                final labelAreaH = math.max(
+                  12.0,
+                  navHeight - iconSlotH - gap - 4,
+                );
+                final labelFontSize = _resolveLabelFontSize(
+                  context: context,
+                  labels: labels,
+                  maxWidth: innerLabelW,
+                  baseSize: labelBase,
+                  textScaler: MediaQuery.textScalerOf(context),
+                );
+
+                return Row(
+                  children: [
+                    for (var i = 0; i < items.length; i++)
+                      SizedBox(
+                        width: slotW,
+                        child: _NavTile(
+                          spec: items[i],
+                          label: labels[i],
+                          selected: currentIndex == i,
+                          onTap: () => onTap(i),
+                          iconSize: currentIndex == i ? iconSel : iconUnsel,
+                          iconSlotH: iconSlotH,
+                          labelFontSize: labelFontSize,
+                          labelAreaH: labelAreaH,
+                          innerLabelW: innerLabelW,
+                          hPad: hPad,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
     );
+  }
+
+  /// Proportional scale so the widest label (w600) fits inside [maxWidth].
+  static double _resolveLabelFontSize({
+    required BuildContext context,
+    required List<String> labels,
+    required double maxWidth,
+    required double baseSize,
+    required TextScaler textScaler,
+  }) {
+    final widest = labels
+        .map(
+          (label) => _singleLineWidth(
+            context: context,
+            label: label,
+            fontSize: baseSize,
+            textScaler: textScaler,
+          ),
+        )
+        .fold(0.0, math.max);
+
+    if (widest <= 0 || widest <= maxWidth) return baseSize;
+
+    const safety = 0.94;
+    return baseSize * (maxWidth / widest) * safety;
+  }
+
+  static double _singleLineWidth({
+    required BuildContext context,
+    required String label,
+    required double fontSize,
+    required TextScaler textScaler,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w600,
+          height: 1.0,
+        ),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: textScaler,
+      maxLines: 1,
+    )..layout(maxWidth: double.infinity);
+    return painter.width;
   }
 }
 
@@ -86,58 +151,77 @@ class _NavItemSpec {
 class _NavTile extends StatelessWidget {
   const _NavTile({
     required this.spec,
+    required this.label,
     required this.selected,
     required this.onTap,
     required this.iconSize,
+    required this.iconSlotH,
     required this.labelFontSize,
-    required this.slotWidth,
-    required this.maxHeight,
+    required this.labelAreaH,
+    required this.innerLabelW,
+    required this.hPad,
   });
 
   final _NavItemSpec spec;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
   final double iconSize;
+  final double iconSlotH;
   final double labelFontSize;
-  final double slotWidth;
-  final double maxHeight;
+  final double labelAreaH;
+  final double innerLabelW;
+  final double hPad;
 
   @override
   Widget build(BuildContext context) {
     final color = selected ? MenuNav._selected : MenuNav._unselected;
-    final labelMaxW = math.max(36.0, slotWidth - 2);
-    final iconS = math.min(iconSize, maxHeight * 0.42);
-    final gap = maxHeight < 62 ? 1.0 : 2.0;
-    final textH = math.max(16.0, maxHeight - iconS - gap - 3);
+    final iconS = math.min(iconSize, iconSlotH);
+    final style = TextStyle(
+      fontSize: labelFontSize,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+      color: color,
+      height: 1.0,
+    );
 
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: maxHeight,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(spec.icon, size: iconS, color: color),
-            SizedBox(height: gap),
-            SizedBox(
-              width: labelMaxW,
-              height: textH,
-              child: AdaptiveFitText(
-                text: spec.label,
-                maxWidth: labelMaxW,
-                maxHeight: textH,
-                maxLines: 2,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: labelFontSize,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: color,
-                  height: 1.05,
+    return ClipRect(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  height: iconSlotH,
+                  width: innerLabelW,
+                  child: Center(
+                    child: Icon(spec.icon, size: iconS, color: color),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                ClipRect(
+                  child: SizedBox(
+                    width: innerLabelW,
+                    height: labelAreaH,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        style: style,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

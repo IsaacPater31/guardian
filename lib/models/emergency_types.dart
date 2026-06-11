@@ -91,6 +91,9 @@ class EmergencyTypes {
       };
 
   static IconData getIcon(String alertType) {
+    final meta = typeMetadata[alertType];
+    if (meta != null) return meta['icon'] as IconData;
+
     switch (alertType) {
       case 'HEALTH':
         return Icons.local_hospital;
@@ -142,6 +145,9 @@ class EmergencyTypes {
   }
 
   static Color getColor(String alertType) {
+    final meta = typeMetadata[alertType];
+    if (meta != null) return meta['color'] as Color;
+
     switch (alertType) {
       case 'HEALTH':
         return const Color(0xFF26C6DA);
