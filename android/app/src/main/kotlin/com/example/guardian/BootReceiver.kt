@@ -18,7 +18,7 @@ class BootReceiver : BroadcastReceiver() {
 
             try {
                 val serviceIntent = Intent(context, GuardianBackgroundService::class.java).apply {
-                    setAction("START_SERVICE")
+                    setAction(GuardianNativeConfig.Service.ACTION_START)
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

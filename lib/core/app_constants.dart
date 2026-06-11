@@ -125,8 +125,8 @@ abstract final class AppDurations {
   static const Duration permissionRetryDelay = Duration(seconds: 3);
 
   /// How long vibration + UI pulse run when a new pending alert arrives.
-  /// Change here for Flutter UI; keep in sync with
-  /// `GuardianBackgroundService.ACTIVE_ALERT_FEEDBACK_MS` (Android background).
+  /// Keep in sync with Android `GuardianNativeConfig.Durations.ACTIVE_ALERT_FEEDBACK_MS`
+  /// and web `ACTIVE_ALERT_FEEDBACK_MS`.
   static const Duration activeAlertFeedback = Duration(seconds: 10);
 }
 

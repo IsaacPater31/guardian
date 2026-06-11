@@ -13,16 +13,19 @@ import java.util.concurrent.TimeUnit
 
 class GuardianStarterWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     companion object {
-        private const val WORK_NAME = "guardian_starter_worker"
         private const val TAG = "GuardianStarterWorker"
 
         fun schedulePeriodicWork(context: Context) {
-            val request = PeriodicWorkRequestBuilder<GuardianStarterWorker>(15, TimeUnit.MINUTES)
-                .setInitialDelay(1, TimeUnit.MINUTES)
+            val wm = GuardianNativeConfig.WorkManager
+            val request = PeriodicWorkRequestBuilder<GuardianStarterWorker>(
+                wm.PERIODIC_INTERVAL_MINUTES,
+                TimeUnit.MINUTES,
+            )
+                .setInitialDelay(wm.INITIAL_DELAY_MINUTES, TimeUnit.MINUTES)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
+                wm.STARTER_WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 request
             )
@@ -37,7 +40,7 @@ class GuardianStarterWorker(appContext: Context, params: WorkerParameters) : Cor
 
             if (!GuardianBackgroundService.isRunning()) {
                 val intent = Intent(applicationContext, GuardianBackgroundService::class.java).apply {
-                    action = "START_SERVICE"
+                    action = GuardianNativeConfig.Service.ACTION_START
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

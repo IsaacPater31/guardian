@@ -14,8 +14,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "guardian_background_service"
-    private val AUDIO_PREVIEW_CHANNEL = "guardian/audio_preview"
+    private val channel = GuardianNativeConfig.MethodChannels.BACKGROUND_SERVICE
+    private val audioPreviewChannelName = GuardianNativeConfig.MethodChannels.AUDIO_PREVIEW
     private lateinit var audioPreviewChannel: MethodChannel
     private var audioPreviewPlayer: MediaPlayer? = null
 
@@ -24,7 +24,7 @@ class MainActivity : FlutterActivity() {
 
         audioPreviewChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            AUDIO_PREVIEW_CHANNEL,
+            audioPreviewChannelName,
         )
         audioPreviewChannel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -73,18 +73,18 @@ class MainActivity : FlutterActivity() {
 
         syncFlutterLocaleToNative()
         
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel).setMethodCallHandler { call, result ->
             when (call.method) {
                 "startService" -> {
                     val intent = Intent(this, GuardianBackgroundService::class.java).apply {
-                        action = "START_SERVICE"
+                        action = GuardianNativeConfig.Service.ACTION_START
                     }
                     startService(intent)
                     result.success(true)
                 }
                 "stopService" -> {
                     val intent = Intent(this, GuardianBackgroundService::class.java).apply {
-                        action = "STOP_SERVICE"
+                        action = GuardianNativeConfig.Service.ACTION_STOP
                     }
                     startService(intent)
                     result.success(true)
@@ -235,8 +235,10 @@ class MainActivity : FlutterActivity() {
      */
     private fun setLanguage(language: String?) {
         if (language != null) {
-            val prefs = getSharedPreferences("flutter_localization", MODE_PRIVATE)
-            prefs.edit().putString("language", language).apply()
+            val prefs = getSharedPreferences(GuardianNativeConfig.Locale.PREFS_NATIVE, MODE_PRIVATE)
+            prefs.edit()
+                .putString(GuardianNativeConfig.Locale.KEY_LANGUAGE, language)
+                .apply()
             println("✅ Language set to: $language")
         }
     }
@@ -247,8 +249,9 @@ class MainActivity : FlutterActivity() {
      */
     private fun syncFlutterLocaleToNative() {
         try {
-            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            var lang = flutterPrefs.getString("flutter.selected_language", null)
+            val locale = GuardianNativeConfig.Locale
+            val flutterPrefs = getSharedPreferences(locale.PREFS_FLUTTER, MODE_PRIVATE)
+            var lang = flutterPrefs.getString(locale.KEY_FLUTTER_SELECTED_LANGUAGE, null)
             if (lang == null) {
                 for (key in flutterPrefs.all.keys) {
                     if (key.contains("selected_language")) {
@@ -258,8 +261,10 @@ class MainActivity : FlutterActivity() {
                 }
             }
             if (lang != null) {
-                getSharedPreferences("flutter_localization", MODE_PRIVATE)
-                    .edit().putString("language", lang).apply()
+                getSharedPreferences(locale.PREFS_NATIVE, MODE_PRIVATE)
+                    .edit()
+                    .putString(locale.KEY_LANGUAGE, lang)
+                    .apply()
                 println("✅ Synced Flutter locale to native: $lang")
             }
         } catch (e: Exception) {

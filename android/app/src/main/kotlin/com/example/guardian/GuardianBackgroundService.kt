@@ -18,15 +18,8 @@ import com.google.firebase.auth.FirebaseAuth
 class GuardianBackgroundService : Service() {
     
     companion object {
-        private const val NOTIFICATION_ID = 1001
-        private const val CHANNEL_ID = "guardian_background_service"
-        private const val ALERTS_CHANNEL_ID = "emergency_alerts"
-
-        /** Background vibration duration — keep in sync with Flutter [AppDurations.activeAlertFeedback]. */
-        const val ACTIVE_ALERT_FEEDBACK_MS = 10_000L
-
         private var isServiceRunning = false
-        
+
         fun isRunning(): Boolean = isServiceRunning
     }
     
@@ -46,8 +39,8 @@ class GuardianBackgroundService : Service() {
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            "START_SERVICE" -> startForegroundService()
-            "STOP_SERVICE" -> stopForegroundService()
+            GuardianNativeConfig.Service.ACTION_START -> startForegroundService()
+            GuardianNativeConfig.Service.ACTION_STOP -> stopForegroundService()
         }
         // START_REDELIVER_INTENT: Reinicia el servicio con el último Intent si es eliminado
         return START_REDELIVER_INTENT
@@ -67,7 +60,7 @@ class GuardianBackgroundService : Service() {
         val notification = createPersistentNotification()
         
         // Iniciar servicio en primer plano
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(GuardianNativeConfig.Notifications.FOREGROUND_SERVICE_ID, notification)
         
         // Iniciar escucha de alertas
         startAlertsListener()
@@ -124,7 +117,7 @@ class GuardianBackgroundService : Service() {
             
             // Canal para la notificación persistente del servicio
             val serviceChannel = NotificationChannel(
-                CHANNEL_ID,
+                GuardianNativeConfig.Notifications.CHANNEL_SERVICE,
                 serviceChannelName,
                 NotificationManager.IMPORTANCE_MIN // MIN para notificación persistente visible pero silenciosa
             ).apply {
@@ -139,7 +132,7 @@ class GuardianBackgroundService : Service() {
             
             // Canal para las alertas de emergencia
             val alertsChannel = NotificationChannel(
-                ALERTS_CHANNEL_ID,
+                GuardianNativeConfig.Notifications.CHANNEL_ALERTS,
                 alertsChannelName,
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
@@ -148,16 +141,16 @@ class GuardianBackgroundService : Service() {
                 enableLights(true)
                 enableVibration(true)
                 setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
-                vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
-                lightColor = 0xFFD32F2F.toInt()
+                vibrationPattern = GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS
+                lightColor = GuardianNativeConfig.Notifications.ALERT_LIGHT_COLOR
             }
             
             notificationManager.createNotificationChannel(serviceChannel)
             notificationManager.createNotificationChannel(alertsChannel)
             
             println("✅ Notification channels created successfully")
-            println("📱 Service channel: $CHANNEL_ID")
-            println("🚨 Alerts channel: $ALERTS_CHANNEL_ID")
+            println("📱 Service channel: ${GuardianNativeConfig.Notifications.CHANNEL_SERVICE}")
+            println("🚨 Alerts channel: ${GuardianNativeConfig.Notifications.CHANNEL_ALERTS}")
         } else {
             println("⚠️ Android version < 8.0, using legacy notifications")
         }
@@ -175,7 +168,7 @@ class GuardianBackgroundService : Service() {
         
         // Action para detener el servicio desde la notificación
         val stopIntent = Intent(this, GuardianBackgroundService::class.java).apply {
-            action = "STOP_SERVICE"
+            action = GuardianNativeConfig.Service.ACTION_STOP
         }
         val stopPendingIntent = PendingIntent.getService(
             this, 1, stopIntent,
@@ -216,7 +209,7 @@ class GuardianBackgroundService : Service() {
             "Security service active"
         }
         
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, GuardianNativeConfig.Notifications.CHANNEL_SERVICE)
             .setContentTitle(title)
             .setContentText(content)
             .setSubText(subText)
@@ -242,8 +235,14 @@ class GuardianBackgroundService : Service() {
     
     private fun getCurrentLanguage(): String {
         return try {
-            val flutterPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            var lang = flutterPrefs.getString("flutter.selected_language", null)
+            val flutterPrefs = getSharedPreferences(
+                GuardianNativeConfig.Locale.PREFS_FLUTTER,
+                Context.MODE_PRIVATE,
+            )
+            var lang = flutterPrefs.getString(
+                GuardianNativeConfig.Locale.KEY_FLUTTER_SELECTED_LANGUAGE,
+                null,
+            )
             if (lang == null) {
                 for (key in flutterPrefs.all.keys) {
                     if (key.contains("selected_language")) {
@@ -253,26 +252,34 @@ class GuardianBackgroundService : Service() {
                 }
             }
             if (lang != null) {
-                getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-                    .edit().putString("language", lang).apply()
+                getSharedPreferences(GuardianNativeConfig.Locale.PREFS_NATIVE, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(GuardianNativeConfig.Locale.KEY_LANGUAGE, lang)
+                    .apply()
                 return lang
             }
-            val legacy = getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-            legacy.getString("language", "es") ?: "es"
+            val legacy = getSharedPreferences(
+                GuardianNativeConfig.Locale.PREFS_NATIVE,
+                Context.MODE_PRIVATE,
+            )
+            legacy.getString(
+                GuardianNativeConfig.Locale.KEY_LANGUAGE,
+                GuardianNativeConfig.Locale.DEFAULT_LANGUAGE,
+            ) ?: GuardianNativeConfig.Locale.DEFAULT_LANGUAGE
         } catch (_: Exception) {
-            "es"
+            GuardianNativeConfig.Locale.DEFAULT_LANGUAGE
         }
     }
     
     private fun startAlertsListener() {
-        // Escuchar alertas de la última hora
-        val oneHourAgo = Date(System.currentTimeMillis() - 60 * 60 * 1000)
-        
-        // Limit document reads (align with mobile AppFirestoreLimits.recentAlerts).
-        alertsListener = firestore.collection("alerts")
-            .whereGreaterThan("timestamp", oneHourAgo)
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(100)
+        val windowStart = Date(
+            System.currentTimeMillis() - GuardianNativeConfig.Durations.ALERTS_LISTENER_WINDOW_MS,
+        )
+
+        alertsListener = firestore.collection(GuardianNativeConfig.Firestore.COLLECTION_ALERTS)
+            .whereGreaterThan(GuardianNativeConfig.Firestore.FIELD_TIMESTAMP, windowStart)
+            .orderBy(GuardianNativeConfig.Firestore.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+            .limit(GuardianNativeConfig.Firestore.RECENT_ALERTS_QUERY_LIMIT)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     println("❌ Error listening to alerts: $error")
@@ -296,14 +303,15 @@ class GuardianBackgroundService : Service() {
     }
     
     private fun handleNewAlert(alertData: Map<String, Any>, documentId: String) {
-        val rawAlertType = alertData["alertType"] as? String ?: return
-        val flowType = alertData["type"] as? String ?: ""
+        val fs = GuardianNativeConfig.Firestore
+        val rawAlertType = alertData[fs.FIELD_ALERT_TYPE] as? String ?: return
+        val flowType = alertData[fs.FIELD_TYPE] as? String ?: ""
         val alertType = EmergencyTypes.normalizeAlertTypeForNotification(rawAlertType, flowType)
-        val description = alertData["description"] as? String
-        val isAnonymous = alertData["isAnonymous"] as? Boolean ?: false
-        val shareLocation = alertData["shareLocation"] as? Boolean ?: false
-        val alertUserId = alertData["userId"] as? String
-        val alertUserEmail = alertData["userEmail"] as? String
+        val description = alertData[fs.FIELD_DESCRIPTION] as? String
+        val isAnonymous = alertData[fs.FIELD_IS_ANONYMOUS] as? Boolean ?: false
+        val shareLocation = alertData[fs.FIELD_SHARE_LOCATION] as? Boolean ?: false
+        val alertUserId = alertData[fs.FIELD_USER_ID] as? String
+        val alertUserEmail = alertData[fs.FIELD_USER_EMAIL] as? String
 
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -319,31 +327,35 @@ class GuardianBackgroundService : Service() {
             return
         }
 
-        val alertStatus = alertData["alert_status"] as? String ?: "pending"
-        if (alertStatus == "attended") {
+        val alertStatus = alertData[fs.FIELD_ALERT_STATUS] as? String ?: fs.STATUS_PENDING
+        if (alertStatus == fs.STATUS_ATTENDED) {
             println("✅ Alert already attended, skipping notification: $alertType")
             return
         }
 
-        val viewedBy = alertData["viewedBy"] as? List<String> ?: emptyList()
+        val viewedBy = alertData[fs.FIELD_VIEWED_BY] as? List<String> ?: emptyList()
         if (viewedBy.contains(currentUser.uid)) {
             println("👁️ User already viewed this alert, skipping notification: $alertType")
             return
         }
 
-        val timestamp = alertData["timestamp"] as? com.google.firebase.Timestamp
+        val timestamp = alertData[fs.FIELD_TIMESTAMP] as? com.google.firebase.Timestamp
         if (timestamp != null) {
             val alertTime = timestamp.toDate()
-            val oneHourAgo = Date(System.currentTimeMillis() - 60 * 60 * 1000)
-            if (alertTime.before(oneHourAgo)) {
+            val windowStart = Date(
+                System.currentTimeMillis() - GuardianNativeConfig.Durations.ALERTS_LISTENER_WINDOW_MS,
+            )
+            if (alertTime.before(windowStart)) {
                 println("⏰ Alert is too old (${alertTime}), skipping notification: $alertType")
                 return
             }
         }
 
         val communityIds = linkedSetOf<String>()
-        (alertData["community_ids"] as? List<*>)?.filterIsInstance<String>()?.let { communityIds.addAll(it) }
-        (alertData["community_id"] as? String)?.let { communityIds.add(it) }
+        (alertData[fs.FIELD_COMMUNITY_IDS] as? List<*>)?.filterIsInstance<String>()?.let {
+            communityIds.addAll(it)
+        }
+        (alertData[fs.FIELD_COMMUNITY_ID] as? String)?.let { communityIds.add(it) }
 
         if (communityIds.isNotEmpty()) {
             tryNotifyForCommunityTargets(
@@ -380,8 +392,9 @@ class GuardianBackgroundService : Service() {
             println("🚫 User not authorized for any community on this alert")
             return
         }
+        val fs = GuardianNativeConfig.Firestore
         val communityId = communityIds[index]
-        firestore.collection("communities")
+        firestore.collection(fs.COLLECTION_COMMUNITIES)
             .document(communityId)
             .get()
             .addOnSuccessListener { communityDoc ->
@@ -392,10 +405,10 @@ class GuardianBackgroundService : Service() {
                     return@addOnSuccessListener
                 }
                 val communityData = communityDoc.data
-                val isEntity = communityData?.get("is_entity") as? Boolean ?: false
-                firestore.collection("community_members")
-                    .whereEqualTo("user_id", userId)
-                    .whereEqualTo("community_id", communityId)
+                val isEntity = communityData?.get(fs.FIELD_IS_ENTITY) as? Boolean ?: false
+                firestore.collection(fs.COLLECTION_COMMUNITY_MEMBERS)
+                    .whereEqualTo(fs.FIELD_USER_ID, userId)
+                    .whereEqualTo(fs.FIELD_COMMUNITY_ID, communityId)
                     .limit(1)
                     .get()
                     .addOnSuccessListener { memberSnapshot ->
@@ -406,8 +419,8 @@ class GuardianBackgroundService : Service() {
                             return@addOnSuccessListener
                         }
                         val memberData = memberSnapshot.documents[0].data
-                        val role = memberData?.get("role") as? String ?: "member"
-                        if (isEntity && role != "official") {
+                        val role = memberData?.get(fs.FIELD_ROLE) as? String ?: fs.ROLE_MEMBER
+                        if (isEntity && role != fs.ROLE_OFFICIAL) {
                             tryNotifyForCommunityTargets(
                                 userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
                             )
@@ -446,7 +459,10 @@ class GuardianBackgroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(this, ALERTS_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(
+            this,
+            GuardianNativeConfig.Notifications.CHANNEL_ALERTS,
+        )
             .setContentTitle(title)
             .setContentText(summary)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -456,11 +472,15 @@ class GuardianBackgroundService : Service() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
-            .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000))
-            .setLights(0xFFD32F2F.toInt(), 1000, 1000)
+            .setVibrate(GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS)
+            .setLights(
+                GuardianNativeConfig.Notifications.ALERT_LIGHT_COLOR,
+                GuardianNativeConfig.Durations.NOTIFICATION_LIGHT_FLASH_MS.toInt(),
+                GuardianNativeConfig.Durations.NOTIFICATION_LIGHT_FLASH_MS.toInt(),
+            )
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setFullScreenIntent(pendingIntent, true)
-            .setTimeoutAfter(30000)
+            .setTimeoutAfter(GuardianNativeConfig.Durations.EMERGENCY_NOTIFICATION_TIMEOUT_MS)
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .setBigContentTitle(title)
@@ -499,9 +519,8 @@ class GuardianBackgroundService : Service() {
             if (vibrator != null && vibrator.hasVibrator()) {
                 println("📳 Iniciando vibración de emergencia...")
                 
-                // Patrón de vibración más agresivo para alertas de emergencia
-                val emergencyPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)
-                val continuousDurationMs = ACTIVE_ALERT_FEEDBACK_MS
+                val emergencyPattern = GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS
+                val continuousDurationMs = GuardianNativeConfig.Durations.ACTIVE_ALERT_FEEDBACK_MS
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     try {
@@ -554,7 +573,7 @@ class GuardianBackgroundService : Service() {
         // Intentar reiniciar el servicio si fue eliminado inesperadamente
         try {
             val restartIntent = Intent(this, GuardianBackgroundService::class.java).apply {
-                action = "START_SERVICE"
+                action = GuardianNativeConfig.Service.ACTION_START
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(restartIntent)
@@ -574,7 +593,7 @@ class GuardianBackgroundService : Service() {
         // Reiniciar el servicio cuando la app es eliminada de recientes
         try {
             val restartIntent = Intent(this, GuardianBackgroundService::class.java).apply {
-                action = "START_SERVICE"
+                action = GuardianNativeConfig.Service.ACTION_START
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(restartIntent)
