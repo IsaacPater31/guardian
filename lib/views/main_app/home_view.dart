@@ -13,6 +13,7 @@ import 'package:guardian/views/main_app/shared/main_tab_navigation.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/alert_trigger_section.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/latest_recent_alert_section.dart';
 import 'package:guardian/views/main_app/widgets/home_sections/nearby_alerts_section.dart';
+import 'package:guardian/views/main_app/notifications_view.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/localization_service.dart';
@@ -398,32 +399,39 @@ class _HomeViewState extends State<HomeView> {
     required double subtitleFontSize,
     required bool compactLetterSpacing,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: textMaxWidth,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.appTitle,
-              style: TextStyle(
-                fontSize: titleFontSize,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A1A1A),
-                letterSpacing: compactLetterSpacing ? 0.6 : 1.2,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: textMaxWidth,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.appTitle,
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A1A1A),
+                    letterSpacing: compactLetterSpacing ? 0.6 : 1.2,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
         const SizedBox(height: 3),
         AdaptiveFitText(
           text: l10n.safetyPriority,
           maxWidth: textMaxWidth,
           maxLines: 2,
           minFontSize: 9.5,
+          textAlign: TextAlign.start,
           style: TextStyle(
             fontSize: subtitleFontSize,
             color: Colors.grey[600],
@@ -431,7 +439,8 @@ class _HomeViewState extends State<HomeView> {
             height: 1.2,
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -446,13 +455,9 @@ class _HomeViewState extends State<HomeView> {
         iconSize: iconSize,
         buttonSize: buttonSize,
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${AppLocalizations.of(context)!.notifications} - ${AppLocalizations.of(context)!.comingSoon}',
-              ),
-              duration: const Duration(seconds: 2),
-            ),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const NotificationsView()),
           );
         },
       ),
