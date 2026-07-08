@@ -377,6 +377,9 @@ class GuardianBackgroundService : Service() {
 
     /**
      * Sends at most one notification: first [communityIds] entry where the user is a member.
+     *
+     * Entities (`is_entity: true`) are report inboxes: only `official`/`admin`
+     * members get notified; regular members send reports but never receive them.
      */
     private fun tryNotifyForCommunityTargets(
         userId: String,
@@ -403,8 +406,9 @@ class GuardianBackgroundService : Service() {
                     )
                     return@addOnSuccessListener
                 }
+                val isEntity = communityDoc.getBoolean(fs.FIELD_IS_ENTITY) ?: false
                 firestore.collection(fs.COLLECTION_COMMUNITY_MEMBERS)
-                    .whereEqualTo(fs.FIELD_USER_ID, userId)
+                    .whereEqualTo(fs.FIELD_MEMBER_USER_ID, userId)
                     .whereEqualTo(fs.FIELD_COMMUNITY_ID, communityId)
                     .limit(1)
                     .get()
@@ -415,7 +419,15 @@ class GuardianBackgroundService : Service() {
                             )
                             return@addOnSuccessListener
                         }
-                        val memberData = memberSnapshot.documents[0].data
+                        val role = memberSnapshot.documents[0]
+                            .getString(fs.FIELD_ROLE) ?: fs.ROLE_MEMBER
+                        if (isEntity && role != fs.ROLE_ADMIN && role != fs.ROLE_OFFICIAL) {
+                            println("🚫 Entity report: member role '$role' not notified for $communityId")
+                            tryNotifyForCommunityTargets(
+                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
+                            )
+                            return@addOnSuccessListener
+                        }
                         showAlertNotification(alertType, description, isAnonymous, shareLocation)
                         triggerVibration()
                         println("🚨 Alert notification sent for community $communityId: $alertType")

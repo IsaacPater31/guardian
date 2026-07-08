@@ -403,13 +403,26 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
             
             // Nombre
             Text(
-              _communityPreview!.name,
+              _communityPreview!.isEntity
+                  ? l10n.reportEntityTile(_communityPreview!.name)
+                  : _communityPreview!.name,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
+            if (_communityPreview!.isEntity) ...[
+              const SizedBox(height: 6),
+              Text(
+                l10n.entityReportLabel,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
             
             // Descripción
             if (_communityPreview!.description != null &&

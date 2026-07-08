@@ -17,8 +17,8 @@ import 'package:guardian/services/quick_alert_config_service.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
 import 'package:guardian/views/main_app/widgets/compact_alert/alert_compact_flow_interface.dart';
 import 'package:guardian/views/main_app/widgets/compact_alert/help_types_horizontal_section.dart';
-import 'package:guardian/views/main_app/widgets/compact_alert/reports_section.dart';
 import 'package:guardian/views/main_app/widgets/compact_alert/slide_to_confirm_quick.dart';
+import 'package:guardian/views/main_app/widgets/home_sections/home_reports_section.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/widgets/adaptive_fit_text.dart';
 
@@ -1974,16 +1974,6 @@ class _AlertButtonState extends State<AlertButton>
             ),
           ),
         ),
-        EventualityBottomStrip(
-          onAmbiental: () {
-            if (_showEmergencyOptions) return;
-            _showEmergencyDialog(AlertDetailCatalog.environmental);
-          },
-          onPolicial: () {
-            if (_showEmergencyOptions) return;
-            _showEmergencyDialog(AlertDetailCatalog.police);
-          },
-        ),
       ],
     );
   }
@@ -2052,11 +2042,10 @@ class _AlertButtonState extends State<AlertButton>
               quickTypes: quickTypes,
               flow: this,
             ),
-            ReportsSection(
+            HomeReportsSection(
               titleSize: sectionTitleSize,
               topGap: sectionGap,
               rowGap: rowGap,
-              flow: this,
             ),
           ],
         );

@@ -7,8 +7,10 @@ import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/user_service.dart';
+import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
+import 'package:guardian/views/main_app/widgets/report_send_sheet.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
 import 'package:guardian/views/main_app/community_members_view.dart';
 import 'package:latlong2/latlong.dart';
@@ -31,9 +33,13 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     with SingleTickerProviderStateMixin {
   final AlertService _alertService = AlertService();
   final CommunityService _communityService = CommunityService();
+  final CommunityRepository _communityRepository = CommunityRepository();
   final UserService _userService = UserService();
   String? _userRole;
   bool _isLoadingRole = true;
+
+  /// `true` si esta comunidad es una entidad (`is_entity`) — modo Reportes.
+  bool _isEntity = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -74,12 +80,52 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   Future<void> _loadUserRole() async {
     final role = await _communityService.getUserRole(widget.communityId);
+    final community =
+        await _communityRepository.getCommunityById(widget.communityId);
     if (mounted) {
       setState(() {
         _userRole = role;
+        _isEntity = community?.isEntity ?? false;
         _isLoadingRole = false;
       });
     }
+  }
+
+  Future<void> _openSendReport() async {
+    final l10n = AppLocalizations.of(context)!;
+    final sent = await ReportSendSheet.show(
+      context,
+      entityId: widget.communityId,
+      entityName: widget.communityName,
+    );
+    if (!mounted || sent == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor:
+            sent ? const Color(0xFF34C759) : const Color(0xFFFF3B30),
+        content: Row(
+          children: [
+            Icon(
+              sent ? Icons.check_circle_rounded : Icons.error_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                sent ? l10n.reportSentSuccess : l10n.reportSentError,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -131,7 +177,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              AppLocalizations.of(context)!.communityLabel,
+              _isEntity
+                  ? AppLocalizations.of(context)!.entityReportLabel
+                  : AppLocalizations.of(context)!.communityLabel,
               style: TextStyle(
                 fontSize: isSmall ? 11 : 13,
                 fontWeight: FontWeight.w400,
@@ -235,6 +283,34 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           );
         },
       ),
+      // En entidades cualquier miembro puede enviar reportes; solo
+      // official/admin reciben las notificaciones.
+      floatingActionButton: _isEntity
+          ? FloatingActionButton.extended(
+              onPressed: _openSendReport,
+              backgroundColor: const Color(0xFF0D1B3E),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              icon: const Icon(Icons.assignment_add, size: 20),
+              label: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.6,
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.sendReport,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+          : null,
     );
   }
 

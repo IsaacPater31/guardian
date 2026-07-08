@@ -787,7 +787,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportReasonHint => 'Write the reason for the report...';
 
   @override
-  String get sendReport => 'Send Report';
+  String get sendReport => 'Send report';
 
   @override
   String nowAdmin(String name) {
@@ -884,6 +884,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myCommunities => 'My Communities';
+
+  @override
+  String get reportsSection => 'Reports';
+
+  @override
+  String get reportsEmptyLine => 'No linked entities';
+
+  @override
+  String get reportsEmptyHint => 'Invite link or code';
+
+  @override
+  String get reportsEmptyActionShort => 'Join';
+
+  @override
+  String get reportsEmptySemantics =>
+      'No linked entities. To send reports, join with an invite link or code.';
+
+  @override
+  String get reportsHomeEmptyLine => 'No linked entities';
+
+  @override
+  String get reportsHomeEmptyActionShort => 'Communities';
+
+  @override
+  String get reportsHomeEmptySemantics =>
+      'No linked entities. Manage your links in the Communities tab.';
+
+  @override
+  String reportEntityTile(String name) {
+    return 'Report $name';
+  }
+
+  @override
+  String get entityReportLabel => 'Entity';
+
+  @override
+  String sendReportTo(String name) {
+    return 'Send report to $name';
+  }
+
+  @override
+  String get reportTypeLabel => 'Report type';
+
+  @override
+  String get reportDetailHint => 'Briefly describe the situation (optional)';
+
+  @override
+  String get reportSentSuccess => 'Report sent';
+
+  @override
+  String get reportSentError => 'Could not send the report. Please try again.';
+
+  @override
+  String get reportSelectTypeFirst => 'Select a report type';
+
+  @override
+  String get reportAnonymous => 'Send anonymously';
 
   @override
   String selectedCommunityCount(int count) {

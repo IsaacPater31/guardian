@@ -1571,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @sendReport.
   ///
   /// In es, this message translates to:
-  /// **'Enviar Reporte'**
+  /// **'Enviar reporte'**
   String get sendReport;
 
   /// No description provided for @nowAdmin.
@@ -1747,6 +1747,108 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Mis Comunidades'**
   String get myCommunities;
+
+  /// No description provided for @reportsSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportes'**
+  String get reportsSection;
+
+  /// No description provided for @reportsEmptyLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin entidades vinculadas'**
+  String get reportsEmptyLine;
+
+  /// No description provided for @reportsEmptyHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Enlace o código de invitación'**
+  String get reportsEmptyHint;
+
+  /// No description provided for @reportsEmptyActionShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Unirse'**
+  String get reportsEmptyActionShort;
+
+  /// No description provided for @reportsEmptySemantics.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin entidades vinculadas. Para enviar reportes, únete con un enlace o código de invitación.'**
+  String get reportsEmptySemantics;
+
+  /// No description provided for @reportsHomeEmptyLine.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin entidades vinculadas'**
+  String get reportsHomeEmptyLine;
+
+  /// No description provided for @reportsHomeEmptyActionShort.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidades'**
+  String get reportsHomeEmptyActionShort;
+
+  /// No description provided for @reportsHomeEmptySemantics.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin entidades vinculadas. Gestiona tus vínculos en la pestaña Comunidades.'**
+  String get reportsHomeEmptySemantics;
+
+  /// No description provided for @reportEntityTile.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte {name}'**
+  String reportEntityTile(String name);
+
+  /// No description provided for @entityReportLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Entidad'**
+  String get entityReportLabel;
+
+  /// No description provided for @sendReportTo.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar reporte a {name}'**
+  String sendReportTo(String name);
+
+  /// No description provided for @reportTypeLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo de reporte'**
+  String get reportTypeLabel;
+
+  /// No description provided for @reportDetailHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe brevemente la situación (opcional)'**
+  String get reportDetailHint;
+
+  /// No description provided for @reportSentSuccess.
+  ///
+  /// In es, this message translates to:
+  /// **'Reporte enviado'**
+  String get reportSentSuccess;
+
+  /// No description provided for @reportSentError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo enviar el reporte. Intenta de nuevo.'**
+  String get reportSentError;
+
+  /// No description provided for @reportSelectTypeFirst.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona un tipo de reporte'**
+  String get reportSelectTypeFirst;
+
+  /// No description provided for @reportAnonymous.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar como anónimo'**
+  String get reportAnonymous;
 
   /// No description provided for @selectedCommunityCount.
   ///

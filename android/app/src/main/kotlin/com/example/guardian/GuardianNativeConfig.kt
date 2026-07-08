@@ -67,9 +67,17 @@ object GuardianNativeConfig {
         const val FIELD_COMMUNITY_ID = "community_id"
         const val FIELD_ROLE = "role"
 
+        // community_members usa snake_case (Flutter: MemberFields.userId).
+        const val FIELD_MEMBER_USER_ID = "user_id"
+
+        // communities — marca de entidad (Flutter: CommunityFields.isEntity).
+        const val FIELD_IS_ENTITY = "is_entity"
+
         const val STATUS_ATTENDED = "attended"
         const val STATUS_PENDING = "pending"
         const val ROLE_MEMBER = "member"
+        const val ROLE_ADMIN = "admin"
+        const val ROLE_OFFICIAL = "official"
     }
 
     // ─── Notificaciones ─────────────────────────────────────────────────────

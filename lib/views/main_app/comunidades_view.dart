@@ -11,6 +11,7 @@ import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/views/main_app/community_feed_view.dart';
 import 'package:guardian/views/main_app/join_community_view.dart';
 import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
+import 'package:guardian/views/main_app/widgets/reports_empty_inline.dart';
 
 class ComunidadesView extends StatefulWidget {
   const ComunidadesView({super.key});
@@ -24,6 +25,9 @@ class _ComunidadesViewState extends State<ComunidadesView>
   final CommunityService _communityService = CommunityService();
   final AlertService _alertService = AlertService();
   List<Map<String, dynamic>> _communities = [];
+
+  /// Entidades (`is_entity`) del usuario — apartado "Reportes".
+  List<Map<String, dynamic>> _entityCommunities = [];
   Map<String, int> _unreadByCommunity = {};
   bool _isLoading = true;
   String _searchQuery = '';
@@ -94,10 +98,12 @@ class _ComunidadesViewState extends State<ComunidadesView>
     setState(() => _isLoading = true);
     try {
       final communities = await _communityService.getMyCommunities();
+      final entities = await _communityService.getMyEntityCommunities();
       final unread = await _alertService.getUnreadCountByCommunity();
       if (!mounted) return;
       setState(() {
         _communities = communities;
+        _entityCommunities = entities;
         _unreadByCommunity = unread;
         _isLoading = false;
       });
@@ -158,6 +164,19 @@ class _ComunidadesViewState extends State<ComunidadesView>
         .toList();
   }
 
+  void _openJoinWithLink() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const JoinCommunityView(),
+      ),
+    ).then((joined) {
+      if (joined == true && mounted && context.mounted) {
+        _loadCommunities();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,18 +215,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
               color: Color(0xFF007AFF),
               size: 22,
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const JoinCommunityView(),
-                ),
-              ).then((joined) {
-                if (joined == true && mounted && context.mounted) {
-                  _loadCommunities();
-                }
-              });
-            },
+            onPressed: _openJoinWithLink,
             tooltip: AppLocalizations.of(context)!.joinWithLink,
           ),
           IconButton(
@@ -228,9 +236,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
                 color: Color(0xFF1F2937),
               ),
             )
-          : _communities.isEmpty
-              ? _buildEmptyState()
-              : FadeTransition(
+          : FadeTransition(
                   opacity: _fadeAnimation,
                   child: _buildCommunitiesList(),
                 ),
@@ -269,52 +275,6 @@ class _ComunidadesViewState extends State<ComunidadesView>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: const Color(0xFF007AFF).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: const Icon(
-              Icons.people_outline_rounded,
-              size: 40,
-              color: Color(0xFF007AFF),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            AppLocalizations.of(context)!.noCommunities,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1C1E),
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              AppLocalizations.of(context)!.noCommunitiesAvailableEmptyState,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[500],
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -373,25 +333,93 @@ class _ComunidadesViewState extends State<ComunidadesView>
                   _buildSectionHeader(AppLocalizations.of(context)!.myCommunities),
                   const SizedBox(height: 8),
                   _buildGroupedCards(communities),
+                ] else ...[
+                  _buildSectionHeader(AppLocalizations.of(context)!.myCommunities),
+                  const SizedBox(height: 8),
+                  _buildCommunitiesEmptyCard(),
                 ],
-                if (communities.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: Center(
-                      child: Text(
-                        AppLocalizations.of(context)!.noResults,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 24),
+                // Apartado "Reportes": siempre visible. Las entidades se agregan
+                // solo por enlace/código de invitación.
+                _buildSectionHeader(
+                  AppLocalizations.of(context)!.reportsSection,
+                ),
+                const SizedBox(height: 8),
+                if (_entityCommunities.isNotEmpty)
+                  _buildGroupedEntityCards(_entityCommunities)
+                else
+                  _buildReportsEmptyCard(),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCommunitiesEmptyCard() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.people_outline_rounded, size: 36, color: Colors.grey[400]),
+          const SizedBox(height: 12),
+          Text(
+            l10n.noCommunities,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1C1C1E),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.noCommunitiesAvailableEmptyState,
+            style: TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Estado vacío del apartado Reportes — el usuario no está vinculado a
+  /// ninguna entidad todavía.
+  Widget _buildReportsEmptyCard() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ReportsEmptyInline(
+        line: l10n.reportsEmptyLine,
+        hint: l10n.reportsEmptyHint,
+        actionLabel: l10n.reportsEmptyActionShort,
+        onAction: _openJoinWithLink,
+        semanticsLabel: l10n.reportsEmptySemantics,
+      ),
     );
   }
 
@@ -512,6 +540,147 @@ class _ComunidadesViewState extends State<ComunidadesView>
               ),
               const SizedBox(width: 8),
               // Trailing
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B30),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.grey[350],
+                    size: 22,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupedEntityCards(List<Map<String, dynamic>> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            _buildEntityTile(items[i]),
+            if (i < items.length - 1)
+              Divider(
+                height: 1,
+                indent: 72,
+                color: Colors.grey[200],
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Tile de entidad — se muestra como "Reporte {Nombre}".
+  Widget _buildEntityTile(Map<String, dynamic> entity) {
+    final l10n = AppLocalizations.of(context)!;
+    final entityId = entity['id'] as String?;
+    final entityName = (entity['name'] as String?) ?? '';
+    final unreadCount =
+        entityId != null ? (_unreadByCommunity[entityId] ?? 0) : 0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          if (entityId == null) return;
+          Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CommunityFeedView(
+                communityId: entityId,
+                communityName: entityName,
+              ),
+            ),
+          ).then((leftCommunity) {
+            if (!mounted || !context.mounted) return;
+            if (leftCommunity == true) {
+              _loadCommunities();
+            }
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1B3E).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment_rounded,
+                  color: Color(0xFF0D1B3E),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.reportEntityTile(entityName),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                        letterSpacing: -0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      l10n.entityReportLabel,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                        height: 1.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

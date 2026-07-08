@@ -4,7 +4,9 @@ class CommunityModel {
   final String? id;
   final String name;
   final String? description;
-  final bool isEntity; // Campo legacy en Firestore; oculto en la app.
+  /// Entidad de reportes (creada solo desde el admin web). En la app se
+  /// muestra en el apartado "Reportes" como "Reporte {nombre}".
+  final bool isEntity;
   final String? createdBy;
   final DateTime createdAt;
   final int? iconCodePoint; // Material Icons codePoint (ej: Icons.people.codePoint)

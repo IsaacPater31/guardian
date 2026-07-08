@@ -75,6 +75,7 @@ class _MainViewState extends State<MainView> {
     final mapFocus = _controller.mapFocusAlert;
 
     return MainTabNavigation(
+      currentIndex: _controller.currentIndex,
       goToTab: _goToTab,
       openMap: _openMap,
       openMapOnAlert: _openMapOnAlert,

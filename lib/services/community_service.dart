@@ -42,6 +42,22 @@ class CommunityService {
     }
   }
 
+  /// Entidades (`is_entity: true`) a las que pertenece el usuario.
+  ///
+  /// Se muestran en el apartado "Reportes" de Comunidades. El usuario se une
+  /// solo por enlace/código de invitación; nunca se crean desde la app.
+  Future<List<Map<String, dynamic>>> getMyEntityCommunities() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) return [];
+      final communities = await _repo.fetchUserCommunities(userId);
+      return entityUserCommunities(communities);
+    } catch (e) {
+      AppLogger.e('getMyEntityCommunities', e);
+      return [];
+    }
+  }
+
   Stream<List<Map<String, dynamic>>> getMyCommunitiesStream() {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return Stream.value([]);

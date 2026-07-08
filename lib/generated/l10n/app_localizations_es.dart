@@ -794,7 +794,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reportReasonHint => 'Escribe el motivo del reporte...';
 
   @override
-  String get sendReport => 'Enviar Reporte';
+  String get sendReport => 'Enviar reporte';
 
   @override
   String nowAdmin(String name) {
@@ -891,6 +891,64 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get myCommunities => 'Mis Comunidades';
+
+  @override
+  String get reportsSection => 'Reportes';
+
+  @override
+  String get reportsEmptyLine => 'Sin entidades vinculadas';
+
+  @override
+  String get reportsEmptyHint => 'Enlace o código de invitación';
+
+  @override
+  String get reportsEmptyActionShort => 'Unirse';
+
+  @override
+  String get reportsEmptySemantics =>
+      'Sin entidades vinculadas. Para enviar reportes, únete con un enlace o código de invitación.';
+
+  @override
+  String get reportsHomeEmptyLine => 'Sin entidades vinculadas';
+
+  @override
+  String get reportsHomeEmptyActionShort => 'Comunidades';
+
+  @override
+  String get reportsHomeEmptySemantics =>
+      'Sin entidades vinculadas. Gestiona tus vínculos en la pestaña Comunidades.';
+
+  @override
+  String reportEntityTile(String name) {
+    return 'Reporte $name';
+  }
+
+  @override
+  String get entityReportLabel => 'Entidad';
+
+  @override
+  String sendReportTo(String name) {
+    return 'Enviar reporte a $name';
+  }
+
+  @override
+  String get reportTypeLabel => 'Tipo de reporte';
+
+  @override
+  String get reportDetailHint => 'Describe brevemente la situación (opcional)';
+
+  @override
+  String get reportSentSuccess => 'Reporte enviado';
+
+  @override
+  String get reportSentError =>
+      'No se pudo enviar el reporte. Intenta de nuevo.';
+
+  @override
+  String get reportSelectTypeFirst => 'Selecciona un tipo de reporte';
+
+  @override
+  String get reportAnonymous => 'Enviar como anónimo';
 
   @override
   String selectedCommunityCount(int count) {

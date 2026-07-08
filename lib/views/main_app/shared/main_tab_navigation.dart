@@ -5,6 +5,7 @@ import 'package:guardian/models/alert_model.dart';
 class MainTabNavigation extends InheritedWidget {
   const MainTabNavigation({
     super.key,
+    required this.currentIndex,
     required this.goToTab,
     required this.openMap,
     required this.openMapOnAlert,
@@ -17,6 +18,7 @@ class MainTabNavigation extends InheritedWidget {
   static const int mapIndex = 3;
   static const int profileIndex = 4;
 
+  final int currentIndex;
   final ValueChanged<int> goToTab;
   final VoidCallback openMap;
   final ValueChanged<AlertModel> openMapOnAlert;
@@ -26,5 +28,6 @@ class MainTabNavigation extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(MainTabNavigation oldWidget) => false;
+  bool updateShouldNotify(MainTabNavigation oldWidget) =>
+      currentIndex != oldWidget.currentIndex;
 }

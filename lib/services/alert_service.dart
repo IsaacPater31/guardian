@@ -56,11 +56,7 @@ class AlertService {
         );
       }
 
-      final communities = visibleUserCommunities(
-        await _communityRepository.fetchUserCommunities(uid),
-      );
-      _cachedUserCommunityIds =
-          communities.map((c) => c['id'] as String).toList();
+      final communities = await _communityRepository.fetchUserCommunities(uid);
 
       final memberships = await _communityRepository.queryMembershipsForUser(
         uid,
@@ -71,6 +67,20 @@ class AlertService {
               (doc.data()[MemberFields.role] as String? ??
               MemberFields.roleMember),
       };
+
+      // Comunidades cuyas alertas puede VER el usuario en sus feeds:
+      // - normales: cualquier miembro;
+      // - entidades: solo official/admin (los reportes de otros ciudadanos
+      //   no deben llegarle a un miembro raso de la entidad).
+      _cachedUserCommunityIds = communities
+          .where((c) {
+            if (!communityMapIsEntity(c)) return true;
+            final role = _cachedUserRolesByCommunityId![c['id'] as String];
+            return role == MemberFields.roleAdmin ||
+                role == MemberFields.roleOfficial;
+          })
+          .map((c) => c['id'] as String)
+          .toList();
 
       _cacheTimestamp = DateTime.now();
       return _UserCommunityAccess(
@@ -101,6 +111,13 @@ class AlertService {
         return false;
       }
       if (alert.communityIds.isEmpty) return true;
+
+      // El emisor siempre ve sus propias alertas/reportes (p. ej. un ciudadano
+      // que reportó a una entidad puede seguir el estado aunque no reciba
+      // los reportes de otros).
+      if (_userService.isUserOwnerOfAlert(alert.userId, alert.userEmail)) {
+        return true;
+      }
 
       return alert.communityIds.any(membershipSet.contains);
     }).toList();
@@ -529,6 +546,8 @@ class AlertService {
         throw Exception('Usuario no autenticado');
       }
 
+      await _assertValidAlertCommunityDestinations(communityIds);
+
       final hasPermission =
           await PermissionService.requestLocationPermissionForAlerts();
       if (!hasPermission) {
@@ -630,6 +649,8 @@ class AlertService {
         continue;
       }
 
+      await _assertValidAlertCommunityDestinations([targetCommunityId]);
+
       forwardedAlerts.add(
         AlertModel(
           type: originalAlert.type,
@@ -670,6 +691,38 @@ class AlertService {
 
     AppLogger.d('Alert forwarded to $count communities');
     return count;
+  }
+
+  /// Un reporte a entidad va **solo** a esa entidad (un id). Las alertas
+  /// normales no pueden incluir entidades en `community_ids`.
+  Future<void> _assertValidAlertCommunityDestinations(
+    List<String> communityIds,
+  ) async {
+    if (communityIds.isEmpty) return;
+
+    var entityCount = 0;
+    var normalCount = 0;
+
+    for (final id in communityIds) {
+      final community = await _communityRepository.getCommunityById(id);
+      if (community == null) {
+        throw Exception('Comunidad no encontrada');
+      }
+      if (community.isEntity) {
+        entityCount++;
+      } else {
+        normalCount++;
+      }
+    }
+
+    if (entityCount > 0 && normalCount > 0) {
+      throw Exception(
+        'Un reporte a entidad no puede enviarse junto con comunidades normales',
+      );
+    }
+    if (entityCount > 1) {
+      throw Exception('Un reporte solo puede enviarse a una entidad');
+    }
   }
 
   Future<bool> hasLocationPermission() =>
