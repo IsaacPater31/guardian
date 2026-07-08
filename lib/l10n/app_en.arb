@@ -352,6 +352,7 @@
   "reportSentSuccess": "Report sent",
   "reportSentError": "Could not send the report. Please try again.",
   "reportSelectTypeFirst": "Select a report type",
+  "reportNoTypesConfigured": "This entity has no report types configured. Contact the administrator.",
   "reportAnonymous": "Send anonymously",
   "selectedCommunityCount": "{count, plural, =1{1 community} other{{count} communities}}",
   "@selectedCommunityCount": {

@@ -948,6 +948,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reportSelectTypeFirst => 'Selecciona un tipo de reporte';
 
   @override
+  String get reportNoTypesConfigured =>
+      'Esta entidad no tiene tipos de reporte configurados. Contacta al administrador.';
+
+  @override
   String get reportAnonymous => 'Enviar como anónimo';
 
   @override

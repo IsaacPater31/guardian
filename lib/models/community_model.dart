@@ -11,6 +11,9 @@ class CommunityModel {
   final DateTime createdAt;
   final int? iconCodePoint; // Material Icons codePoint (ej: Icons.people.codePoint)
   final String? iconColor; // Color en hex (ej: '#FF9500')
+  final String? reportButtonColor; // Color botón reportar (ej: '#0D1B3E')
+  /// Tipos de alerta aceptados como reportes (solo entidades).
+  final List<String> reportAlertTypes;
 
   CommunityModel({
     this.id,
@@ -21,6 +24,8 @@ class CommunityModel {
     required this.createdAt,
     this.iconCodePoint,
     this.iconColor,
+    this.reportButtonColor,
+    this.reportAlertTypes = const [],
   });
 
   factory CommunityModel.fromFirestore(DocumentSnapshot doc) {
@@ -34,7 +39,14 @@ class CommunityModel {
       createdAt: (data['created_at'] as Timestamp).toDate(),
       iconCodePoint: data['icon_code_point'] as int?,
       iconColor: data['icon_color'] as String?,
+      reportButtonColor: data['report_button_color'] as String?,
+      reportAlertTypes: _parseReportAlertTypes(data['report_alert_types']),
     );
+  }
+
+  static List<String> _parseReportAlertTypes(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw.whereType<String>().where((s) => s.isNotEmpty).toList();
   }
 
   Map<String, dynamic> toFirestore() {
@@ -46,6 +58,9 @@ class CommunityModel {
       'created_at': Timestamp.fromDate(createdAt),
       if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
       if (iconColor != null) 'icon_color': iconColor,
+      if (reportButtonColor != null) 'report_button_color': reportButtonColor,
+      if (isEntity && reportAlertTypes.isNotEmpty)
+        'report_alert_types': reportAlertTypes,
     };
   }
 
@@ -58,6 +73,8 @@ class CommunityModel {
     DateTime? createdAt,
     int? iconCodePoint,
     String? iconColor,
+    String? reportButtonColor,
+    List<String>? reportAlertTypes,
   }) {
     return CommunityModel(
       id: id ?? this.id,
@@ -68,6 +85,8 @@ class CommunityModel {
       createdAt: createdAt ?? this.createdAt,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       iconColor: iconColor ?? this.iconColor,
+      reportButtonColor: reportButtonColor ?? this.reportButtonColor,
+      reportAlertTypes: reportAlertTypes ?? this.reportAlertTypes,
     );
   }
 }

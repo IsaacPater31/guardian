@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/views/main_app/shared/main_tab_navigation.dart';
+import 'package:guardian/core/app_constants.dart';
+import 'package:guardian/views/main_app/widgets/entity_report_card.dart';
 import 'package:guardian/views/main_app/widgets/report_send_sheet.dart';
 import 'package:guardian/views/main_app/widgets/reports_empty_inline.dart';
 
-/// Apartado **Reportes** en Home: acceso rápido para enviar reportes a las
-/// entidades del usuario. Si no hay entidades vinculadas, muestra un mensaje
-/// contextual (distinto al de la pestaña Comunidades).
+/// Apartado **Reportes** en Home: tarjetas por entidad (estilo anterior) con
+/// color e icono configurados en el panel web.
 class HomeReportsSection extends StatefulWidget {
   const HomeReportsSection({
     super.key,
@@ -53,12 +54,20 @@ class _HomeReportsSectionState extends State<HomeReportsSection> {
     );
   }
 
-  Future<void> _openReportSheet(String entityId, String entityName) async {
+  Future<void> _openReportSheet(Map<String, dynamic> entity) async {
     final l10n = AppLocalizations.of(context)!;
+    final id = entity['id'] as String?;
+    final name = (entity[CommunityFields.name] as String?) ?? '';
+    if (id == null) return;
+
     final sent = await ReportSendSheet.show(
       context,
-      entityId: entityId,
-      entityName: entityName,
+      entityId: id,
+      entityName: name,
+      iconCodePoint: entity[CommunityFields.iconCodePoint] as int?,
+      iconColor: entity[CommunityFields.iconColor] as String?,
+      reportButtonColor: entity[CommunityFields.reportButtonColor] as String?,
+      allowedAlertTypes: parseEntityReportAlertTypes(entity),
     );
     if (!mounted || sent == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -114,68 +123,11 @@ class _HomeReportsSectionState extends State<HomeReportsSection> {
             ),
           )
         else
-          _buildEntityStrip(l10n),
+          EntityReportCardsStrip(
+            entities: _entities,
+            onReport: _openReportSheet,
+          ),
       ],
-    );
-  }
-
-  Widget _buildEntityStrip(AppLocalizations l10n) {
-    return SizedBox(
-      height: 72,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _entities.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          final entity = _entities[index];
-          final id = entity['id'] as String?;
-          final name = (entity['name'] as String?) ?? '';
-          if (id == null) return const SizedBox.shrink();
-
-          return Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: () => _openReportSheet(id, name),
-              borderRadius: BorderRadius.circular(14),
-              child: Ink(
-                width: 148,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFF0D1B3E).withValues(alpha: 0.15),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.assignment_rounded,
-                      color: Color(0xFF0D1B3E),
-                      size: 20,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.reportEntityTile(name),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
-                        height: 1.15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }

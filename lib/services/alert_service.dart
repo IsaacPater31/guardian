@@ -5,6 +5,7 @@ import '../core/app_constants.dart';
 import '../core/app_logger.dart';
 import '../core/community_visibility.dart';
 import '../models/alert_model.dart';
+import '../models/community_model.dart';
 import '../repositories/alert_repository.dart';
 import '../repositories/community_repository.dart';
 import 'location_service.dart';
@@ -546,7 +547,10 @@ class AlertService {
         throw Exception('Usuario no autenticado');
       }
 
-      await _assertValidAlertCommunityDestinations(communityIds);
+      await _assertValidAlertCommunityDestinations(
+        communityIds,
+        alertType: alertType,
+      );
 
       final hasPermission =
           await PermissionService.requestLocationPermissionForAlerts();
@@ -696,12 +700,14 @@ class AlertService {
   /// Un reporte a entidad va **solo** a esa entidad (un id). Las alertas
   /// normales no pueden incluir entidades en `community_ids`.
   Future<void> _assertValidAlertCommunityDestinations(
-    List<String> communityIds,
-  ) async {
+    List<String> communityIds, {
+    String? alertType,
+  }) async {
     if (communityIds.isEmpty) return;
 
     var entityCount = 0;
     var normalCount = 0;
+    CommunityModel? soleEntity;
 
     for (final id in communityIds) {
       final community = await _communityRepository.getCommunityById(id);
@@ -710,6 +716,7 @@ class AlertService {
       }
       if (community.isEntity) {
         entityCount++;
+        soleEntity = community;
       } else {
         normalCount++;
       }
@@ -722,6 +729,13 @@ class AlertService {
     }
     if (entityCount > 1) {
       throw Exception('Un reporte solo puede enviarse a una entidad');
+    }
+
+    if (soleEntity != null &&
+        alertType != null &&
+        soleEntity.reportAlertTypes.isNotEmpty &&
+        !soleEntity.reportAlertTypes.contains(alertType)) {
+      throw Exception('Este tipo de reporte no está habilitado para la entidad');
     }
   }
 

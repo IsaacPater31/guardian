@@ -352,6 +352,7 @@
   "reportSentSuccess": "Reporte enviado",
   "reportSentError": "No se pudo enviar el reporte. Intenta de nuevo.",
   "reportSelectTypeFirst": "Selecciona un tipo de reporte",
+  "reportNoTypesConfigured": "Esta entidad no tiene tipos de reporte configurados. Contacta al administrador.",
   "reportAnonymous": "Enviar como anónimo",
   "selectedCommunityCount": "{count, plural, =1{1 comunidad} other{{count} comunidades}}",
   "@selectedCommunityCount": {

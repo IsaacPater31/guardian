@@ -55,6 +55,10 @@ abstract final class CommunityFields {
   static const String createdAt = 'created_at';
   static const String iconCodePoint = 'icon_code_point';
   static const String iconColor = 'icon_color';
+  /// Color del botón principal de reportes para entidades.
+  static const String reportButtonColor = 'report_button_color';
+  /// Tipos de alerta (`alertType`) que esta entidad acepta como reportes.
+  static const String reportAlertTypes = 'report_alert_types';
   /// Marca comunidades creadas por defecto al primer acceso (p. ej. `hogar`).
   static const String defaultSlug = 'default_slug';
 }

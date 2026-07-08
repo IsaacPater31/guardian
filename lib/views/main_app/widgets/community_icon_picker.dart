@@ -1,99 +1,40 @@
 import 'package:flutter/material.dart';
 
+import 'package:guardian/core/community_icon_catalog.dart';
+
 /// Catálogo curado de iconos disponibles para comunidades.
 /// Usa Material Icons codePoints — no requiere Storage ni imágenes.
 class CommunityIconPicker {
   CommunityIconPicker._();
 
-  /// Iconos disponibles para comunidades personales, agrupados por categoría.
-  static const List<CommunityIconOption> availableIcons = [
-    // Personas & Grupos
-    CommunityIconOption(Icons.people, 'Grupo', '#5B6ABF'),
-    CommunityIconOption(Icons.groups, 'Comunidad', '#7C4DFF'),
-    CommunityIconOption(Icons.family_restroom, 'Familia', '#E91E63'),
-    CommunityIconOption(Icons.diversity_3, 'Diversidad', '#FF5722'),
-    CommunityIconOption(Icons.handshake, 'Alianza', '#009688'),
-
-    // Ubicación & Barrio
-    CommunityIconOption(Icons.home, 'Hogar', '#795548'),
-    CommunityIconOption(Icons.location_city, 'Ciudad', '#607D8B'),
-    CommunityIconOption(Icons.apartment, 'Edificio', '#455A64'),
-    CommunityIconOption(Icons.night_shelter, 'Refugio', '#8D6E63'),
-    CommunityIconOption(Icons.map, 'Zona', '#4CAF50'),
-
-    // Educación & Trabajo
-    CommunityIconOption(Icons.school, 'Escuela', '#1976D2'),
-    CommunityIconOption(Icons.work, 'Trabajo', '#F57C00'),
-    CommunityIconOption(Icons.business, 'Empresa', '#37474F'),
-    CommunityIconOption(Icons.science, 'Ciencia', '#00BCD4'),
-    CommunityIconOption(Icons.menu_book, 'Estudio', '#3F51B5'),
-
-    // Deporte & Actividades
-    CommunityIconOption(Icons.sports_soccer, 'Fútbol', '#388E3C'),
-    CommunityIconOption(Icons.fitness_center, 'Gimnasio', '#D32F2F'),
-    CommunityIconOption(Icons.directions_run, 'Correr', '#FF6F00'),
-    CommunityIconOption(Icons.sports_basketball, 'Basket', '#E65100'),
-    CommunityIconOption(Icons.pool, 'Natación', '#0288D1'),
-
-    // Salud & Bienestar
-    CommunityIconOption(Icons.local_hospital, 'Salud', '#C62828'),
-    CommunityIconOption(Icons.favorite, 'Bienestar', '#AD1457'),
-    CommunityIconOption(Icons.healing, 'Cuidado', '#00897B'),
-    CommunityIconOption(Icons.volunteer_activism, 'Voluntariado', '#F06292'),
-
-    // Religión & Cultura
-    CommunityIconOption(Icons.church, 'Iglesia', '#6D4C41'),
-    CommunityIconOption(Icons.auto_stories, 'Cultura', '#1565C0'),
-    CommunityIconOption(Icons.music_note, 'Música', '#AB47BC'),
-    CommunityIconOption(Icons.theater_comedy, 'Teatro', '#FF7043'),
-
-    // Seguridad
-    CommunityIconOption(Icons.shield, 'Seguridad', '#1F2937'),
-    CommunityIconOption(Icons.security, 'Vigilancia', '#263238'),
-    CommunityIconOption(Icons.emergency, 'Emergencia', '#B71C1C'),
-    CommunityIconOption(Icons.notifications_active, 'Alertas', '#FF8F00'),
-  ];
+  /// Iconos disponibles para comunidades personales.
+  static List<CommunityIconCatalogEntry> get availableIcons =>
+      CommunityIconCatalog.entries;
 
   /// Icono por defecto para comunidades sin icono (fallback)
-  static const int defaultIconCodePoint = 0xe7ef; // Icons.people
-  static const String defaultIconColor = '#5B6ABF';
+  static const int defaultIconCodePoint = CommunityIconCatalog.defaultIconCodePoint;
+  static const String defaultIconColor = CommunityIconCatalog.defaultIconColor;
 
-  /// Cache para mapeo de codePoint -> IconData, inicializado una sola vez
-  static final Map<int, IconData> _codePointToIcon = {
-    for (var option in availableIcons) option.codePoint: option.icon,
-  };
-
-  /// Obtiene IconData desde codePoint con cache
+  /// Obtiene IconData desde codePoint
   static IconData iconFromCodePoint(int codePoint) {
-    return _codePointToIcon[codePoint] ?? Icons.people;
+    return CommunityIconCatalog.iconFromCodePoint(codePoint);
   }
 
   /// Convierte hex string a Color
   static Color colorFromHex(String hex) {
-    hex = hex.replaceFirst('#', '');
-    if (hex.length == 6) hex = 'FF$hex';
-    return Color(int.parse(hex, radix: 16));
+    return CommunityIconCatalog.colorFromHex(hex);
   }
 }
 
-/// Opción individual de icono
-class CommunityIconOption {
-  final IconData icon;
-  final String label;
-  final String colorHex;
-
-  const CommunityIconOption(this.icon, this.label, this.colorHex);
-
-  int get codePoint => icon.codePoint;
-  Color get color => CommunityIconPicker.colorFromHex(colorHex);
-}
+/// Opción individual de icono (alias de catálogo para compatibilidad).
+typedef CommunityIconOption = CommunityIconCatalogEntry;
 
 /// Widget selector de icono para comunidades.
 /// Muestra una grilla de iconos curados con diseño Apple-inspired.
 class CommunityIconPickerGrid extends StatelessWidget {
   final int? selectedCodePoint;
   final String? selectedColor;
-  final ValueChanged<CommunityIconOption> onIconSelected;
+  final ValueChanged<CommunityIconCatalogEntry> onIconSelected;
 
   const CommunityIconPickerGrid({
     super.key,

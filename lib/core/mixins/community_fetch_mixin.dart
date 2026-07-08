@@ -55,6 +55,10 @@ mixin CommunityFetchMixin {
           CommunityFields.isEntity: data[CommunityFields.isEntity] ?? false,
           CommunityFields.iconCodePoint: data[CommunityFields.iconCodePoint],
           CommunityFields.iconColor: data[CommunityFields.iconColor],
+          CommunityFields.reportButtonColor:
+              data[CommunityFields.reportButtonColor],
+          CommunityFields.reportAlertTypes:
+              data[CommunityFields.reportAlertTypes],
         };
         // Merge any extra fields requested by the caller.
         for (final field in extraFields) {

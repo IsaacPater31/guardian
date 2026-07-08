@@ -1844,6 +1844,12 @@ abstract class AppLocalizations {
   /// **'Selecciona un tipo de reporte'**
   String get reportSelectTypeFirst;
 
+  /// No description provided for @reportNoTypesConfigured.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta entidad no tiene tipos de reporte configurados. Contacta al administrador.'**
+  String get reportNoTypesConfigured;
+
   /// No description provided for @reportAnonymous.
   ///
   /// In es, this message translates to:

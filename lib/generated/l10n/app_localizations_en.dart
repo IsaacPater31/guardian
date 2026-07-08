@@ -940,6 +940,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportSelectTypeFirst => 'Select a report type';
 
   @override
+  String get reportNoTypesConfigured =>
+      'This entity has no report types configured. Contact the administrator.';
+
+  @override
   String get reportAnonymous => 'Send anonymously';
 
   @override

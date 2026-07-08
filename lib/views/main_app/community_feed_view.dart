@@ -11,6 +11,8 @@ import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
 import 'package:guardian/views/main_app/widgets/report_send_sheet.dart';
+import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
+import 'package:guardian/core/community_icon_catalog.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
 import 'package:guardian/views/main_app/community_members_view.dart';
 import 'package:latlong2/latlong.dart';
@@ -40,6 +42,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   /// `true` si esta comunidad es una entidad (`is_entity`) — modo Reportes.
   bool _isEntity = false;
+  int? _entityIconCodePoint;
+  String? _entityIconColor;
+  String? _entityReportButtonColor;
+  List<String> _entityReportAlertTypes = const [];
+  static const String _defaultReportButtonHex = '#0D1B3E';
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -86,10 +93,25 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       setState(() {
         _userRole = role;
         _isEntity = community?.isEntity ?? false;
+        _entityIconCodePoint = community?.iconCodePoint;
+        _entityIconColor = community?.iconColor;
+        _entityReportButtonColor = community?.reportButtonColor;
+        _entityReportAlertTypes = community?.reportAlertTypes ?? const [];
         _isLoadingRole = false;
       });
     }
   }
+
+  Color get _entityAccent {
+    final hex = _entityReportButtonColor;
+    if (hex != null && hex.isNotEmpty) {
+      return CommunityIconPicker.colorFromHex(hex);
+    }
+    return CommunityIconPicker.colorFromHex(_defaultReportButtonHex);
+  }
+
+  Color get _onEntityAccent =>
+      _entityAccent.computeLuminance() > 0.37 ? const Color(0xFF111111) : Colors.white;
 
   Future<void> _openSendReport() async {
     final l10n = AppLocalizations.of(context)!;
@@ -97,6 +119,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       context,
       entityId: widget.communityId,
       entityName: widget.communityName,
+      iconCodePoint: _entityIconCodePoint,
+      iconColor: _entityIconColor,
+      reportButtonColor: _entityReportButtonColor,
+      allowedAlertTypes: _entityReportAlertTypes,
     );
     if (!mounted || sent == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -288,13 +314,19 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       floatingActionButton: _isEntity
           ? FloatingActionButton.extended(
               onPressed: _openSendReport,
-              backgroundColor: const Color(0xFF0D1B3E),
-              foregroundColor: Colors.white,
+              backgroundColor: _entityAccent,
+              foregroundColor: _onEntityAccent,
               elevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              icon: const Icon(Icons.assignment_add, size: 20),
+              icon: Icon(
+                CommunityIconPicker.iconFromCodePoint(
+                  _entityIconCodePoint ??
+                      CommunityIconCatalog.defaultIconCodePoint,
+                ),
+                size: 20,
+              ),
               label: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.6,

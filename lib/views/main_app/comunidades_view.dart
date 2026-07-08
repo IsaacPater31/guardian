@@ -637,18 +637,10 @@ class _ComunidadesViewState extends State<ComunidadesView>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D1B3E).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.assignment_rounded,
-                  color: Color(0xFF0D1B3E),
-                  size: 22,
-                ),
+              CommunityIconDisplay(
+                iconCodePoint: entity[CommunityFields.iconCodePoint] as int?,
+                iconColor: entity[CommunityFields.iconColor] as String?,
+                size: 44,
               ),
               const SizedBox(width: 14),
               Expanded(
