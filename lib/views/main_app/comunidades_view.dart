@@ -253,12 +253,19 @@ class _ComunidadesViewState extends State<ComunidadesView>
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16)),
           icon: const Icon(Icons.add_rounded, size: 20),
-          label: Text(
-            AppLocalizations.of(context)!.createCommunity,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              letterSpacing: -0.2,
+          label: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.6,
+            ),
+            child: Text(
+              AppLocalizations.of(context)!.createCommunity,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                letterSpacing: -0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -483,6 +490,8 @@ class _ComunidadesViewState extends State<ComunidadesView>
                         color: Color(0xFF1C1C1E),
                         letterSpacing: -0.2,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (community['description'] != null &&
                         (community['description'] as String).isNotEmpty) ...[
@@ -698,13 +707,17 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      AppLocalizations.of(context)!.createNewCommunity,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1C1C1E),
-                        letterSpacing: -0.4,
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.createNewCommunity,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1C1C1E),
+                          letterSpacing: -0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

@@ -350,74 +350,105 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
           Positioned(top: 16, right: 16, child: _buildFilterButton()),
 
           // ── Chip: sin alertas ──
+          // right: 104 deja libre la zona del botón "Filtros" en pantallas chicas.
           if (_alerts.isEmpty && !_isLoading)
             Positioned(
               top: 16,
               left: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.info_outline_rounded,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _filters.hasFilters
-                          ? 'Sin alertas para los filtros aplicados'
-                          : AppLocalizations.of(context)!.noRecentAlerts,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ],
+              right: 104,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _filters.hasFilters
+                              ? 'Sin alertas para los filtros aplicados'
+                              : AppLocalizations.of(context)!.noRecentAlerts,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
 
           // ── Chip: conteo de resultados (cuando hay filtros activos) ──
           if (_filters.hasFilters && _alerts.isNotEmpty)
-            Positioned(top: 16, left: 16, child: _buildResultCountChip()),
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 104,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: _buildResultCountChip(),
+              ),
+            ),
 
           // ── Loading overlay (actualizando) ──
           if (_isLoading && _alerts.isNotEmpty)
             Positioned(
               top: 16,
               left: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+              right: 104,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(context)!.mapRefreshing,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          AppLocalizations.of(context)!.mapRefreshing,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -525,12 +556,16 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(width: 7),
-          Text(
-            '${_alerts.length} alerta${_alerts.length != 1 ? "s" : ""} visibles',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827),
+          Flexible(
+            child: Text(
+              '${_alerts.length} alerta${_alerts.length != 1 ? "s" : ""} visibles',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -599,14 +634,20 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Row(
                           children: [
-                            Text(
-                              _getTimeAgo(alert.timestamp),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.8),
+                            Flexible(
+                              child: Text(
+                                _getTimeAgo(alert.timestamp),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 8),

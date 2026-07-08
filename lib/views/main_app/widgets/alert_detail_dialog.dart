@@ -983,12 +983,16 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                           size: 16,
                           color: _hasUserReported ? Colors.grey : _kBluePrim,
                         ),
-                  label: Text(
-                    _hasUserReported ? 'Reportada' : (_isReporting ? 'Reportando…' : 'Reportar'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _hasUserReported ? Colors.grey : _kBluePrim,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _hasUserReported ? 'Reportada' : (_isReporting ? 'Reportando…' : 'Reportar'),
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _hasUserReported ? Colors.grey : _kBluePrim,
+                      ),
                     ),
                   ),
                 ),
@@ -1005,9 +1009,13 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
                     elevation: 2,
                     shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
                   ),
-                  child: Text(
-                    AppLocalizations.of(context)!.close,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppLocalizations.of(context)!.close,
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ),
@@ -1075,7 +1083,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
         title: Row(children: [
           Icon(Icons.report_problem_rounded, color: Colors.orange[700]),
           const SizedBox(width: 8),
-          Text(l10n.reportAlertConfirmTitle),
+          Expanded(child: Text(l10n.reportAlertConfirmTitle)),
         ]),
         content: Text(l10n.reportAlertConfirmBody),
         actions: [
@@ -1383,7 +1391,11 @@ class _AlertAudioPreviewState extends State<_AlertAudioPreview> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 18),
-      label: Text(_playing ? l10n.attachmentPausePreview : l10n.attachmentListenPreview),
+      label: Text(
+        _playing ? l10n.attachmentPausePreview : l10n.attachmentListenPreview,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 }
@@ -1413,7 +1425,7 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
       title: Row(children: [
         const Icon(Icons.forward_rounded, color: _kDark),
         const SizedBox(width: 8),
-        Text(l10n.forwardAlertDialogTitle),
+        Expanded(child: Text(l10n.forwardAlertDialogTitle)),
       ]),
       content: SizedBox(
         width: double.maxFinite,

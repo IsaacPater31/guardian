@@ -164,11 +164,15 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
               size: 20,
             ),
             const SizedBox(width: 10),
-            Text(
-              success ? l10n.configSaved : l10n.errorSavingConfig,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                success ? l10n.configSaved : l10n.errorSavingConfig,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

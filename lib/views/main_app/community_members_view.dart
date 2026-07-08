@@ -410,6 +410,8 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.3,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (member['user_email'].toString().isNotEmpty)
                             Text(
@@ -418,6 +420,8 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                                 fontSize: 14,
                                 color: Colors.grey[500],
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                         ],
                       ),
@@ -825,12 +829,16 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Text(
-                          statusMessage!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            statusMessage!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

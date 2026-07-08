@@ -224,13 +224,17 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                   child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  l10n.myAlertsFilters,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827),
-                    letterSpacing: -0.4,
+                Flexible(
+                  child: Text(
+                    l10n.myAlertsFilters,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                      letterSpacing: -0.4,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (_filters.hasFilters) ...[
@@ -370,13 +374,17 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
       children: [
         Icon(icon, size: 14, color: const Color(0xFF9CA3AF)),
         const SizedBox(width: 6),
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF9CA3AF),
-            letterSpacing: 0.5,
+        Expanded(
+          child: Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF9CA3AF),
+              letterSpacing: 0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -454,12 +462,19 @@ class _MapFilterSheetState extends State<MapFilterSheet> {
                 ),
               ),
               child: Center(
-                child: Text(
-                  opt['label']!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : const Color(0xFF6B7280),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      opt['label']!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isActive ? Colors.white : const Color(0xFF6B7280),
+                      ),
+                      maxLines: 1,
+                    ),
                   ),
                 ),
               ),

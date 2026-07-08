@@ -12,6 +12,10 @@ class MenuNav extends StatelessWidget {
   static const Color _selected = Color(0xFF1F2937);
   static const Color _unselected = Color(0xFF757575);
 
+  /// Ancho mínimo de un tab (objetivo táctil razonable).
+  static const double _minSlotWidth = 52.0;
+  static const double _hPad = 3.0;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -48,29 +52,61 @@ class MenuNav extends StatelessWidget {
             height: navHeight,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final slotW = constraints.maxWidth / items.length;
-                const hPad = 3.0;
-                final innerLabelW = math.max(24.0, slotW - hPad * 2);
                 final labels = items.map((item) => item.label).toList();
+                final clampedScaler = MediaQuery.textScalerOf(context);
+
+                // Ancho deseado por tab según su label: los textos largos
+                // (Comunidades, Estadísticas) reciben más espacio que Mapa/Perfil.
+                final desired = labels
+                    .map(
+                      (label) => math.max(
+                        _minSlotWidth,
+                        _singleLineWidth(
+                              context: context,
+                              label: label,
+                              fontSize: labelBase,
+                              textScaler: clampedScaler,
+                            ) +
+                            _hPad * 2,
+                      ),
+                    )
+                    .toList();
+                final totalDesired = desired.fold(0.0, (a, b) => a + b);
+
+                var labelFontSize = labelBase;
+                List<double> slotWidths;
+                if (totalDesired <= constraints.maxWidth) {
+                  // Todos los labels caben a tamaño completo: repartir el
+                  // espacio sobrante en partes iguales.
+                  final extra =
+                      (constraints.maxWidth - totalDesired) / items.length;
+                  slotWidths = desired.map((d) => d + extra).toList();
+                } else {
+                  // Pantalla muy estrecha o textScale extremo: slots iguales
+                  // y fuente reducida proporcionalmente.
+                  final slotW = constraints.maxWidth / items.length;
+                  slotWidths = List.filled(items.length, slotW);
+                  labelFontSize = _resolveLabelFontSize(
+                    context: context,
+                    labels: labels,
+                    maxWidth: math.max(24.0, slotW - _hPad * 2),
+                    baseSize: labelBase,
+                    textScaler: clampedScaler,
+                  );
+                }
+
                 final iconSlotH = math.min(iconSel, navHeight * 0.4);
                 const gap = 2.0;
                 final labelAreaH = math.max(
                   12.0,
                   navHeight - iconSlotH - gap - 4,
                 );
-                final labelFontSize = _resolveLabelFontSize(
-                  context: context,
-                  labels: labels,
-                  maxWidth: innerLabelW,
-                  baseSize: labelBase,
-                  textScaler: MediaQuery.textScalerOf(context),
-                );
 
                 return Row(
                   children: [
                     for (var i = 0; i < items.length; i++)
-                      SizedBox(
-                        width: slotW,
+                      Expanded(
+                        flex: (slotWidths[i] * 100).round(),
                         child: _NavTile(
                           spec: items[i],
                           label: labels[i],
@@ -80,8 +116,7 @@ class MenuNav extends StatelessWidget {
                           iconSlotH: iconSlotH,
                           labelFontSize: labelFontSize,
                           labelAreaH: labelAreaH,
-                          innerLabelW: innerLabelW,
-                          hPad: hPad,
+                          hPad: _hPad,
                         ),
                       ),
                   ],
@@ -158,7 +193,6 @@ class _NavTile extends StatelessWidget {
     required this.iconSlotH,
     required this.labelFontSize,
     required this.labelAreaH,
-    required this.innerLabelW,
     required this.hPad,
   });
 
@@ -170,7 +204,6 @@ class _NavTile extends StatelessWidget {
   final double iconSlotH;
   final double labelFontSize;
   final double labelAreaH;
-  final double innerLabelW;
   final double hPad;
 
   @override
@@ -196,7 +229,7 @@ class _NavTile extends StatelessWidget {
               children: [
                 SizedBox(
                   height: iconSlotH,
-                  width: innerLabelW,
+                  width: double.infinity,
                   child: Center(
                     child: Icon(spec.icon, size: iconS, color: color),
                   ),
@@ -204,7 +237,7 @@ class _NavTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 ClipRect(
                   child: SizedBox(
-                    width: innerLabelW,
+                    width: double.infinity,
                     height: labelAreaH,
                     child: FittedBox(
                       fit: BoxFit.scaleDown,

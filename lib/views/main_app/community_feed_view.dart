@@ -127,6 +127,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
                 color: const Color(0xFF1C1C1E),
                 letterSpacing: -0.3,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               AppLocalizations.of(context)!.communityLabel,

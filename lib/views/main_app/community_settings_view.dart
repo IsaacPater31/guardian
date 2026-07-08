@@ -183,13 +183,17 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Text(
-                          AppLocalizations.of(context)!.editCommunity,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1C1C1E),
-                            letterSpacing: -0.4,
+                        Expanded(
+                          child: Text(
+                            AppLocalizations.of(context)!.editCommunity,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1C1C1E),
+                              letterSpacing: -0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -398,7 +402,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
@@ -429,13 +434,17 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    AppLocalizations.of(context)!.inviteLink,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1C1C1E),
-                      letterSpacing: -0.4,
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)!.inviteLink,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1C1C1E),
+                        letterSpacing: -0.4,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -478,12 +487,16 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                       Icon(Icons.schedule_rounded,
                           size: 14, color: Colors.grey[500]),
                       const SizedBox(width: 4),
-                      Text(
-                        AppLocalizations.of(context)!.linkExpiresHours,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)!.linkExpiresHours,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -547,6 +560,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -561,12 +575,14 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           children: [
             Icon(Icons.warning_rounded, color: Colors.red[400], size: 22),
             const SizedBox(width: 8),
-            Text(
-              AppLocalizations.of(context)!.deleteCommunityTitle,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)!.deleteCommunityTitle,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
           ],
@@ -941,6 +957,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                     color: Color(0xFF1C1C1E),
                     letterSpacing: -0.4,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (_community!.description != null &&
                     _community!.description!.isNotEmpty) ...[

@@ -134,12 +134,14 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
           children: [
             Icon(Icons.warning_rounded, color: Colors.red[400], size: 22),
             const SizedBox(width: 8),
-            Text(
-              AppLocalizations.of(context)!.expelFromReports,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
+            Expanded(
+              child: Text(
+                AppLocalizations.of(context)!.expelFromReports,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
           ],
@@ -416,6 +418,8 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                           color: Color(0xFF1C1C1E),
                           letterSpacing: -0.2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         AppLocalizations.of(context)!.reportedByLabel(reportedBy),
@@ -423,6 +427,8 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                           fontSize: 13,
                           color: Colors.grey[500],
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -490,7 +496,11 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                   child: TextButton.icon(
                     onPressed: () => _dismissReport(report),
                     icon: const Icon(Icons.close_rounded, size: 18),
-                    label: Text(AppLocalizations.of(context)!.dismiss),
+                    label: Text(
+                      AppLocalizations.of(context)!.dismiss,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.grey[600],
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -505,7 +515,11 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                   child: TextButton.icon(
                     onPressed: () => _removeReportedUser(report),
                     icon: const Icon(Icons.person_remove_rounded, size: 18),
-                    label: Text(AppLocalizations.of(context)!.expel),
+                    label: Text(
+                      AppLocalizations.of(context)!.expel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFFFF3B30),
                       backgroundColor:

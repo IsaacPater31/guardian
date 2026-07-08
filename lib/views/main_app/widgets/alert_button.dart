@@ -1175,6 +1175,8 @@ class _AlertButtonState extends State<AlertButton>
                             child: Text(
                               '${l10n.selectedCommunitiesPrefix} ${selectedCommunities.map((c) => c['name']).join(', ')}',
                               style: const TextStyle(fontSize: 13.5),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -1513,17 +1515,26 @@ class _AlertButtonState extends State<AlertButton>
                                           isRecording
                                               ? l10n.stopRecording
                                               : l10n.startRecording,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    if (audioFile != null)
-                                      TextButton(
-                                        onPressed: () => setDialogState(
-                                          () => audioFile = null,
+                                    if (audioFile != null) ...[
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: TextButton(
+                                          onPressed: () => setDialogState(
+                                            () => audioFile = null,
+                                          ),
+                                          child: Text(
+                                            l10n.removeAudio,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
-                                        child: Text(l10n.removeAudio),
                                       ),
+                                    ],
                                   ],
                                 ),
                                 if (audioFile != null) ...[

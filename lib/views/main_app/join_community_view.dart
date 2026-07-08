@@ -343,11 +343,15 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                     children: [
                       Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        l10n.howItWorks,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue[700],
+                      Expanded(
+                        child: Text(
+                          l10n.howItWorks,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
