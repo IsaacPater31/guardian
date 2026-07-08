@@ -7,13 +7,14 @@ import '../repositories/user_profile_repository.dart';
 import '../services/community_service.dart';
 
 /// Auth entry points from the UI (email, Google). Persists profile via
-/// [UserProfileRepository] and triggers entity membership in the background.
+/// [UserProfileRepository].
 ///
 /// **Why a handler:** maps SDK/auth results to app services without putting
 /// FirebaseAuth calls inside widgets.
 class LoginHandler {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final UserProfileRepository _userProfileRepository = UserProfileRepository();
+  final CommunityService _communityService = CommunityService();
 
   Future<String?> signInWithEmail(String email, String password) async {
     try {
@@ -102,26 +103,17 @@ class LoginHandler {
 
   User? get currentUser => _auth.currentUser;
 
-  /// Escribe/actualiza `users/{uid}` y enlaza entidades. Úsalo tras cada auth válido
+  /// Escribe/actualiza `users/{uid}`. Úsalo tras cada auth válido
   /// (login, registro) y al restaurar sesión — ver [AuthGate].
   Future<void> syncUserProfileAfterAuth(User? user, {String? fullName}) async {
     if (user == null) return;
     await _upsertUserProfile(user, fullName: fullName);
-    _ensureEntitiesInBackground();
+    _ensureDefaultCommunitiesInBackground(user.uid);
   }
 
-  void _ensureEntitiesInBackground() {
-    AppLogger.d('[OfficialEntities] Iniciando tras autenticación…');
-    Future<void>(() async {
-      try {
-        await CommunityService().ensureUserInEntities();
-      } catch (error, st) {
-        AppLogger.e(
-          '[OfficialEntities] Error no capturado en ensureUserInEntities',
-          error,
-        );
-        AppLogger.d('[OfficialEntities] Stack:\n$st');
-      }
+  void _ensureDefaultCommunitiesInBackground(String uid) {
+    _communityService.ensureDefaultCommunitiesForUser(uid).catchError((error) {
+      AppLogger.w('LoginHandler: ensureDefaultCommunities failed: $error');
     });
   }
 

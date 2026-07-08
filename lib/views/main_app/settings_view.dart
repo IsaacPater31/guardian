@@ -180,12 +180,7 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final entities = _destinations
-        .where((d) => d['is_entity'] == true)
-        .toList();
-    final communities = _destinations
-        .where((d) => d['is_entity'] != true)
-        .toList();
+    final communities = _destinations;
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -210,46 +205,11 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
                     ),
                   ),
                 ),
-                if (entities.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _SectionLabel(
-                      l10n.officialEntities.toUpperCase(),
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _AppleCard(
-                        children: entities.asMap().entries.map((entry) {
-                          final d = entry.value;
-                          final isLast = entry.key == entities.length - 1;
-                          return Column(
-                            children: [
-                              _CommunityCheckTile(
-                                community: d,
-                                isSelected: _selectedIds.contains(
-                                  d['id'] as String,
-                                ),
-                                onChanged: (val) => setState(() {
-                                  val == true
-                                      ? _selectedIds.add(d['id'] as String)
-                                      : _selectedIds.remove(d['id'] as String);
-                                }),
-                              ),
-                              if (!isLast) const _CardDivider(),
-                            ],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
                 if (communities.isNotEmpty) ...[
                   SliverToBoxAdapter(
                     child: _SectionLabel(
                       l10n.myCommunities.toUpperCase(),
-                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 6),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -751,10 +711,8 @@ class _CommunityCheckTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final name = capitalizeFirst(community['name'] as String? ?? '');
-    final isEntity = community['is_entity'] as bool? ?? false;
-    final color = isEntity ? _kBlue : _kGreen;
+    const color = _kGreen;
 
     return Material(
       color: Colors.transparent,
@@ -764,7 +722,6 @@ class _CommunityCheckTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           child: Row(
             children: [
-              // Avatar
               Container(
                 width: 38,
                 height: 38,
@@ -772,37 +729,22 @@ class _CommunityCheckTile extends StatelessWidget {
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  isEntity ? Icons.shield_rounded : Icons.group_rounded,
-                  color: color,
+                child: const Icon(
+                  Icons.group_rounded,
+                  color: _kGreen,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: _kPrimary,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    if (isEntity) const SizedBox(height: 2),
-                    if (isEntity)
-                      Text(
-                        l10n.officialEntity,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _kBlue.withValues(alpha: 0.8),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                  ],
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: _kPrimary,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
               // iOS-style toggle
@@ -986,8 +928,7 @@ class _AlertTypeCard extends StatelessWidget {
                       final i = entry.key;
                       final community = entry.value;
                       final id = community['id'] as String;
-                      final isEntity = community['is_entity'] as bool? ?? false;
-                      final communityColor = isEntity ? _kBlue : _kGreen;
+                      const communityColor = _kGreen;
                       final isSel = selected.contains(id);
 
                       return Column(
@@ -1012,11 +953,9 @@ class _AlertTypeCard extends StatelessWidget {
                                         ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Icon(
-                                        isEntity
-                                            ? Icons.shield_rounded
-                                            : Icons.group_rounded,
-                                        color: communityColor,
+                                      child: const Icon(
+                                        Icons.group_rounded,
+                                        color: _kGreen,
                                         size: 17,
                                       ),
                                     ),

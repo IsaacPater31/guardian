@@ -376,8 +376,7 @@ class GuardianBackgroundService : Service() {
     }
 
     /**
-     * Sends at most one notification: first [communityIds] entry where the user is allowed
-     * to see alerts (all members for normal communities; only `official` for entities).
+     * Sends at most one notification: first [communityIds] entry where the user is a member.
      */
     private fun tryNotifyForCommunityTargets(
         userId: String,
@@ -404,8 +403,6 @@ class GuardianBackgroundService : Service() {
                     )
                     return@addOnSuccessListener
                 }
-                val communityData = communityDoc.data
-                val isEntity = communityData?.get(fs.FIELD_IS_ENTITY) as? Boolean ?: false
                 firestore.collection(fs.COLLECTION_COMMUNITY_MEMBERS)
                     .whereEqualTo(fs.FIELD_USER_ID, userId)
                     .whereEqualTo(fs.FIELD_COMMUNITY_ID, communityId)
@@ -419,13 +416,6 @@ class GuardianBackgroundService : Service() {
                             return@addOnSuccessListener
                         }
                         val memberData = memberSnapshot.documents[0].data
-                        val role = memberData?.get(fs.FIELD_ROLE) as? String ?: fs.ROLE_MEMBER
-                        if (isEntity && role != fs.ROLE_OFFICIAL) {
-                            tryNotifyForCommunityTargets(
-                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
-                            )
-                            return@addOnSuccessListener
-                        }
                         showAlertNotification(alertType, description, isAnonymous, shareLocation)
                         triggerVibration()
                         println("🚨 Alert notification sent for community $communityId: $alertType")

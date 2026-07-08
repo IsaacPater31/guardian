@@ -298,7 +298,7 @@ class _ComunidadesViewState extends State<ComunidadesView>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
-              AppLocalizations.of(context)!.entitiesAppearHere,
+              AppLocalizations.of(context)!.noCommunitiesAvailableEmptyState,
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[500],
@@ -313,12 +313,10 @@ class _ComunidadesViewState extends State<ComunidadesView>
   }
 
   Widget _buildCommunitiesList() {
-    final entities = _filteredCommunities.where((c) => c['is_entity'] == true).toList();
-    final communities = _filteredCommunities.where((c) => c['is_entity'] == false).toList();
+    final communities = _filteredCommunities;
 
     return Column(
       children: [
-        // Search bar
         if (_communities.length > 3)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -364,20 +362,12 @@ class _ComunidadesViewState extends State<ComunidadesView>
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
-                // Entities section
-                if (entities.isNotEmpty) ...[
-                  _buildSectionHeader(AppLocalizations.of(context)!.officialEntities),
-                  const SizedBox(height: 8),
-                  _buildGroupedCards(entities),
-                  const SizedBox(height: 20),
-                ],
-                // Communities section
                 if (communities.isNotEmpty) ...[
                   _buildSectionHeader(AppLocalizations.of(context)!.myCommunities),
                   const SizedBox(height: 8),
                   _buildGroupedCards(communities),
                 ],
-                if (entities.isEmpty && communities.isEmpty)
+                if (communities.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: Center(
@@ -443,7 +433,6 @@ class _ComunidadesViewState extends State<ComunidadesView>
   }
 
   Widget _buildCommunityTile(Map<String, dynamic> community) {
-    final isEntity = community['is_entity'] as bool;
     final communityId = community['id'] as String?;
     final unreadCount = communityId != null
         ? (_unreadByCommunity[communityId] ?? 0)
@@ -454,101 +443,46 @@ class _ComunidadesViewState extends State<ComunidadesView>
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () {
-          final communityId = community['id'] as String;
+          final id = community['id'] as String;
           final communityName = community['name'] as String;
 
-          if (!isEntity) {
-            Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CommunityFeedView(
-                  communityId: communityId,
-                  communityName: communityName,
-                  isEntity: false,
-                ),
+          Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CommunityFeedView(
+                communityId: id,
+                communityName: communityName,
               ),
-            ).then((leftCommunity) {
-              if (!mounted || !context.mounted) return;
-              if (leftCommunity == true) {
-                _loadCommunities();
-              }
-            });
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.info_rounded, color: Colors.white, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        AppLocalizations.of(context)!.entityOfficialMessage(
-                            community['name'] as String),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF007AFF),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
+            ),
+          ).then((leftCommunity) {
+            if (!mounted || !context.mounted) return;
+            if (leftCommunity == true) {
+              _loadCommunities();
+            }
+          });
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              // Icon
               CommunityIconDisplay(
                 iconCodePoint: community['icon_code_point'] as int?,
                 iconColor: community['icon_color'] as String?,
-                isEntity: isEntity,
                 size: 44,
               ),
               const SizedBox(width: 14),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            community['name'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1C1C1E),
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
-                        if (isEntity)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF007AFF)
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'Oficial',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF007AFF),
-                              ),
-                            ),
-                          ),
-                      ],
+                    Text(
+                      community['name'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                        letterSpacing: -0.2,
+                      ),
                     ),
                     if (community['description'] != null &&
                         (community['description'] as String).isNotEmpty) ...[
@@ -622,7 +556,6 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final CommunityService _communityService = CommunityService();
-  bool _allowForwardToEntities = true;
   bool _isCreating = false;
   int? _selectedIconCodePoint;
   String? _selectedIconColor;
@@ -644,7 +577,6 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-        allowForwardToEntities: _allowForwardToEntities,
         iconCodePoint: _selectedIconCodePoint,
         iconColor: _selectedIconColor,
       );
@@ -818,42 +750,6 @@ class _CreateCommunitySheetState extends State<_CreateCommunitySheet> {
                       style: const TextStyle(fontSize: 15),
                       decoration: _inputDecoration(
                         hint: AppLocalizations.of(context)!.descriptionHint,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Forward toggle
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F8FA),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: SwitchListTile(
-                        title: Text(
-                          AppLocalizations.of(context)!.allowForwardToEntities,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1C1C1E),
-                          ),
-                        ),
-                        subtitle: Text(
-                          AppLocalizations.of(context)!.allowForwardSubtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                        value: _allowForwardToEntities,
-                        onChanged: _isCreating
-                            ? null
-                            : (value) => setState(
-                                () => _allowForwardToEntities = value),
-                        activeThumbColor: const Color(0xFF34C759),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                     const SizedBox(height: 18),

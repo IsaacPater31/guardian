@@ -148,7 +148,6 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
                 builder: (context) => CommunityFeedView(
                   communityId: _communityPreview!.id!,
                   communityName: _communityPreview!.name,
-                  isEntity: _communityPreview!.isEntity,
                 ),
               ),
             );

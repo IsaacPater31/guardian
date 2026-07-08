@@ -3,13 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
-import '../core/default_official_entities.dart';
+import '../core/community_visibility.dart';
 import '../repositories/community_repository.dart';
 
 /// Manages the set of communities that receive a Quick Alert.
 ///
-/// Defaults to all entity communities. The user can override this via the
-/// settings screen; the selection is persisted in [SharedPreferences].
+/// Defaults to an empty selection until the user configures destinations.
 class QuickAlertConfigService {
   static final QuickAlertConfigService _instance = QuickAlertConfigService._internal();
   factory QuickAlertConfigService() => _instance;
@@ -33,13 +32,11 @@ class QuickAlertConfigService {
         return validIds;
       }
 
-      final defaultEntities = await _getDefaultEntityIds();
-      _cachedDestinations = defaultEntities;
-      await prefs.setStringList(PrefKeys.quickAlertDestinations, defaultEntities);
-      return defaultEntities;
+      _cachedDestinations = [];
+      return [];
     } catch (e) {
       AppLogger.e('QuickAlertConfigService.getQuickAlertDestinations', e);
-      return await _getDefaultEntityIds();
+      return [];
     }
   }
 
@@ -61,7 +58,9 @@ class QuickAlertConfigService {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-      return _communities.fetchUserCommunities(userId);
+      return visibleUserCommunities(
+        await _communities.fetchUserCommunities(userId),
+      );
     } catch (e) {
       AppLogger.e('QuickAlertConfigService.getAvailableDestinations', e);
       return [];
@@ -69,16 +68,4 @@ class QuickAlertConfigService {
   }
 
   void invalidateCache() => _cachedDestinations = null;
-
-  Future<List<String>> _getDefaultEntityIds() async {
-    try {
-      final valid = await _communities.validateCommunityIds(
-        DefaultOfficialEntities.communityIds,
-      );
-      return valid;
-    } catch (e) {
-      AppLogger.e('QuickAlertConfigService._getDefaultEntityIds', e);
-      return List<String>.from(DefaultOfficialEntities.communityIds);
-    }
-  }
 }

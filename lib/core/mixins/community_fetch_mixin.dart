@@ -14,7 +14,7 @@ mixin CommunityFetchMixin {
 
   /// Returns all communities that [userId] belongs to.
   ///
-  /// Entities are sorted first, then alphabetically by name.
+  /// Sorted alphabetically by name.
   ///
   /// [extraFields] lets callers request additional Firestore fields to be
   /// included in each returned map (in addition to the default set).
@@ -53,8 +53,6 @@ mixin CommunityFetchMixin {
           CommunityFields.name: data[CommunityFields.name],
           CommunityFields.description: data[CommunityFields.description],
           CommunityFields.isEntity: data[CommunityFields.isEntity] ?? false,
-          CommunityFields.allowForwardToEntities:
-              data[CommunityFields.allowForwardToEntities] ?? true,
           CommunityFields.iconCodePoint: data[CommunityFields.iconCodePoint],
           CommunityFields.iconColor: data[CommunityFields.iconColor],
         };
@@ -66,14 +64,11 @@ mixin CommunityFetchMixin {
       }));
     }
 
-    // 3. Sort: entities first, then alphabetical by name.
-    communities.sort((a, b) {
-      final aIsEntity = a[CommunityFields.isEntity] as bool;
-      final bIsEntity = b[CommunityFields.isEntity] as bool;
-      if (aIsEntity != bIsEntity) return bIsEntity ? 1 : -1;
-      return (a[CommunityFields.name] as String)
-          .compareTo(b[CommunityFields.name] as String);
-    });
+    // 3. Sort alphabetically by name.
+    communities.sort(
+      (a, b) => (a[CommunityFields.name] as String)
+          .compareTo(b[CommunityFields.name] as String),
+    );
 
     return communities;
   }

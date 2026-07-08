@@ -41,29 +41,10 @@ class CommunityRepository with CommunityFetchMixin {
     return firestore.collection(FirestoreCollections.communities).doc(communityId).get();
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> queryCommunitiesByNameAndEntity(
-    String name,
-    bool isEntity,
-  ) {
-    return firestore
-        .collection(FirestoreCollections.communities)
-        .where(CommunityFields.name, isEqualTo: name)
-        .where(CommunityFields.isEntity, isEqualTo: isEntity)
-        .limit(1)
-        .get();
-  }
-
   Future<DocumentReference<Map<String, dynamic>>> addCommunity(
     Map<String, dynamic> data,
   ) {
     return firestore.collection(FirestoreCollections.communities).add(data);
-  }
-
-  Future<QuerySnapshot<Map<String, dynamic>>> fetchAllEntityCommunities() {
-    return firestore
-        .collection(FirestoreCollections.communities)
-        .where(CommunityFields.isEntity, isEqualTo: true)
-        .get();
   }
 
   Future<bool> patchCommunity(String communityId, Map<String, dynamic> data) async {
@@ -125,10 +106,28 @@ class CommunityRepository with CommunityFetchMixin {
         .snapshots();
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> queryMembershipsForUser(String userId) {
-    return firestore
+  Future<QuerySnapshot<Map<String, dynamic>>> queryMembershipsForUser(
+    String userId, {
+    int? limit,
+  }) {
+    Query<Map<String, dynamic>> q = firestore
         .collection(FirestoreCollections.communityMembers)
-        .where(MemberFields.userId, isEqualTo: userId)
+        .where(MemberFields.userId, isEqualTo: userId);
+    if (limit != null) {
+      q = q.limit(limit);
+    }
+    return q.get();
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> queryDefaultCommunityForUser(
+    String userId,
+    String defaultSlug,
+  ) {
+    return firestore
+        .collection(FirestoreCollections.communities)
+        .where(CommunityFields.createdBy, isEqualTo: userId)
+        .where(CommunityFields.defaultSlug, isEqualTo: defaultSlug)
+        .limit(1)
         .get();
   }
 

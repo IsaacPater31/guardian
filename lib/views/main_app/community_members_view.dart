@@ -571,22 +571,13 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
 
   Widget _buildRoleBadge(String role) {
     final isAdmin = role == 'admin';
-    final isOfficial = role == 'official';
-    final label = isAdmin
-        ? 'Admin'
-        : isOfficial
-            ? 'Oficial'
-            : 'Miembro';
+    final label = isAdmin ? 'Admin' : 'Miembro';
     final bgColor = isAdmin
         ? const Color(0xFF007AFF).withValues(alpha: 0.1)
-        : isOfficial
-            ? const Color(0xFFFF9500).withValues(alpha: 0.1)
-            : Colors.grey[100]!;
+        : Colors.grey[100]!;
     final textColor = isAdmin
         ? const Color(0xFF007AFF)
-        : isOfficial
-            ? const Color(0xFFFF9500)
-            : Colors.grey[600]!;
+        : Colors.grey[600]!;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

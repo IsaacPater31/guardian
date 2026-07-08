@@ -65,12 +65,10 @@ object GuardianNativeConfig {
         const val FIELD_TIMESTAMP = "timestamp"
         const val FIELD_COMMUNITY_IDS = "community_ids"
         const val FIELD_COMMUNITY_ID = "community_id"
-        const val FIELD_IS_ENTITY = "is_entity"
         const val FIELD_ROLE = "role"
 
         const val STATUS_ATTENDED = "attended"
         const val STATUS_PENDING = "pending"
-        const val ROLE_OFFICIAL = "official"
         const val ROLE_MEMBER = "member"
     }
 

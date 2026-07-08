@@ -552,35 +552,6 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     );
   }
 
-  // ─── Admin options ────────────────────────────────────────
-  Future<void> _updateAllowForward(bool value) async {
-    if (_community == null) return;
-    final l10n = AppLocalizations.of(context)!;
-    try {
-      final success = await _communityService.updateCommunity(
-        widget.communityId,
-        allowForwardToEntities: value,
-      );
-      if (success) {
-        setState(() {
-          _community = _community!.copyWith(allowForwardToEntities: value);
-        });
-        _showSnackBar(
-          value
-              ? l10n.forwardEnabled
-              : l10n.forwardDisabled,
-          isSuccess: true,
-        );
-      } else {
-        _showSnackBar(l10n.onlyCreatorCanModify,
-            isSuccess: false);
-      }
-    } catch (e) {
-      _showSnackBar(l10n.errorUpdatingConfig,
-          isSuccess: false);
-    }
-  }
-
   Future<void> _deleteCommunity() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -881,23 +852,6 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           ]),
           const SizedBox(height: 24),
 
-          // ─── Admin Section ────────────────────────────
-          if (isAdmin) ...[
-            _buildSectionHeader(AppLocalizations.of(context)!.administrationSection),
-            const SizedBox(height: 8),
-            _buildGroupedCard([
-              _buildSwitchTile(
-                icon: Icons.reply_all_rounded,
-                iconColor: const Color(0xFF5856D6),
-                title: AppLocalizations.of(context)!.forwardToEntities,
-                subtitle: AppLocalizations.of(context)!.alertsCanBeForwarded,
-                value: _community!.allowForwardToEntities,
-                onChanged: _updateAllowForward,
-              ),
-            ]),
-            const SizedBox(height: 24),
-          ],
-
           // ─── Danger Zone ──────────────────────────────
           _buildSectionHeader(AppLocalizations.of(context)!.dangerZone),
           const SizedBox(height: 8),
@@ -972,7 +926,6 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           CommunityIconDisplay(
             iconCodePoint: _community!.iconCodePoint,
             iconColor: _community!.iconColor,
-            isEntity: _community!.isEntity,
             size: 52,
           ),
           const SizedBox(width: 16),
@@ -1148,62 +1101,6 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1C1C1E),
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: const Color(0xFF34C759),
-          ),
-        ],
       ),
     );
   }

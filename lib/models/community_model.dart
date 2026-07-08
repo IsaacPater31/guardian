@@ -4,9 +4,8 @@ class CommunityModel {
   final String? id;
   final String name;
   final String? description;
-  final bool isEntity; // true para AMBIENTAL, POLICIA, BOMBEROS, TRANSITO
-  final String? createdBy; // null para entidades, user_id para comunidades normales
-  final bool allowForwardToEntities; // Solo creador puede cambiar
+  final bool isEntity; // Campo legacy en Firestore; oculto en la app.
+  final String? createdBy;
   final DateTime createdAt;
   final int? iconCodePoint; // Material Icons codePoint (ej: Icons.people.codePoint)
   final String? iconColor; // Color en hex (ej: '#FF9500')
@@ -17,7 +16,6 @@ class CommunityModel {
     this.description,
     required this.isEntity,
     this.createdBy,
-    this.allowForwardToEntities = true,
     required this.createdAt,
     this.iconCodePoint,
     this.iconColor,
@@ -31,7 +29,6 @@ class CommunityModel {
       description: data['description'],
       isEntity: data['is_entity'] ?? false,
       createdBy: data['created_by'],
-      allowForwardToEntities: data['allow_forward_to_entities'] ?? true,
       createdAt: (data['created_at'] as Timestamp).toDate(),
       iconCodePoint: data['icon_code_point'] as int?,
       iconColor: data['icon_color'] as String?,
@@ -44,7 +41,6 @@ class CommunityModel {
       'description': description,
       'is_entity': isEntity,
       'created_by': createdBy,
-      'allow_forward_to_entities': allowForwardToEntities,
       'created_at': Timestamp.fromDate(createdAt),
       if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
       if (iconColor != null) 'icon_color': iconColor,
@@ -57,7 +53,6 @@ class CommunityModel {
     String? description,
     bool? isEntity,
     String? createdBy,
-    bool? allowForwardToEntities,
     DateTime? createdAt,
     int? iconCodePoint,
     String? iconColor,
@@ -68,7 +63,6 @@ class CommunityModel {
       description: description ?? this.description,
       isEntity: isEntity ?? this.isEntity,
       createdBy: createdBy ?? this.createdBy,
-      allowForwardToEntities: allowForwardToEntities ?? this.allowForwardToEntities,
       createdAt: createdAt ?? this.createdAt,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       iconColor: iconColor ?? this.iconColor,

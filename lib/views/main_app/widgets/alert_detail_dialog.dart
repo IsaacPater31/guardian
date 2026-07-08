@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/models/alert_model.dart';
-import 'package:guardian/models/community_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:guardian/handlers/alert_handler.dart';
@@ -15,7 +14,6 @@ import 'package:intl/intl.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/utils/text_case_utils.dart';
 import 'package:guardian/services/community_service.dart';
-import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/services/user_service.dart';
 import 'package:guardian/services/audio_preview_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -93,7 +91,6 @@ class AlertDetailDialog extends StatefulWidget {
 class _AlertDetailDialogState extends State<AlertDetailDialog> {
   final AlertHandler      _alertHandler      = AlertHandler();
   final CommunityService     _communityService     = CommunityService();
-  final CommunityRepository  _communityRepository  = CommunityRepository();
   final UserService          _userService          = UserService();
 
   /// Community id → name **only for communities the current user belongs to**.
@@ -1141,21 +1138,9 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       final allCommunities = await _communityService.getMyCommunities();
       if (mounted) Navigator.pop(context);
 
-      CommunityModel? originalCommunity;
-      bool canForwardToEntities = true;
-
-      if (widget.alert.communityId != null && widget.alert.communityId!.isNotEmpty) {
-        originalCommunity = await _communityRepository.getCommunityById(widget.alert.communityId!);
-        canForwardToEntities = originalCommunity?.allowForwardToEntities ?? true;
-      }
-
       final availableCommunities = allCommunities.where((c) {
-        final id       = c['id'] as String;
-        final isEntity = c['is_entity'] as bool;
-        // Exclude communities already in this alert's communityIds
-        if (widget.alert.communityIds.contains(id)) return false;
-        if (isEntity && !canForwardToEntities) return false;
-        return true;
+        final id = c['id'] as String;
+        return !widget.alert.communityIds.contains(id);
       }).toList();
 
       if (availableCommunities.isEmpty) {
@@ -1173,8 +1158,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       final selectedIds = await showDialog<Set<String>>(
         context: context,
         builder: (_) => _ForwardAlertDialog(
-          availableCommunities:  availableCommunities,
-          canForwardToEntities:  canForwardToEntities,
+          availableCommunities: availableCommunities,
         ),
       );
 
@@ -1407,11 +1391,9 @@ class _AlertAudioPreviewState extends State<_AlertAudioPreview> {
 // ─── Forward alert dialog ─────────────────────────────────────────────────────
 class _ForwardAlertDialog extends StatefulWidget {
   final List<Map<String, dynamic>> availableCommunities;
-  final bool canForwardToEntities;
 
   const _ForwardAlertDialog({
     required this.availableCommunities,
-    required this.canForwardToEntities,
   });
 
   @override
@@ -1424,8 +1406,7 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final entities   = widget.availableCommunities.where((c) => c['is_entity'] == true).toList();
-    final normals    = widget.availableCommunities.where((c) => c['is_entity'] != true).toList();
+    final targets = widget.availableCommunities;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1443,16 +1424,10 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
             children: [
               Text(l10n.forwardSelectTargetsHint, style: const TextStyle(fontSize: 14)),
               const SizedBox(height: 16),
-              if (entities.isNotEmpty && widget.canForwardToEntities) ...[
-                Text(l10n.officialEntities, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kBluePrim, letterSpacing: 0.5)),
-                const SizedBox(height: 8),
-                ...entities.map(_buildCommunityTile),
-                const SizedBox(height: 16),
-              ],
-              if (normals.isNotEmpty) ...[
+              if (targets.isNotEmpty) ...[
                 Text(l10n.communities, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
-                ...normals.map(_buildCommunityTile),
+                ...targets.map(_buildCommunityTile),
               ],
             ],
           ),
@@ -1470,10 +1445,8 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
   }
 
   Widget _buildCommunityTile(Map<String, dynamic> community) {
-    final l10n = AppLocalizations.of(context)!;
     final id       = community['id'] as String;
     final name     = capitalizeFirst(community['name'] as String);
-    final isEntity = community['is_entity'] as bool;
     final selected = _selectedIds.contains(id);
 
     return Card(
@@ -1492,26 +1465,15 @@ class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
         onChanged: (v) => setState(() => v == true ? _selectedIds.add(id) : _selectedIds.remove(id)),
         activeColor: _kBluePrim,
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
-        subtitle: isEntity
-            ? Container(
-                margin:     const EdgeInsets.only(top: 4),
-                padding:    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color:        _kBluePrim.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(l10n.officialEntity, style: TextStyle(fontSize: 10, color: _kBluePrim, fontWeight: FontWeight.w600)),
-              )
-            : null,
         secondary: Container(
           width: 36, height: 36,
           decoration: BoxDecoration(
-            color:        isEntity ? _kBluePrim.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(9),
           ),
-          child: Icon(
-            isEntity ? Icons.shield_rounded : Icons.people_rounded,
-            color: isEntity ? _kBluePrim : Colors.green,
+          child: const Icon(
+            Icons.people_rounded,
+            color: Colors.green,
             size: 18,
           ),
         ),

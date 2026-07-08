@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
-import 'package:guardian/core/default_official_entities.dart';
 import 'package:guardian/handlers/home_handler.dart';
 import 'package:guardian/models/alert_model.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
@@ -107,12 +106,8 @@ class _HomeViewState extends State<HomeView> {
       final communities = await _communityService.getMyCommunities();
       if (!mounted) return;
       final ids = communities
-          .where((c) {
-            final id = (c['id'] as String?) ?? '';
-            return id.isNotEmpty &&
-                !DefaultOfficialEntities.communityIds.contains(id);
-          })
           .map((c) => c['id'] as String)
+          .where((id) => id.isNotEmpty)
           .toSet();
       setState(() => _userNonOfficialCommunityIds = ids);
     } catch (e) {

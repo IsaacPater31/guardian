@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
+import '../core/community_visibility.dart';
 import '../models/alert_model.dart';
 import '../repositories/alert_repository.dart';
 import '../repositories/community_repository.dart';
@@ -25,27 +26,23 @@ class AlertService {
   final UserService _userService = UserService();
 
   List<String>? _cachedUserCommunityIds;
-  Set<String>? _cachedEntityCommunityIds;
   Map<String, String>? _cachedUserRolesByCommunityId;
   DateTime? _cacheTimestamp;
 
   void invalidateCommunityCache() {
     _cachedUserCommunityIds = null;
-    _cachedEntityCommunityIds = null;
     _cachedUserRolesByCommunityId = null;
     _cacheTimestamp = null;
   }
 
   Future<_UserCommunityAccess> _getUserCommunityAccess() async {
     if (_cachedUserCommunityIds != null &&
-        _cachedEntityCommunityIds != null &&
         _cachedUserRolesByCommunityId != null &&
         _cacheTimestamp != null &&
         DateTime.now().difference(_cacheTimestamp!) <
             AppDurations.communityIdCache) {
       return _UserCommunityAccess(
         communityIds: _cachedUserCommunityIds!,
-        entityCommunityIds: _cachedEntityCommunityIds!,
         rolesByCommunityId: _cachedUserRolesByCommunityId!,
       );
     }
@@ -55,19 +52,15 @@ class AlertService {
       if (uid == null) {
         return const _UserCommunityAccess(
           communityIds: [],
-          entityCommunityIds: <String>{},
           rolesByCommunityId: <String, String>{},
         );
       }
 
-      final communities = await _communityRepository.fetchUserCommunities(uid);
-      _cachedUserCommunityIds = communities
-          .map((c) => c['id'] as String)
-          .toList();
-      _cachedEntityCommunityIds = communities
-          .where((c) => (c[CommunityFields.isEntity] as bool? ?? false))
-          .map((c) => c['id'] as String)
-          .toSet();
+      final communities = visibleUserCommunities(
+        await _communityRepository.fetchUserCommunities(uid),
+      );
+      _cachedUserCommunityIds =
+          communities.map((c) => c['id'] as String).toList();
 
       final memberships = await _communityRepository.queryMembershipsForUser(
         uid,
@@ -82,14 +75,12 @@ class AlertService {
       _cacheTimestamp = DateTime.now();
       return _UserCommunityAccess(
         communityIds: _cachedUserCommunityIds!,
-        entityCommunityIds: _cachedEntityCommunityIds!,
         rolesByCommunityId: _cachedUserRolesByCommunityId!,
       );
     } catch (e) {
       AppLogger.e('AlertService._getUserCommunityAccess', e);
       return _UserCommunityAccess(
         communityIds: _cachedUserCommunityIds ?? const [],
-        entityCommunityIds: _cachedEntityCommunityIds ?? const {},
         rolesByCommunityId: _cachedUserRolesByCommunityId ?? const {},
       );
     }
@@ -99,7 +90,6 @@ class AlertService {
     List<AlertModel> alerts,
     _UserCommunityAccess access,
   ) {
-    final uid = _userService.currentUser?.uid;
     final membershipSet = access.communityIds.toSet();
 
     return alerts.where((alert) {
@@ -112,23 +102,7 @@ class AlertService {
       }
       if (alert.communityIds.isEmpty) return true;
 
-      for (final communityId in alert.communityIds) {
-        if (!membershipSet.contains(communityId)) continue;
-
-        final isEntity = access.entityCommunityIds.contains(communityId);
-        if (!isEntity) return true;
-
-        final role =
-            access.rolesByCommunityId[communityId] ?? MemberFields.roleMember;
-        if (role == MemberFields.roleOfficial ||
-            role == MemberFields.roleAdmin) {
-          return true;
-        }
-        if (uid != null && alert.userId == uid) {
-          return true;
-        }
-      }
-      return false;
+      return alert.communityIds.any(membershipSet.contains);
     }).toList();
   }
 
@@ -644,30 +618,6 @@ class AlertService {
 
     final originalAlert = AlertModel.fromFirestore(alertDoc);
 
-    if (originalAlert.communityIds.isNotEmpty) {
-      final originCommunity = await _communityRepository.getCommunityById(
-        originalAlert.communityIds.first,
-      );
-
-      if (originCommunity != null && !originCommunity.allowForwardToEntities) {
-        final userId = _userService.currentUserId;
-        if (userId == null) throw Exception('Usuario no autenticado');
-
-        final allCommunities = await _communityRepository.fetchUserCommunities(
-          userId,
-        );
-        final targets = allCommunities
-            .where((c) => targetCommunityIds.contains(c['id'] as String))
-            .toList();
-
-        if (targets.any((c) => c[CommunityFields.isEntity] == true)) {
-          throw Exception(
-            'Esta comunidad no permite reenviar alertas a entidades',
-          );
-        }
-      }
-    }
-
     final userInfo = _userService.getUserInfoForAlert();
     final userName = _userService.getUserDisplayName(isAnonymous: false);
 
@@ -731,12 +681,10 @@ class AlertService {
 
 class _UserCommunityAccess {
   final List<String> communityIds;
-  final Set<String> entityCommunityIds;
   final Map<String, String> rolesByCommunityId;
 
   const _UserCommunityAccess({
     required this.communityIds,
-    required this.entityCommunityIds,
     required this.rolesByCommunityId,
   });
 }

@@ -4,17 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/alert_type_normalize.dart';
 import '../core/app_constants.dart';
 import '../core/app_logger.dart';
-import '../core/default_official_entities.dart';
-import '../models/emergency_types.dart';
+import '../core/community_visibility.dart';
 import '../repositories/community_repository.dart';
 
 /// Manages per-alert-type community configuration (type/subtype flow).
 ///
 /// Configuration is persisted in [SharedPreferences] using keys of the form
 /// `swipe_alert_communities_<ALERT_TYPE>`.
-///
-/// Defaults are seeded from [EmergencyTypes.defaultCommunityKeyword] the first
-/// time a type is accessed without prior configuration.
 class TypedAlertConfigService {
   static final TypedAlertConfigService _instance =
       TypedAlertConfigService._internal();
@@ -82,32 +78,13 @@ class TypedAlertConfigService {
     }
   }
 
-  Future<void> initDefaults() async {
-    for (final entry in EmergencyTypes.typeMetadata.entries) {
-      final typeName = entry.value['type'] as String;
-      final keyword = entry.value['defaultCommunityKeyword'] as String?;
-      if (keyword == null) continue;
-
-      final existing = await getCommunitiesForType(typeName);
-      if (existing != null) continue;
-
-      final communityId =
-          DefaultOfficialEntities.keywordToCommunityId[keyword.toUpperCase()];
-      if (communityId == null) continue;
-
-      final valid = await _communities.validateCommunityIds([communityId]);
-      if (valid.isEmpty) continue;
-
-      await setCommunitiesForType(typeName, valid);
-      AppLogger.d('SwipeAlertConfig default for $typeName → $valid');
-    }
-  }
-
   Future<List<Map<String, dynamic>>> getAvailableCommunities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-      return _communities.fetchUserCommunities(userId);
+      return visibleUserCommunities(
+        await _communities.fetchUserCommunities(userId),
+      );
     } catch (e) {
       AppLogger.e('TypedAlertConfigService.getAvailableCommunities', e);
       return [];

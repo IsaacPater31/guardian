@@ -11,61 +11,52 @@ class EmergencyTypes {
   /// [alertType] guardado en Firestore para alertas de un toque (centro del botón).
   static const String quickAlertType = 'URGENCY';
 
-  /// Metadatos por `alertType` (Firestore): icono, color, keyword de comunidad.
+  /// Metadatos por `alertType` (Firestore): icono y color.
   static const Map<String, Map<String, dynamic>> typeMetadata = {
     AlertDetailCatalog.health: {
       'type': AlertDetailCatalog.health,
       'icon': Icons.medical_services_rounded,
       'color': Color(0xFF26C6DA),
-      'defaultCommunityKeyword': null,
     },
     AlertDetailCatalog.homeHelp: {
       'type': AlertDetailCatalog.homeHelp,
       'icon': Icons.home_rounded,
       'color': Color(0xFF66BB6A),
-      'defaultCommunityKeyword': null,
     },
     AlertDetailCatalog.police: {
       'type': AlertDetailCatalog.police,
       'icon': Icons.local_police_rounded,
       'color': Color(0xFF1565C0),
-      'defaultCommunityKeyword': 'POLICIAL',
     },
     AlertDetailCatalog.fire: {
       'type': AlertDetailCatalog.fire,
       'icon': Icons.local_fire_department_rounded,
       'color': Color(0xFFE53935),
-      'defaultCommunityKeyword': 'BOMBEROS',
     },
     AlertDetailCatalog.securityBreach: {
       'type': AlertDetailCatalog.securityBreach,
       'icon': Icons.security_rounded,
       'color': Color(0xFFC62828),
-      'defaultCommunityKeyword': null,
     },
     AlertDetailCatalog.roadEmergency: {
       'type': AlertDetailCatalog.roadEmergency,
       'icon': Icons.car_crash_rounded,
       'color': Color(0xFFFF7043),
-      'defaultCommunityKeyword': 'TRANSITO',
     },
     AlertDetailCatalog.environmental: {
       'type': AlertDetailCatalog.environmental,
       'icon': Icons.thunderstorm_rounded,
       'color': Color(0xFF43A047),
-      'defaultCommunityKeyword': 'AMBIENTAL',
     },
     AlertDetailCatalog.accompaniment: {
       'type': AlertDetailCatalog.accompaniment,
       'icon': Icons.groups_rounded,
       'color': Color(0xFF8E24AA),
-      'defaultCommunityKeyword': null,
     },
     AlertDetailCatalog.harassment: {
       'type': AlertDetailCatalog.harassment,
       'icon': Icons.front_hand_rounded,
       'color': Color(0xFF7B1FA2),
-      'defaultCommunityKeyword': null,
     },
   };
 
@@ -202,11 +193,6 @@ class EmergencyTypes {
 
   static Map<String, dynamic>? getTypeByName(String typeName) {
     return typeMetadata[typeName];
-  }
-
-  static String? getDefaultCommunityKeyword(String typeName) {
-    final meta = typeMetadata[typeName];
-    return meta?['defaultCommunityKeyword'] as String?;
   }
 
   static List<String> get allDirections => types.keys.toList();

@@ -16,13 +16,11 @@ import 'package:latlong2/latlong.dart';
 class CommunityFeedView extends StatefulWidget {
   final String communityId;
   final String communityName;
-  final bool isEntity;
 
   const CommunityFeedView({
     super.key,
     required this.communityId,
     required this.communityName,
-    required this.isEntity,
   });
 
   @override
@@ -98,7 +96,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     return l10n.timeDaysAgoShort(difference.inDays);
   }
 
-  bool get _isOfficial => _userRole == 'official';
+  bool get _canManageAlerts => _userRole == MemberFields.roleAdmin;
 
   String _formatExactTime(DateTime dateTime) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -110,8 +108,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final sw = MediaQuery.of(context).size.width;
     final isSmall = sw < 360;
 
-    final canAddMembers =
-        !widget.isEntity && _userRole == MemberFields.roleAdmin;
+    final canAddMembers = _userRole == MemberFields.roleAdmin;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
@@ -132,9 +129,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               ),
             ),
             Text(
-              widget.isEntity
-                  ? AppLocalizations.of(context)!.officialEntity
-                  : AppLocalizations.of(context)!.communityLabel,
+              AppLocalizations.of(context)!.communityLabel,
               style: TextStyle(
                 fontSize: isSmall ? 11 : 13,
                 fontWeight: FontWeight.w400,
@@ -162,7 +157,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               ),
               onPressed: _openAddMembers,
             ),
-          if (!widget.isEntity && !_isLoadingRole)
+          if (!_isLoadingRole && _userRole == MemberFields.roleAdmin)
             IconButton(
               icon: Icon(
                 Icons.settings_rounded,
@@ -580,7 +575,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final chip = _buildChip(
         icon: icon, label: label, color: color, isSmall: isSmall);
 
-    if (_isOfficial && alert.id != null) {
+    if (_canManageAlerts && alert.id != null) {
       return GestureDetector(
         onTap: () => _showStatusSheet(alert),
         child: chip,

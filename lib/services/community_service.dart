@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../core/app_constants.dart';
+import '../core/community_visibility.dart';
+import '../core/default_communities.dart';
 import '../core/app_logger.dart';
-import '../core/default_official_entities.dart';
-import '../core/official_entities_ensure_result.dart';
 import '../models/join_result.dart';
 import '../models/member_report_model.dart';
 import '../repositories/community_repository.dart';
@@ -28,147 +28,14 @@ class CommunityService {
     AlertService().invalidateCommunityCache();
   }
 
-  // ─── Official entities (configured IDs, no auto-create) ─────────────────
-
-  /// Une al usuario autenticado a las entidades de [DefaultOfficialEntities].
-  /// Escribe detalle y resumen en consola vía [OfficialEntitiesEnsureResult.logToConsole].
-  Future<OfficialEntitiesEnsureResult> ensureUserInEntities() async {
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      final result = OfficialEntitiesEnsureResult(
-        userId: null,
-        outcomes: const [],
-      );
-      result.logToConsole();
-      return result;
-    }
-
-    try {
-      final result = await _addUserToOfficialEntityIds(
-        userId,
-        DefaultOfficialEntities.communityIds,
-      );
-      result.logToConsole();
-      return result;
-    } catch (e, st) {
-      final result = OfficialEntitiesEnsureResult(
-        userId: userId,
-        outcomes: const [],
-        fatalError: e,
-        fatalStackTrace: st,
-      );
-      result.logToConsole();
-      return result;
-    }
-  }
-
-  Future<OfficialEntitiesEnsureResult> _addUserToOfficialEntityIds(
-    String userId,
-    List<String> communityIds,
-  ) async {
-    final outcomes = <OfficialEntityJoinOutcome>[];
-    final batch = _repo.createBatch();
-    final pendingAdds = <String>[];
-
-    for (final communityId in communityIds) {
-      final id = communityId.trim();
-      final label = id.isEmpty
-          ? '(ID vacío)'
-          : DefaultOfficialEntities.labelForId(id);
-
-      if (id.isEmpty) {
-        outcomes.add(OfficialEntityJoinOutcome(
-          label: label,
-          communityId: id,
-          status: OfficialEntityJoinStatus.invalidId,
-          detail: 'Revisa default_official_entities.dart',
-        ));
-        continue;
-      }
-
-      try {
-        final community = await _repo.getCommunityById(id);
-        if (community == null) {
-          outcomes.add(OfficialEntityJoinOutcome(
-            label: label,
-            communityId: id,
-            status: OfficialEntityJoinStatus.notFound,
-          ));
-          continue;
-        }
-        if (!community.isEntity) {
-          outcomes.add(OfficialEntityJoinOutcome(
-            label: label,
-            communityId: id,
-            status: OfficialEntityJoinStatus.notEntity,
-            detail: 'name=${community.name}',
-          ));
-          continue;
-        }
-
-        final existingMember = await _repo.findMembership(userId, id);
-        if (existingMember.docs.isNotEmpty) {
-          outcomes.add(OfficialEntityJoinOutcome(
-            label: label,
-            communityId: id,
-            status: OfficialEntityJoinStatus.alreadyMember,
-          ));
-          continue;
-        }
-
-        final ref = _repo.firestore
-            .collection(FirestoreCollections.communityMembers)
-            .doc();
-        batch.set(ref, {
-          MemberFields.userId: userId,
-          MemberFields.communityId: id,
-          MemberFields.joinedAt: Timestamp.now(),
-          MemberFields.role: MemberFields.roleMember,
-        });
-        pendingAdds.add(id);
-        outcomes.add(OfficialEntityJoinOutcome(
-          label: label,
-          communityId: id,
-          status: OfficialEntityJoinStatus.added,
-        ));
-      } catch (e) {
-        outcomes.add(OfficialEntityJoinOutcome(
-          label: label,
-          communityId: id,
-          status: OfficialEntityJoinStatus.perEntityError,
-          detail: e.toString(),
-          error: e,
-        ));
-      }
-    }
-
-    if (pendingAdds.isNotEmpty) {
-      try {
-        await batch.commit();
-        _invalidateAlertCommunityCache();
-      } catch (e, st) {
-        return OfficialEntitiesEnsureResult(
-          userId: userId,
-          outcomes: outcomes,
-          fatalError: e,
-          fatalStackTrace: st,
-        );
-      }
-    }
-
-    return OfficialEntitiesEnsureResult(
-      userId: userId,
-      outcomes: outcomes,
-    );
-  }
-
   // ─── Community queries ───────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getMyCommunities() async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return [];
-      return _repo.fetchUserCommunities(userId);
+      final communities = await _repo.fetchUserCommunities(userId);
+      return visibleUserCommunities(communities);
     } catch (e) {
       AppLogger.e('getMyCommunities', e);
       return [];
@@ -186,14 +53,7 @@ class CommunityService {
 
   Future<List<String>> getAlertRecipients(String communityId) async {
     try {
-      final community = await _repo.getCommunityById(communityId);
-      if (community == null) return [];
-
-      final isEntity = community.isEntity;
-      final snap = await _repo.queryMembersInCommunity(
-        communityId,
-        roleIs: isEntity ? MemberFields.roleOfficial : null,
-      );
+      final snap = await _repo.queryMembersInCommunity(communityId);
 
       return snap.docs
           .map((doc) {
@@ -208,41 +68,34 @@ class CommunityService {
     }
   }
 
-  // ─── Official members ────────────────────────────────────────────────────
+  // ─── Default communities (first access) ──────────────────────────────────
 
-  Future<bool> addOfficialMember(String userId, String communityId) async {
+  /// Crea las comunidades por defecto si el usuario no pertenece a ninguna.
+  ///
+  /// Idempotente: reintentos tras fallo de red o sync duplicado no duplican Hogar.
+  Future<void> ensureDefaultCommunitiesForUser(String userId) async {
     try {
-      final community = await _repo.getCommunityById(communityId);
-      if (community == null) {
-        AppLogger.e('addOfficialMember: community not found');
-        return false;
-      }
-      if (!community.isEntity) {
-        AppLogger.e('addOfficialMember: target is not an entity');
-        return false;
-      }
+      final memberships = await _repo.queryMembershipsForUser(userId, limit: 1);
+      if (memberships.docs.isNotEmpty) return;
 
-      final existing = await _repo.findMembership(userId, communityId);
+      for (final template in DefaultCommunities.templates) {
+        final existing = await _repo.queryDefaultCommunityForUser(
+          userId,
+          template.slug,
+        );
+        if (existing.docs.isNotEmpty) continue;
 
-      if (existing.docs.isNotEmpty) {
-        await _repo.updateMemberDoc(existing.docs.first.reference, {
-          MemberFields.role: MemberFields.roleOfficial,
-        });
-        AppLogger.d('Updated user to official member');
-      } else {
-        await _repo.addMember({
-          MemberFields.userId: userId,
-          MemberFields.communityId: communityId,
-          MemberFields.joinedAt: Timestamp.now(),
-          MemberFields.role: MemberFields.roleOfficial,
-        });
-        AppLogger.d('Official member added');
+        await _createCommunityForUser(
+          userId: userId,
+          name: template.name,
+          description: template.description,
+          iconCodePoint: template.iconCodePoint,
+          iconColor: template.iconColor,
+          defaultSlug: template.slug,
+        );
       }
-
-      return true;
     } catch (e) {
-      AppLogger.e('addOfficialMember', e);
-      return false;
+      AppLogger.e('ensureDefaultCommunitiesForUser', e);
     }
   }
 
@@ -251,7 +104,6 @@ class CommunityService {
   Future<String?> createCommunity({
     required String name,
     String? description,
-    bool allowForwardToEntities = true,
     int? iconCodePoint,
     String? iconColor,
   }) async {
@@ -262,33 +114,50 @@ class CommunityService {
         return null;
       }
 
-      final data = <String, dynamic>{
-        CommunityFields.name: name,
-        CommunityFields.description: description,
-        CommunityFields.isEntity: false,
-        CommunityFields.createdBy: userId,
-        CommunityFields.allowForwardToEntities: allowForwardToEntities,
-        CommunityFields.createdAt: Timestamp.now(),
-      };
-      if (iconCodePoint != null) data[CommunityFields.iconCodePoint] = iconCodePoint;
-      if (iconColor != null) data[CommunityFields.iconColor] = iconColor;
-
-      final ref = await _repo.addCommunity(data);
-
-      await _repo.addMember({
-        MemberFields.userId: userId,
-        MemberFields.communityId: ref.id,
-        MemberFields.joinedAt: Timestamp.now(),
-        MemberFields.role: MemberFields.roleAdmin,
-      });
-
-      _invalidateAlertCommunityCache();
-      AppLogger.d('Community created: $name (${ref.id})');
-      return ref.id;
+      return _createCommunityForUser(
+        userId: userId,
+        name: name,
+        description: description,
+        iconCodePoint: iconCodePoint,
+        iconColor: iconColor,
+      );
     } catch (e) {
       AppLogger.e('createCommunity', e);
       return null;
     }
+  }
+
+  Future<String?> _createCommunityForUser({
+    required String userId,
+    required String name,
+    String? description,
+    int? iconCodePoint,
+    String? iconColor,
+    String? defaultSlug,
+  }) async {
+    final data = <String, dynamic>{
+      CommunityFields.name: name,
+      CommunityFields.description: description,
+      CommunityFields.isEntity: false,
+      CommunityFields.createdBy: userId,
+      CommunityFields.createdAt: Timestamp.now(),
+    };
+    if (iconCodePoint != null) data[CommunityFields.iconCodePoint] = iconCodePoint;
+    if (iconColor != null) data[CommunityFields.iconColor] = iconColor;
+    if (defaultSlug != null) data[CommunityFields.defaultSlug] = defaultSlug;
+
+    final ref = await _repo.addCommunity(data);
+
+    await _repo.addMember({
+      MemberFields.userId: userId,
+      MemberFields.communityId: ref.id,
+      MemberFields.joinedAt: Timestamp.now(),
+      MemberFields.role: MemberFields.roleAdmin,
+    });
+
+    _invalidateAlertCommunityCache();
+    AppLogger.d('Community created: $name (${ref.id})');
+    return ref.id;
   }
 
   Future<String?> generateInviteLink(String communityId) async {
@@ -296,10 +165,6 @@ class CommunityService {
       final community = await _repo.getCommunityById(communityId);
       if (community == null) {
         AppLogger.e('generateInviteLink: community not found');
-        return null;
-      }
-      if (community.isEntity) {
-        AppLogger.e('generateInviteLink: entities cannot have invite links');
         return null;
       }
 
@@ -585,9 +450,6 @@ class CommunityService {
     final communityDoc = await _repo.getCommunitySnapshot(communityId);
 
     if (!communityDoc.exists) throw Exception('La comunidad no existe');
-    if (communityDoc.data()?[CommunityFields.isEntity] ?? false) {
-      throw Exception('No se puede abandonar una entidad oficial');
-    }
 
     final memberSnap = await _repo.findMembership(userId, communityId);
 
@@ -624,10 +486,6 @@ class CommunityService {
       }
 
       final data = communityDoc.data()!;
-      if (data[CommunityFields.isEntity] ?? false) {
-        AppLogger.w('deleteCommunity: cannot delete entity communities');
-        return false;
-      }
       if ((data[CommunityFields.createdBy] as String?) != userId) {
         AppLogger.w('deleteCommunity: only the creator can delete the community');
         return false;
@@ -676,7 +534,6 @@ class CommunityService {
     String communityId, {
     String? name,
     String? description,
-    bool? allowForwardToEntities,
     int? iconCodePoint,
     String? iconColor,
   }) async {
@@ -695,9 +552,6 @@ class CommunityService {
       final updateData = <String, dynamic>{};
       if (name != null) updateData[CommunityFields.name] = name;
       if (description != null) updateData[CommunityFields.description] = description;
-      if (allowForwardToEntities != null) {
-        updateData[CommunityFields.allowForwardToEntities] = allowForwardToEntities;
-      }
       if (iconCodePoint != null) updateData[CommunityFields.iconCodePoint] = iconCodePoint;
       if (iconColor != null) updateData[CommunityFields.iconColor] = iconColor;
 
@@ -757,8 +611,7 @@ class CommunityService {
 
       const roleOrder = {
         MemberFields.roleAdmin: 0,
-        MemberFields.roleOfficial: 1,
-        MemberFields.roleMember: 2,
+        MemberFields.roleMember: 1,
       };
 
       members.sort((a, b) {

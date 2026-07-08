@@ -52,10 +52,11 @@ abstract final class CommunityFields {
   static const String description = 'description';
   static const String isEntity = 'is_entity';
   static const String createdBy = 'created_by';
-  static const String allowForwardToEntities = 'allow_forward_to_entities';
   static const String createdAt = 'created_at';
   static const String iconCodePoint = 'icon_code_point';
   static const String iconColor = 'icon_color';
+  /// Marca comunidades creadas por defecto al primer acceso (p. ej. `hogar`).
+  static const String defaultSlug = 'default_slug';
 }
 
 abstract final class MemberFields {
@@ -67,7 +68,6 @@ abstract final class MemberFields {
   // Roles
   static const String roleAdmin = 'admin';
   static const String roleMember = 'member';
-  static const String roleOfficial = 'official';
 }
 
 abstract final class InviteFields {

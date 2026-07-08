@@ -337,19 +337,6 @@ class _AlertButtonState extends State<AlertButton>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    // Pre-configurar comunidades por defecto basado en keywords
-    // (p.ej. POLICE → POLICIA, FIRE → BOMBEROS, etc.)
-    _initDefaultCommunities();
-  }
-
-  /// Carga las comunidades del usuario e inicializa la configuración por defecto
-  /// de cada tipo de alerta si aún no está configurada.
-  Future<void> _initDefaultCommunities() async {
-    try {
-      await _typedConfig.initDefaults();
-    } catch (e) {
-      // No bloquear la UI si falla la inicialización
-    }
   }
 
   @override
@@ -572,33 +559,7 @@ class _AlertButtonState extends State<AlertButton>
       }
     }
 
-    // 2. No hay config guardada — buscar por keyword por defecto
-    final keyword = EmergencyTypes.getDefaultCommunityKeyword(emergencyType);
-    if (keyword != null) {
-      final allCommunities = await _typedConfig.getAvailableCommunities();
-      final initialIds = allCommunities
-          .where((c) {
-            final name = (c['name'] as String? ?? '').toUpperCase();
-            return name.contains(keyword);
-          })
-          .map((c) => c['id'] as String)
-          .toSet();
-
-      if (!mounted) return;
-      final selected = await _showCommunitySelectionDialog(
-        emergencyType,
-        preSelectedIds: initialIds,
-      );
-      if (!mounted) return;
-      if (selected != null && selected.isNotEmpty) {
-        _showFinalConfirmationDialog(emergencyType, selected);
-      } else {
-        _hideEmergencyOptions();
-      }
-      return;
-    }
-
-    // 3. Sin keyword y sin config — mostrar aviso y abrir configuración
+    // Sin config guardada — mostrar aviso y abrir configuración
     if (mounted) {
       _hideEmergencyOptions();
       final typeName = EmergencyTypes.getTranslatedType(emergencyType, context);
@@ -830,7 +791,6 @@ class _AlertButtonState extends State<AlertButton>
                           itemCount: communities.length,
                           itemBuilder: (context, index) {
                             final community = communities[index];
-                            final isEntity = community['is_entity'] as bool;
                             final communityId = community['id'] as String;
                             final isSelected = selectedCommunityIds.contains(
                               communityId,
@@ -850,18 +810,14 @@ class _AlertButtonState extends State<AlertButton>
                                   width: isSmall ? 34 : 40,
                                   height: isSmall ? 34 : 40,
                                   decoration: BoxDecoration(
-                                    color: isEntity
-                                        ? _primary.withValues(alpha: 0.10)
-                                        : const Color(
-                                            0xFF5AC8FA,
-                                          ).withValues(alpha: 0.12),
+                                    color: const Color(
+                                      0xFF5AC8FA,
+                                    ).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
-                                    isEntity ? Icons.shield : Icons.people,
-                                    color: isEntity
-                                        ? _primary
-                                        : const Color(0xFF5AC8FA),
+                                    Icons.people,
+                                    color: const Color(0xFF5AC8FA),
                                     size: isSmall ? 17 : 20,
                                   ),
                                 ),

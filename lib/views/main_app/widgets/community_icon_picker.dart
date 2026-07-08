@@ -173,14 +173,12 @@ class CommunityIconPickerGrid extends StatelessWidget {
 class CommunityIconDisplay extends StatelessWidget {
   final int? iconCodePoint;
   final String? iconColor;
-  final bool isEntity;
   final double size;
 
   const CommunityIconDisplay({
     super.key,
     this.iconCodePoint,
     this.iconColor,
-    this.isEntity = false,
     this.size = 48,
   });
 
@@ -189,14 +187,10 @@ class CommunityIconDisplay extends StatelessWidget {
     final hasCustomIcon = iconCodePoint != null;
     final color = iconColor != null
         ? CommunityIconPicker.colorFromHex(iconColor!)
-        : isEntity
-            ? const Color(0xFF1565C0)
-            : CommunityIconPicker.colorFromHex(CommunityIconPicker.defaultIconColor);
+        : CommunityIconPicker.colorFromHex(CommunityIconPicker.defaultIconColor);
     final icon = hasCustomIcon
         ? CommunityIconPicker.iconFromCodePoint(iconCodePoint!)
-        : isEntity
-            ? Icons.shield
-            : CommunityIconPicker.iconFromCodePoint(CommunityIconPicker.defaultIconCodePoint);
+        : CommunityIconPicker.iconFromCodePoint(CommunityIconPicker.defaultIconCodePoint);
 
     return Container(
       width: size,
