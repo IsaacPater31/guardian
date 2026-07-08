@@ -71,14 +71,13 @@ class AlertService {
 
       // Comunidades cuyas alertas puede VER el usuario en sus feeds:
       // - normales: cualquier miembro;
-      // - entidades: solo official/admin (los reportes de otros ciudadanos
-      //   no deben llegarle a un miembro raso de la entidad).
+      // - entidades: solo official (los reportes de otros ciudadanos
+      //   no deben llegarle a miembros rasos ni a roles legacy de admin).
       _cachedUserCommunityIds = communities
           .where((c) {
             if (!communityMapIsEntity(c)) return true;
             final role = _cachedUserRolesByCommunityId![c['id'] as String];
-            return role == MemberFields.roleAdmin ||
-                role == MemberFields.roleOfficial;
+            return role == MemberFields.roleOfficial;
           })
           .map((c) => c['id'] as String)
           .toList();

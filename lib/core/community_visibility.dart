@@ -6,8 +6,7 @@ import 'app_constants.dart';
 /// surface in the app as the "Reportes" section (e.g. "Reporte Policía").
 /// Users join them exclusively via invite link/code.
 // TODO(entities): a futuro habrá un panel web con inicio de sesión donde cada
-// entidad genera sus propios códigos de invitación. Hoy los enlaces se generan
-// desde la app (admins de la entidad) igual que en comunidades normales.
+// entidad genere sus propios códigos/enlaces de invitación.
 bool communityMapIsEntity(Map<String, dynamic> community) {
   final value =
       community[CommunityFields.isEntity] ?? community['is_entity'];

@@ -204,6 +204,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get helpNeeded => 'Help needed';
 
   @override
+  String get slideToRequestHelpHint => 'SLIDE TO';
+
+  @override
+  String get slideToRequestHelpAction => 'REQUEST\nHELP';
+
+  @override
   String get login => 'Login';
 
   @override

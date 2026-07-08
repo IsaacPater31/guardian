@@ -290,8 +290,12 @@ class CommunityService {
         return JoinResult(success: false, message: 'No hay usuario autenticado');
       }
 
-      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
-        return JoinResult(success: false, message: 'Solo administradores pueden agregar miembros');
+      final callerRole = await getUserRole(communityId);
+      if (!await _canManageMembership(communityId, callerRole)) {
+        return JoinResult(
+          success: false,
+          message: 'No tienes permisos para agregar miembros',
+        );
       }
 
       final targetDoc = await _repo.getUserProfile(targetUserId);
@@ -473,11 +477,25 @@ class CommunityService {
 
     final role =
         memberSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
-    if (role == MemberFields.roleAdmin) {
+    final isEntity = await _isEntityCommunity(communityId);
+    if (isEntity) {
+      if (role == MemberFields.roleOfficial) {
+        final officialsCount = await _countMembersWithRole(
+          communityId,
+          MemberFields.roleOfficial,
+        );
+        if (officialsCount <= 1) {
+          throw Exception(
+            'Eres el único oficial. Agrega otro oficial antes de salir.',
+          );
+        }
+      }
+    } else if (role == MemberFields.roleAdmin) {
       final adminsSnap = await _repo.queryAdminsInCommunity(communityId);
-
       if (adminsSnap.docs.length <= 1) {
-        throw Exception('Eres el único administrador. Promueve a otro miembro antes de salir.');
+        throw Exception(
+          'Eres el único administrador. Promueve a otro miembro antes de salir.',
+        );
       }
     }
 
@@ -626,6 +644,7 @@ class CommunityService {
       }
 
       const roleOrder = {
+        MemberFields.roleOfficial: 0,
         MemberFields.roleAdmin: 0,
         MemberFields.roleMember: 1,
       };
@@ -649,8 +668,9 @@ class CommunityService {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
-        AppLogger.w('removeMember: caller is not admin');
+      final callerRole = await getUserRole(communityId);
+      if (!await _canManageMembership(communityId, callerRole)) {
+        AppLogger.w('removeMember: caller is not manager');
         return false;
       }
       if (targetUserId == userId) {
@@ -667,9 +687,20 @@ class CommunityService {
 
       final targetRole =
           targetSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
-      if (targetRole == MemberFields.roleAdmin) {
+      final isEntity = await _isEntityCommunity(communityId);
+      if (!isEntity && targetRole == MemberFields.roleAdmin) {
         AppLogger.w('removeMember: cannot remove another admin');
         return false;
+      }
+      if (isEntity && targetRole == MemberFields.roleOfficial) {
+        final officialsCount = await _countMembersWithRole(
+          communityId,
+          MemberFields.roleOfficial,
+        );
+        if (officialsCount <= 1) {
+          AppLogger.w('removeMember: cannot remove last official');
+          return false;
+        }
       }
 
       await _repo.deleteMemberDoc(targetSnap.docs.first.reference);
@@ -686,8 +717,9 @@ class CommunityService {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return false;
 
-      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
-        AppLogger.w('promoteToAdmin: caller is not admin');
+      final callerRole = await getUserRole(communityId);
+      if (!await _canManageMembership(communityId, callerRole)) {
+        AppLogger.w('promoteToAdmin: caller is not manager');
         return false;
       }
 
@@ -698,17 +730,21 @@ class CommunityService {
         return false;
       }
 
+      final isEntity = await _isEntityCommunity(communityId);
       final targetRole =
           targetSnap.docs.first.data()[MemberFields.role] as String? ?? MemberFields.roleMember;
-      if (targetRole == MemberFields.roleAdmin) {
-        AppLogger.d('promoteToAdmin: user is already admin');
+      final destinationRole = isEntity
+          ? MemberFields.roleOfficial
+          : MemberFields.roleAdmin;
+      if (targetRole == destinationRole) {
+        AppLogger.d('promoteToAdmin: user already has target role');
         return true;
       }
 
       await _repo.updateMemberDoc(targetSnap.docs.first.reference, {
-        MemberFields.role: MemberFields.roleAdmin,
+        MemberFields.role: destinationRole,
       });
-      AppLogger.d('Member promoted to admin');
+      AppLogger.d('Member promoted to $destinationRole');
       return true;
     } catch (e) {
       AppLogger.e('promoteToAdmin', e);
@@ -755,8 +791,9 @@ class CommunityService {
 
   Future<List<Map<String, dynamic>>> getReportsForCommunity(String communityId) async {
     try {
-      if (await getUserRole(communityId) != MemberFields.roleAdmin) {
-        AppLogger.w('getReportsForCommunity: caller is not admin');
+      final callerRole = await getUserRole(communityId);
+      if (!await _canReviewReports(communityId, callerRole)) {
+        AppLogger.w('getReportsForCommunity: caller is not report manager');
         return [];
       }
 
@@ -805,6 +842,10 @@ class CommunityService {
 
   Future<int> getPendingReportsCount(String communityId) async {
     try {
+      final callerRole = await getUserRole(communityId);
+      if (!await _canReviewReports(communityId, callerRole)) {
+        return 0;
+      }
       final snap = await _repo.queryPendingReportsForCount(communityId);
       return snap.docs.length;
     } catch (e) {
@@ -813,6 +854,34 @@ class CommunityService {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
+
+  Future<bool> _isEntityCommunity(String communityId) async {
+    final community = await _repo.getCommunityById(communityId);
+    return community?.isEntity == true;
+  }
+
+  Future<bool> _canManageMembership(String communityId, String? role) async {
+    if (role == null) return false;
+    if (await _isEntityCommunity(communityId)) {
+      return role == MemberFields.roleOfficial;
+    }
+    return role == MemberFields.roleAdmin;
+  }
+
+  Future<bool> _canReviewReports(String communityId, String? role) async {
+    if (role == null) return false;
+    if (await _isEntityCommunity(communityId)) {
+      return role == MemberFields.roleOfficial;
+    }
+    return role == MemberFields.roleAdmin;
+  }
+
+  Future<int> _countMembersWithRole(String communityId, String role) async {
+    final membersSnap = await _repo.queryMembersByCommunity(communityId);
+    return membersSnap.docs
+        .where((d) => (d.data()[MemberFields.role] as String?) == role)
+        .length;
+  }
 
   Future<String> _getDisplayNameForUser(String userId) async {
     if (userId.isEmpty) return 'Usuario';

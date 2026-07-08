@@ -73,8 +73,8 @@ abstract final class MemberFields {
   static const String roleAdmin = 'admin';
   static const String roleMember = 'member';
 
-  /// Funcionario de una entidad (comunidad `is_entity`). Junto con `admin`,
-  /// son los únicos que reciben notificaciones de reportes enviados a la entidad.
+  /// Funcionario de una entidad (comunidad `is_entity`).
+  /// Es el único rol staff que recibe reportes de terceros en entidades.
   static const String roleOfficial = 'official';
 }
 

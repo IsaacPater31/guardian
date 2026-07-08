@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
 
 class SlideToConfirmQuick extends StatefulWidget {
   const SlideToConfirmQuick({
@@ -44,6 +45,7 @@ class _SlideToConfirmQuickState extends State<SlideToConfirmQuick> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardW = constraints.maxWidth;
@@ -122,7 +124,7 @@ class _SlideToConfirmQuickState extends State<SlideToConfirmQuick> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'DESLIZA PARA',
+                                  l10n.slideToRequestHelpHint,
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.88),
                                     fontSize: slideHintSize,
@@ -130,7 +132,7 @@ class _SlideToConfirmQuickState extends State<SlideToConfirmQuick> {
                                   ),
                                 ),
                                 Text(
-                                  'PEDIR\nAYUDA',
+                                  l10n.slideToRequestHelpAction,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: titleSize,

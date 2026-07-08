@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:guardian/core/app_constants.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,7 +13,7 @@ import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
 
 class CommunitySettingsView extends StatefulWidget {
   final String communityId;
-  final String userRole; // 'admin' o 'member'
+  final String userRole; // 'admin', 'member' u 'official'
 
   const CommunitySettingsView({
     super.key,
@@ -44,7 +45,8 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
       final community =
           await _communityRepository.getCommunityById(widget.communityId);
       int reportsCount = 0;
-      if (widget.userRole == 'admin') {
+      if (widget.userRole == MemberFields.roleAdmin &&
+          (community?.isEntity ?? false) == false) {
         reportsCount = await _communityService
             .getPendingReportsCount(widget.communityId);
       }
@@ -757,7 +759,9 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
       );
     }
 
-    final isAdmin = widget.userRole == 'admin';
+    final isEntity = _community?.isEntity ?? false;
+    final isAdmin = widget.userRole == MemberFields.roleAdmin;
+    final canManageFromMobile = isAdmin && !isEntity;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
@@ -766,7 +770,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
           // ─── Community Header ─────────────────────────
-          _buildHeaderCard(isAdmin),
+          _buildHeaderCard(canManageFromMobile),
           const SizedBox(height: 24),
 
           // ─── Community Section ────────────────────────
@@ -793,7 +797,7 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
                 });
               },
             ),
-            if (isAdmin)
+            if (canManageFromMobile)
               _buildSettingsTile(
                 icon: Icons.flag_outlined,
                 iconColor: _pendingReportsCount > 0
@@ -821,58 +825,60 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
           const SizedBox(height: 24),
 
           // ─── Invite Section ───────────────────────────
-          _buildSectionHeader(AppLocalizations.of(context)!.addMembersSection),
-          const SizedBox(height: 8),
-          _buildGroupedCard([
-            if (isAdmin)
+          if (!isEntity) ...[
+            _buildSectionHeader(AppLocalizations.of(context)!.addMembersSection),
+            const SizedBox(height: 8),
+            _buildGroupedCard([
+              if (canManageFromMobile)
+                _buildSettingsTile(
+                  icon: Icons.person_search_rounded,
+                  iconColor: const Color(0xFF34C759),
+                  title: AppLocalizations.of(context)!.searchAndAdd,
+                  subtitle: AppLocalizations.of(context)!.addByEmailOrName,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommunityMembersView(
+                          communityId: widget.communityId,
+                          communityName: _community?.name ?? '',
+                          userRole: widget.userRole,
+                          autoOpenAddSheet: true,
+                        ),
+                      ),
+                    ).then((_) {
+                      if (mounted) _loadCommunity();
+                    });
+                  },
+                ),
               _buildSettingsTile(
-                icon: Icons.person_search_rounded,
-                iconColor: const Color(0xFF34C759),
-                title: AppLocalizations.of(context)!.searchAndAdd,
-                subtitle: AppLocalizations.of(context)!.addByEmailOrName,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CommunityMembersView(
-                        communityId: widget.communityId,
-                        communityName: _community?.name ?? '',
-                        userRole: widget.userRole,
-                        autoOpenAddSheet: true,
-                      ),
-                    ),
-                  ).then((_) {
-                    if (mounted) _loadCommunity();
-                  });
-                },
+                icon: Icons.link_rounded,
+                iconColor: const Color(0xFF007AFF),
+                title: AppLocalizations.of(context)!.generateInviteLink,
+                subtitle: _isGeneratingLink
+                    ? AppLocalizations.of(context)!.generating
+                    : AppLocalizations.of(context)!.shareToInvite,
+                trailing: _isGeneratingLink
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF007AFF),
+                        ),
+                      )
+                    : null,
+                onTap: _isGeneratingLink ? null : _generateInviteLink,
               ),
-            _buildSettingsTile(
-              icon: Icons.link_rounded,
-              iconColor: const Color(0xFF007AFF),
-              title: AppLocalizations.of(context)!.generateInviteLink,
-              subtitle: _isGeneratingLink
-                  ? AppLocalizations.of(context)!.generating
-                  : AppLocalizations.of(context)!.shareToInvite,
-              trailing: _isGeneratingLink
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF007AFF),
-                      ),
-                    )
-                  : null,
-              onTap: _isGeneratingLink ? null : _generateInviteLink,
-            ),
-          ]),
-          const SizedBox(height: 24),
+            ]),
+            const SizedBox(height: 24),
+          ],
 
           // ─── Danger Zone ──────────────────────────────
           _buildSectionHeader(AppLocalizations.of(context)!.dangerZone),
           const SizedBox(height: 8),
           _buildGroupedCard([
-            if (isAdmin)
+            if (canManageFromMobile)
               _buildSettingsTile(
                 icon: Icons.delete_forever_rounded,
                 iconColor: const Color(0xFFFF3B30),

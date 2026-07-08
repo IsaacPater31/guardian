@@ -205,6 +205,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get helpNeeded => 'Se necesita ayuda';
 
   @override
+  String get slideToRequestHelpHint => 'DESLIZA PARA';
+
+  @override
+  String get slideToRequestHelpAction => 'PEDIR\nAYUDA';
+
+  @override
   String get login => 'Iniciar Sesión';
 
   @override

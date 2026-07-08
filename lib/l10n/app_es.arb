@@ -69,6 +69,8 @@
   "newAlertInArea": "Nueva alerta en tu área",
   "emergencyNearby": "Emergencia cerca de ti",
   "helpNeeded": "Se necesita ayuda",
+  "slideToRequestHelpHint": "DESLIZA PARA",
+  "slideToRequestHelpAction": "PEDIR\nAYUDA",
   
   "@@auth": {},
   "login": "Iniciar Sesión",

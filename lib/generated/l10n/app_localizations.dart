@@ -488,6 +488,18 @@ abstract class AppLocalizations {
   /// **'Se necesita ayuda'**
   String get helpNeeded;
 
+  /// No description provided for @slideToRequestHelpHint.
+  ///
+  /// In es, this message translates to:
+  /// **'DESLIZA PARA'**
+  String get slideToRequestHelpHint;
+
+  /// No description provided for @slideToRequestHelpAction.
+  ///
+  /// In es, this message translates to:
+  /// **'PEDIR\nAYUDA'**
+  String get slideToRequestHelpAction;
+
   /// No description provided for @login.
   ///
   /// In es, this message translates to:

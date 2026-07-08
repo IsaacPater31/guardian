@@ -5,7 +5,7 @@ class CommunityMemberModel {
   final String userId;
   final String communityId;
   final DateTime joinedAt;
-  final String role; // 'admin' o 'member'
+  final String role; // 'admin', 'member' u 'official'
 
   CommunityMemberModel({
     this.id,
@@ -40,5 +40,8 @@ class CommunityMemberModel {
 
   /// Verifica si es miembro normal
   bool get isNormalMember => role == 'member';
+
+  /// Verifica si es funcionario/oficial de una entidad
+  bool get isOfficial => role == 'official';
 }
 

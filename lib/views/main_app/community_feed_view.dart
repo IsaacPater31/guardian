@@ -71,7 +71,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   }
 
   void _openAddMembers() {
-    if (_userRole != MemberFields.roleAdmin) return;
+    if (_isEntity || _userRole != MemberFields.roleAdmin) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -168,7 +168,9 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     return l10n.timeDaysAgoShort(difference.inDays);
   }
 
-  bool get _canManageAlerts => _userRole == MemberFields.roleAdmin;
+  bool get _canManageAlerts => _isEntity
+      ? _userRole == MemberFields.roleOfficial
+      : _userRole == MemberFields.roleAdmin;
 
   String _formatExactTime(DateTime dateTime) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -180,7 +182,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     final sw = MediaQuery.of(context).size.width;
     final isSmall = sw < 360;
 
-    final canAddMembers = _userRole == MemberFields.roleAdmin;
+    final canAddMembers = !_isEntity && _userRole == MemberFields.roleAdmin;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
@@ -233,7 +235,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
               ),
               onPressed: _openAddMembers,
             ),
-          if (!_isLoadingRole && _userRole == MemberFields.roleAdmin)
+          if (!_isLoadingRole && !_isEntity && _userRole == MemberFields.roleAdmin)
             IconButton(
               icon: Icon(
                 Icons.settings_rounded,
@@ -310,7 +312,7 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         },
       ),
       // En entidades cualquier miembro puede enviar reportes; solo
-      // official/admin reciben las notificaciones.
+      // official recibe los reportes de terceros.
       floatingActionButton: _isEntity
           ? FloatingActionButton.extended(
               onPressed: _openSendReport,
