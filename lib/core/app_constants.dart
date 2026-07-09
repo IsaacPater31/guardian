@@ -19,6 +19,9 @@ abstract final class FirestoreCollections {
 
   /// Ephemeral docs so a user knows they were added to a community (client shows + deletes).
   static const String memberAddedSignals = 'member_added_signals';
+
+  /// Per-user alert inbox (fan-out from alert creation).
+  static const String alertInbox = 'alert_inbox';
 }
 
 // ─── Firestore field names (shared across collections) ───────────────────────
@@ -100,6 +103,22 @@ abstract final class ReportFields {
 
   static const String statusPending = 'pending';
   static const String statusDismissed = 'dismissed';
+}
+
+/// Fan-out inbox at `users/{uid}/alert_inbox/{alertId}`.
+abstract final class AlertInboxFields {
+  static const String alertId = 'alert_id';
+  static const String communityIds = 'community_ids';
+  static const String alertType = 'alert_type';
+  static const String flowType = 'type';
+  static const String description = 'description';
+  static const String isAnonymous = 'is_anonymous';
+  static const String shareLocation = 'share_location';
+  static const String senderId = 'sender_id';
+  static const String senderName = 'sender_name';
+  static const String read = 'read';
+  static const String createdAt = 'created_at';
+  static const String alertStatus = 'alert_status';
 }
 
 // ─── SharedPreferences keys ──────────────────────────────────────────────────

@@ -479,6 +479,16 @@
 
   "myAlertsStatisticsSectionLabel": "Historial personal",
   "myAlertsTitle": "Mis alertas",
+  "communityMessagesTitle": "Mensajes de comunidad",
+  "communityMessagesEmpty": "No hay mensajes de tus comunidades.",
+  "communityMessagesSignIn": "Inicia sesión para ver mensajes.",
+  "communityMessageDefaultTitle": "Mensaje",
+  "communityMessageFrom": "De {sender}",
+  "@communityMessageFrom": {
+    "placeholders": {
+      "sender": { "type": "String" }
+    }
+  },
   "myAlertsProfileSubtitle": "Historial de alertas que enviaste",
   "myAlertsEmptyTitle": "Sin alertas aún",
   "myAlertsEmptySubtitle": "Las alertas que envíes desde el botón principal aparecerán aquí.",

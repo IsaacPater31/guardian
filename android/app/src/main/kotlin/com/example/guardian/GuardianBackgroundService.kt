@@ -8,23 +8,39 @@ import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
-import java.util.*
 import com.google.firebase.auth.FirebaseAuth
 
 class GuardianBackgroundService : Service() {
     
     companion object {
         private var isServiceRunning = false
+        private const val PREFS_NOTIFIED_MESSAGES = "guardian_notified_messages"
+
+        @Volatile
+        private var appInForeground = false
 
         fun isRunning(): Boolean = isServiceRunning
+
+        fun setAppInForeground(foreground: Boolean) {
+            appInForeground = foreground
+            println("📱 App foreground: $foreground")
+        }
     }
     
     private lateinit var firestore: FirebaseFirestore
-    private var alertsListener: ListenerRegistration? = null
+    private var alertInboxListener: ListenerRegistration? = null
+    private var alertInboxInitialSnapshot = true
+    private var communityMessagesListener: ListenerRegistration? = null
+    private var communityMessagesInitialSnapshot = true
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+    private var lastInboxListenerUserId: String? = null
     private lateinit var auth: FirebaseAuth
     
     override fun onCreate() {
@@ -35,6 +51,22 @@ class GuardianBackgroundService : Service() {
         
         // Inicializar EmergencyTypes con el contexto
         EmergencyTypes.initialize(this)
+
+        authStateListener = FirebaseAuth.AuthStateListener {
+            if (!isServiceRunning) return@AuthStateListener
+            val uid = auth.currentUser?.uid
+            if (uid == lastInboxListenerUserId) return@AuthStateListener
+            println("🔐 Auth user changed — refreshing inbox listeners")
+            if (uid == null) {
+                stopAlertInboxListener()
+                stopCommunityMessagesListener()
+                lastInboxListenerUserId = null
+            } else {
+                ensureAlertInboxListener()
+                ensureCommunityMessagesListener()
+            }
+        }
+        auth.addAuthStateListener(authStateListener!!)
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -49,40 +81,64 @@ class GuardianBackgroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     
     private fun startForegroundService() {
-        if (isServiceRunning) return
-        
-        println("🚀 Starting Guardian Background Service...")
-        
-        // Los permisos de notificación se verifican desde PermissionService.dart
-        // No duplicar lógica aquí para mantener consistencia
-        
-        // Crear notificación persistente
-        val notification = createPersistentNotification()
-        
-        // Iniciar servicio en primer plano
-        startForeground(GuardianNativeConfig.Notifications.FOREGROUND_SERVICE_ID, notification)
-        
-        // Iniciar escucha de alertas
-        startAlertsListener()
-        
-        isServiceRunning = true
-        println("✅ Guardian Background Service started successfully")
-        println("📱 Persistent notification should be visible in notification bar")
-        
-        // Verificar que la notificación se mostró
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        val activeNotifications = notificationManager.activeNotifications
-        println("📊 Active notifications count: ${activeNotifications.size}")
-        for (notification in activeNotifications) {
-            println("📱 Active notification ID: ${notification.id}, Channel: ${notification.notification.channelId}")
+        if (!isServiceRunning) {
+            println("🚀 Starting Guardian Background Service...")
+
+            // Los permisos de notificación se verifican desde PermissionService.dart
+            // No duplicar lógica aquí para mantener consistencia
+
+            val notification = createPersistentNotification()
+            startForeground(GuardianNativeConfig.Notifications.FOREGROUND_SERVICE_ID, notification)
+            isServiceRunning = true
+
+            println("✅ Guardian Background Service started successfully")
+            println("📱 Persistent notification should be visible in notification bar")
+
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            val activeNotifications = notificationManager.activeNotifications
+            println("📊 Active notifications count: ${activeNotifications.size}")
+            for (active in activeNotifications) {
+                println("📱 Active notification ID: ${active.id}, Channel: ${active.notification.channelId}")
+            }
+        } else {
+            println("♻️ Guardian Background Service already running — ensuring listeners")
         }
+
+        // Siempre asegurar listeners (p. ej. login posterior al arranque del servicio).
+        ensureAlertInboxListener()
+        ensureCommunityMessagesListener()
+    }
+
+    private fun shouldDeliverNativeNotification(): Boolean {
+        if (appInForeground) {
+            println("📱 App en primer plano — notificación nativa omitida (Flutter maneja UI)")
+            return false
+        }
+        return true
+    }
+
+    private fun ensureAlertInboxListener() {
+        val uid = auth.currentUser?.uid ?: return
+        if (alertInboxListener != null && lastInboxListenerUserId == uid) return
+        lastInboxListenerUserId = uid
+        stopAlertInboxListener()
+        startAlertInboxListener()
+    }
+
+    private fun ensureCommunityMessagesListener() {
+        val uid = auth.currentUser?.uid ?: return
+        if (communityMessagesListener != null && lastInboxListenerUserId == uid) return
+        stopCommunityMessagesListener()
+        startCommunityMessagesListener()
     }
     
     private fun stopForegroundService() {
         if (!isServiceRunning) return
         
-        // Detener escucha de alertas
-        stopAlertsListener()
+        // Detener escuchas
+        stopAlertInboxListener()
+        stopCommunityMessagesListener()
+        lastInboxListenerUserId = null
         
         // Detener servicio en primer plano
         stopForeground(true)
@@ -95,7 +151,7 @@ class GuardianBackgroundService : Service() {
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NotificationManager::class.java)
-            val language = getCurrentLanguage()
+            val language = LocaleHelper.getCurrentLanguage(this)
 
             val serviceChannelName =
                 if (language == "es") "Protección activa de Guardian" else "Guardian Active Protection"
@@ -114,6 +170,15 @@ class GuardianBackgroundService : Service() {
                 } else {
                     "Notifications for alerts sent by your community"
                 }
+
+            val messagesChannelName =
+                if (language == "es") "Mensajes de comunidad" else "Community messages"
+            val messagesChannelDescription =
+                if (language == "es") {
+                    "Comunicados enviados por administradores de tu comunidad"
+                } else {
+                    "Announcements sent by your community administrators"
+                }
             
             // Canal para la notificación persistente del servicio
             val serviceChannel = NotificationChannel(
@@ -130,27 +195,54 @@ class GuardianBackgroundService : Service() {
                 setBypassDnd(false) // No omitir el modo No Molestar
             }
             
-            // Canal para las alertas de emergencia
+            // Canal para las alertas de emergencia (sonido alarma + vibración fuerte)
+            val emergencySoundUri = resolveEmergencySoundUri()
+            val alarmAudio = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
             val alertsChannel = NotificationChannel(
                 GuardianNativeConfig.Notifications.CHANNEL_ALERTS,
                 alertsChannelName,
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = alertsChannelDescription
                 setShowBadge(true)
                 enableLights(true)
                 enableVibration(true)
-                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
+                setSound(emergencySoundUri, alarmAudio)
                 vibrationPattern = GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS
                 lightColor = GuardianNativeConfig.Notifications.ALERT_LIGHT_COLOR
+                setBypassDnd(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             
             notificationManager.createNotificationChannel(serviceChannel)
             notificationManager.createNotificationChannel(alertsChannel)
-            
+
+            val messagesChannel = NotificationChannel(
+                GuardianNativeConfig.Notifications.CHANNEL_COMMUNITY_MESSAGES,
+                messagesChannelName,
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = messagesChannelDescription
+                setShowBadge(true)
+                enableLights(true)
+                enableVibration(true)
+                setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI, null)
+                vibrationPattern = longArrayOf(
+                    0,
+                    GuardianNativeConfig.Durations.COMMUNITY_MESSAGE_VIBRATE_MS,
+                )
+                lightColor = GuardianNativeConfig.Notifications.MESSAGE_LIGHT_COLOR
+            }
+            notificationManager.createNotificationChannel(messagesChannel)
+
             println("✅ Notification channels created successfully")
             println("📱 Service channel: ${GuardianNativeConfig.Notifications.CHANNEL_SERVICE}")
             println("🚨 Alerts channel: ${GuardianNativeConfig.Notifications.CHANNEL_ALERTS}")
+            println("💬 Messages channel: ${GuardianNativeConfig.Notifications.CHANNEL_COMMUNITY_MESSAGES}")
         } else {
             println("⚠️ Android version < 8.0, using legacy notifications")
         }
@@ -176,7 +268,7 @@ class GuardianBackgroundService : Service() {
         )
         
         // Obtener textos según el idioma actual
-        val language = getCurrentLanguage()
+        val language = LocaleHelper.getCurrentLanguage(this)
         val title = if (language == "es") {
             "🛡️ Guardian Protección Activa"
         } else {
@@ -233,212 +325,344 @@ class GuardianBackgroundService : Service() {
             .build()
     }
     
-    private fun getCurrentLanguage(): String {
-        return try {
-            val flutterPrefs = getSharedPreferences(
-                GuardianNativeConfig.Locale.PREFS_FLUTTER,
-                Context.MODE_PRIVATE,
-            )
-            var lang = flutterPrefs.getString(
-                GuardianNativeConfig.Locale.KEY_FLUTTER_SELECTED_LANGUAGE,
-                null,
-            )
-            if (lang == null) {
-                for (key in flutterPrefs.all.keys) {
-                    if (key.contains("selected_language")) {
-                        lang = flutterPrefs.getString(key, null)
-                        break
-                    }
-                }
-            }
-            if (lang != null) {
-                getSharedPreferences(GuardianNativeConfig.Locale.PREFS_NATIVE, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString(GuardianNativeConfig.Locale.KEY_LANGUAGE, lang)
-                    .apply()
-                return lang
-            }
-            val legacy = getSharedPreferences(
-                GuardianNativeConfig.Locale.PREFS_NATIVE,
-                Context.MODE_PRIVATE,
-            )
-            legacy.getString(
-                GuardianNativeConfig.Locale.KEY_LANGUAGE,
-                GuardianNativeConfig.Locale.DEFAULT_LANGUAGE,
-            ) ?: GuardianNativeConfig.Locale.DEFAULT_LANGUAGE
-        } catch (_: Exception) {
-            GuardianNativeConfig.Locale.DEFAULT_LANGUAGE
-        }
-    }
-    
-    private fun startAlertsListener() {
-        val windowStart = Date(
-            System.currentTimeMillis() - GuardianNativeConfig.Durations.ALERTS_LISTENER_WINDOW_MS,
-        )
+    private fun alertNotifiedPrefs() =
+        getSharedPreferences(GuardianNativeConfig.Firestore.PREFS_NOTIFIED_ALERTS, Context.MODE_PRIVATE)
 
-        alertsListener = firestore.collection(GuardianNativeConfig.Firestore.COLLECTION_ALERTS)
-            .whereGreaterThan(GuardianNativeConfig.Firestore.FIELD_TIMESTAMP, windowStart)
-            .orderBy(GuardianNativeConfig.Firestore.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
-            .limit(GuardianNativeConfig.Firestore.RECENT_ALERTS_QUERY_LIMIT)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    println("❌ Error listening to alerts: $error")
-                    return@addSnapshotListener
-                }
-                
-                snapshot?.documentChanges?.forEach { change ->
-                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                        val alertData = change.document.data
-                        if (alertData != null) {
-                            handleNewAlert(alertData, change.document.id)
-                        }
-                    }
-                }
-            }
-    }
-    
-    private fun stopAlertsListener() {
-        alertsListener?.remove()
-        alertsListener = null
-    }
-    
-    private fun handleNewAlert(alertData: Map<String, Any>, documentId: String) {
-        val fs = GuardianNativeConfig.Firestore
-        val rawAlertType = alertData[fs.FIELD_ALERT_TYPE] as? String ?: return
-        val flowType = alertData[fs.FIELD_TYPE] as? String ?: ""
-        val alertType = EmergencyTypes.normalizeAlertTypeForNotification(rawAlertType, flowType)
-        val description = alertData[fs.FIELD_DESCRIPTION] as? String
-        val isAnonymous = alertData[fs.FIELD_IS_ANONYMOUS] as? Boolean ?: false
-        val shareLocation = alertData[fs.FIELD_SHARE_LOCATION] as? Boolean ?: false
-        val alertUserId = alertData[fs.FIELD_USER_ID] as? String
-        val alertUserEmail = alertData[fs.FIELD_USER_EMAIL] as? String
+    private fun isAlertAlreadyNotified(docId: String): Boolean =
+        alertNotifiedPrefs().getBoolean("alert_$docId", false)
 
+    private fun markAlertNotified(docId: String) {
+        alertNotifiedPrefs().edit().putBoolean("alert_$docId", true).apply()
+    }
+
+    private fun startAlertInboxListener() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            println("⚠️ No user logged in, skipping notification")
+            println("⚠️ No user logged in, skipping alert inbox listener")
             return
         }
 
-        val isOwnAlert = (alertUserId != null && alertUserId == currentUser.uid) ||
-                (alertUserEmail != null && alertUserEmail == currentUser.email)
+        alertInboxInitialSnapshot = true
+        val fs = GuardianNativeConfig.Firestore
 
-        if (isOwnAlert) {
-            println("🚫 Skipping notification for own alert: $alertType")
-            return
-        }
+        try {
+            alertInboxListener = firestore
+                .collection(fs.COLLECTION_USERS)
+                .document(currentUser.uid)
+                .collection(fs.SUBCOLLECTION_ALERT_INBOX)
+                .orderBy(fs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                .limit(fs.ALERT_INBOX_QUERY_LIMIT)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        println("❌ Error listening to alert inbox (non-fatal): $error")
+                        return@addSnapshotListener
+                    }
+                    if (snapshot == null) return@addSnapshotListener
 
-        val alertStatus = alertData[fs.FIELD_ALERT_STATUS] as? String ?: fs.STATUS_PENDING
-        if (alertStatus == fs.STATUS_ATTENDED) {
-            println("✅ Alert already attended, skipping notification: $alertType")
-            return
-        }
+                    try {
+                        if (alertInboxInitialSnapshot) {
+                            alertInboxInitialSnapshot = false
+                            val now = System.currentTimeMillis()
+                            val startupWindow = fs.ALERT_INBOX_STARTUP_NOTIFY_WINDOW_MS
+                            snapshot.documents.forEach { doc ->
+                                val data = doc.data
+                                if (data != null && !isAlertAlreadyNotified(doc.id)) {
+                                    if (!shouldSkipInboxAlert(data)) {
+                                        val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
+                                        if (createdAt != null) {
+                                            val ageMs = now - createdAt.toDate().time
+                                            if (ageMs in 0..startupWindow) {
+                                                deliverInboxAlertNotification(data, doc.id)
+                                            }
+                                        }
+                                    }
+                                }
+                                markAlertNotified(doc.id)
+                            }
+                            return@addSnapshotListener
+                        }
 
-        val viewedBy = alertData[fs.FIELD_VIEWED_BY] as? List<String> ?: emptyList()
-        if (viewedBy.contains(currentUser.uid)) {
-            println("👁️ User already viewed this alert, skipping notification: $alertType")
-            return
-        }
-
-        val timestamp = alertData[fs.FIELD_TIMESTAMP] as? com.google.firebase.Timestamp
-        if (timestamp != null) {
-            val alertTime = timestamp.toDate()
-            val windowStart = Date(
-                System.currentTimeMillis() - GuardianNativeConfig.Durations.ALERTS_LISTENER_WINDOW_MS,
-            )
-            if (alertTime.before(windowStart)) {
-                println("⏰ Alert is too old (${alertTime}), skipping notification: $alertType")
-                return
-            }
-        }
-
-        val communityIds = linkedSetOf<String>()
-        (alertData[fs.FIELD_COMMUNITY_IDS] as? List<*>)?.filterIsInstance<String>()?.let {
-            communityIds.addAll(it)
-        }
-        (alertData[fs.FIELD_COMMUNITY_ID] as? String)?.let { communityIds.add(it) }
-
-        if (communityIds.isNotEmpty()) {
-            tryNotifyForCommunityTargets(
-                currentUser.uid,
-                communityIds.toList(),
-                alertType,
-                description,
-                isAnonymous,
-                shareLocation,
-                0
-            )
-        } else {
-            println("ℹ️ Alert $documentId without community scope (legacy), notifying user")
-            showAlertNotification(alertType, description, isAnonymous, shareLocation)
-            triggerVibration()
-            println("🚨 New alert notification sent: $alertType")
+                        snapshot.documentChanges.forEach { change ->
+                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                                return@forEach
+                            }
+                            val docId = change.document.id
+                            if (isAlertAlreadyNotified(docId)) return@forEach
+                            val data = change.document.data ?: return@forEach
+                            if (shouldSkipInboxAlert(data)) {
+                                markAlertNotified(docId)
+                                return@forEach
+                            }
+                            deliverInboxAlertNotification(data, docId)
+                            markAlertNotified(docId)
+                        }
+                    } catch (e: Exception) {
+                        println("❌ Alert inbox handler error (non-fatal): ${e.message}")
+                    }
+                }
+            println("🚨 Alert inbox listener attached for user ${currentUser.uid}")
+        } catch (e: Exception) {
+            println("❌ Failed to start alert inbox listener (non-fatal): ${e.message}")
+            alertInboxListener = null
         }
     }
 
-    /**
-     * Sends at most one notification: first [communityIds] entry where the user is a member.
-     *
-     * Entities (`is_entity: true`) are report inboxes: only `official`/`admin`
-     * members get notified; regular members send reports but never receive them.
-     */
-    private fun tryNotifyForCommunityTargets(
-        userId: String,
-        communityIds: List<String>,
-        alertType: String,
-        description: String?,
-        isAnonymous: Boolean,
-        shareLocation: Boolean,
-        index: Int
-    ) {
-        if (index >= communityIds.size) {
-            println("🚫 User not authorized for any community on this alert")
+    private fun stopAlertInboxListener() {
+        alertInboxListener?.remove()
+        alertInboxListener = null
+        alertInboxInitialSnapshot = true
+    }
+
+    private fun shouldSkipInboxAlert(data: Map<String, Any>): Boolean {
+        val fs = GuardianNativeConfig.Firestore
+        val read = data[fs.FIELD_READ] as? Boolean ?: false
+        if (read) return true
+
+        val status = data[fs.FIELD_ALERT_STATUS] as? String ?: fs.STATUS_PENDING
+        if (status == fs.STATUS_ATTENDED) return true
+
+        val alertType = data[fs.FIELD_INBOX_ALERT_TYPE] as? String
+        return alertType.isNullOrBlank()
+    }
+
+    private fun deliverInboxAlertNotification(data: Map<String, Any>, inboxDocId: String) {
+        if (!shouldDeliverNativeNotification()) return
+
+        val fs = GuardianNativeConfig.Firestore
+        val rawAlertType = data[fs.FIELD_INBOX_ALERT_TYPE] as? String ?: return
+        val flowType = data[fs.FIELD_INBOX_FLOW_TYPE] as? String ?: ""
+        val alertType = EmergencyTypes.normalizeAlertTypeForNotification(rawAlertType, flowType)
+        val description = data[fs.FIELD_INBOX_DESCRIPTION] as? String
+        val isAnonymous = data[fs.FIELD_INBOX_IS_ANONYMOUS] as? Boolean ?: false
+        val shareLocation = data[fs.FIELD_INBOX_SHARE_LOCATION] as? Boolean ?: false
+
+        showAlertNotification(alertType, description, isAnonymous, shareLocation)
+        triggerEmergencyVibration()
+        println("🚨 Inbox alert notification sent: $inboxDocId ($alertType)")
+    }
+
+    private fun resolveEmergencySoundUri(): Uri {
+        val rawName = GuardianNativeConfig.Notifications.RAW_EMERGENCY_SIREN
+        val resId = resources.getIdentifier(rawName, "raw", packageName)
+        if (resId != 0) {
+            return Uri.parse("android.resource://$packageName/$resId")
+        }
+        return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI
+    }
+
+    private fun triggerEmergencyVibration() {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Vibrator::class.java)
+            } ?: return
+
+            if (!vibrator.hasVibrator()) return
+
+            val pattern = GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS
+            val durationMs = GuardianNativeConfig.Durations.ACTIVE_ALERT_FEEDBACK_MS
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(pattern, 0)
+            }
+
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                try { vibrator.cancel() } catch (_: Exception) {}
+            }, durationMs)
+            println("📳 Vibración de emergencia activa ${durationMs}ms")
+        } catch (e: Exception) {
+            println("❌ Emergency vibration error: ${e.message}")
+        }
+    }
+
+    private fun messageNotifiedPrefs() =
+        getSharedPreferences(PREFS_NOTIFIED_MESSAGES, Context.MODE_PRIVATE)
+
+    private fun isMessageAlreadyNotified(docId: String): Boolean =
+        messageNotifiedPrefs().getBoolean("msg_$docId", false)
+
+    private fun markMessageNotified(docId: String) {
+        messageNotifiedPrefs().edit().putBoolean("msg_$docId", true).apply()
+    }
+
+    private fun startCommunityMessagesListener() {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            println("⚠️ No user logged in, skipping community messages listener")
             return
         }
+
+        communityMessagesInitialSnapshot = true
+
         val fs = GuardianNativeConfig.Firestore
-        val communityId = communityIds[index]
-        firestore.collection(fs.COLLECTION_COMMUNITIES)
-            .document(communityId)
-            .get()
-            .addOnSuccessListener { communityDoc ->
-                if (!communityDoc.exists()) {
-                    tryNotifyForCommunityTargets(
-                        userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
-                    )
-                    return@addOnSuccessListener
+        try {
+            communityMessagesListener = firestore
+                .collection(fs.COLLECTION_USERS)
+                .document(currentUser.uid)
+                .collection(fs.SUBCOLLECTION_COMMUNITY_MESSAGES)
+                .orderBy(fs.FIELD_CREATED_AT, Query.Direction.DESCENDING)
+                .limit(fs.COMMUNITY_MESSAGES_QUERY_LIMIT)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        println("❌ Error listening to community messages (non-fatal): $error")
+                        return@addSnapshotListener
+                    }
+                    if (snapshot == null) return@addSnapshotListener
+
+                    try {
+                        if (communityMessagesInitialSnapshot) {
+                            communityMessagesInitialSnapshot = false
+                            val now = System.currentTimeMillis()
+                            val startupWindow = fs.MESSAGES_STARTUP_NOTIFY_WINDOW_MS
+                            snapshot.documents.forEach { doc ->
+                                val data = doc.data
+                                if (data != null && !isMessageAlreadyNotified(doc.id)) {
+                                    if (!shouldSkipCommunityMessage(data, doc.id)) {
+                                        val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
+                                        if (createdAt != null) {
+                                            val ageMs = now - createdAt.toDate().time
+                                            if (ageMs in 0..startupWindow) {
+                                                deliverCommunityMessageNotification(data, doc.id)
+                                            }
+                                        }
+                                    }
+                                }
+                                markMessageNotified(doc.id)
+                            }
+                            return@addSnapshotListener
+                        }
+
+                        snapshot.documentChanges.forEach { change ->
+                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                                return@forEach
+                            }
+                            val docId = change.document.id
+                            if (isMessageAlreadyNotified(docId)) return@forEach
+                            val data = change.document.data ?: return@forEach
+                            if (shouldSkipCommunityMessage(data, docId)) {
+                                markMessageNotified(docId)
+                                return@forEach
+                            }
+                            deliverCommunityMessageNotification(data, docId)
+                            markMessageNotified(docId)
+                        }
+                    } catch (e: Exception) {
+                        println("❌ Community message handler error (non-fatal): ${e.message}")
+                    }
                 }
-                val isEntity = communityDoc.getBoolean(fs.FIELD_IS_ENTITY) ?: false
-                firestore.collection(fs.COLLECTION_COMMUNITY_MEMBERS)
-                    .whereEqualTo(fs.FIELD_MEMBER_USER_ID, userId)
-                    .whereEqualTo(fs.FIELD_COMMUNITY_ID, communityId)
-                    .limit(1)
-                    .get()
-                    .addOnSuccessListener { memberSnapshot ->
-                        if (memberSnapshot.isEmpty) {
-                            tryNotifyForCommunityTargets(
-                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
-                            )
-                            return@addOnSuccessListener
-                        }
-                        val role = memberSnapshot.documents[0]
-                            .getString(fs.FIELD_ROLE) ?: fs.ROLE_MEMBER
-                        if (isEntity && role != fs.ROLE_ADMIN && role != fs.ROLE_OFFICIAL) {
-                            println("🚫 Entity report: member role '$role' not notified for $communityId")
-                            tryNotifyForCommunityTargets(
-                                userId, communityIds, alertType, description, isAnonymous, shareLocation, index + 1
-                            )
-                            return@addOnSuccessListener
-                        }
-                        showAlertNotification(alertType, description, isAnonymous, shareLocation)
-                        triggerVibration()
-                        println("🚨 Alert notification sent for community $communityId: $alertType")
-                    }
-                    .addOnFailureListener { e ->
-                        println("❌ Error checking user membership: $e")
-                    }
-            }
-            .addOnFailureListener { e ->
-                println("❌ Error getting community: $e")
-            }
+            println("💬 Community messages listener attached for user ${currentUser.uid}")
+        } catch (e: Exception) {
+            println("❌ Failed to start community messages listener (non-fatal): ${e.message}")
+            communityMessagesListener = null
+        }
+    }
+
+    private fun stopCommunityMessagesListener() {
+        communityMessagesListener?.remove()
+        communityMessagesListener = null
+        communityMessagesInitialSnapshot = true
+    }
+
+    private fun shouldSkipCommunityMessage(data: Map<String, Any>, documentId: String): Boolean {
+        val fs = GuardianNativeConfig.Firestore
+        val currentUser = auth.currentUser ?: return true
+
+        val read = data[fs.FIELD_READ] as? Boolean ?: false
+        if (read) {
+            println("📭 Community message already read, skip: $documentId")
+            return true
+        }
+
+        val senderId = data[fs.FIELD_SENDER_ID] as? String
+        if (senderId != null && senderId == currentUser.uid) {
+            println("🚫 Skipping own community message: $documentId")
+            return true
+        }
+
+        val title = (data[fs.FIELD_MESSAGE_TITLE] as? String)?.trim().orEmpty()
+        val body = (data[fs.FIELD_MESSAGE_BODY] as? String)?.trim().orEmpty()
+        if (title.isEmpty() && body.isEmpty()) {
+            println("⚠️ Empty community message, skip: $documentId")
+            return true
+        }
+
+        return false
+    }
+
+    private fun deliverCommunityMessageNotification(data: Map<String, Any>, documentId: String) {
+        if (!shouldDeliverNativeNotification()) return
+
+        val fs = GuardianNativeConfig.Firestore
+        val title = (data[fs.FIELD_MESSAGE_TITLE] as? String)?.trim().orEmpty()
+        val body = (data[fs.FIELD_MESSAGE_BODY] as? String)?.trim().orEmpty()
+        val senderName = (data[fs.FIELD_SENDER_NAME] as? String)?.trim()
+        showCommunityMessageNotification(title, body, senderName, documentId)
+        println("💬 Community message notification sent: $documentId")
+    }
+
+    private fun showCommunityMessageNotification(
+        title: String,
+        body: String,
+        senderName: String?,
+        documentId: String,
+    ) {
+        val language = LocaleHelper.getCurrentLanguage(this)
+        val defaultTitle = if (language == "es") "Mensaje de tu comunidad" else "Message from your community"
+        val contentTitle = if (title.isNotEmpty()) title else defaultTitle
+        val summary = if (body.isNotEmpty()) {
+            body
+        } else if (!senderName.isNullOrEmpty()) {
+            if (language == "es") "De $senderName" else "From $senderName"
+        } else {
+            if (language == "es") "Tienes un nuevo mensaje" else "You have a new message"
+        }
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(GuardianNativeConfig.Notifications.EXTRA_OPEN_COMMUNITY_MESSAGES, true)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            documentId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(
+            this,
+            GuardianNativeConfig.Notifications.CHANNEL_COMMUNITY_MESSAGES,
+        )
+            .setContentTitle(contentTitle)
+            .setContentText(summary)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
+            .setVibrate(
+                longArrayOf(
+                    0,
+                    GuardianNativeConfig.Durations.COMMUNITY_MESSAGE_VIBRATE_MS,
+                ),
+            )
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .setBigContentTitle(contentTitle)
+                    .bigText(if (body.isNotEmpty()) body else summary),
+            )
+            .build()
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(documentId.hashCode(), notification)
     }
     
     private fun showAlertNotification(
@@ -447,8 +671,8 @@ class GuardianBackgroundService : Service() {
         isAnonymous: Boolean,
         shareLocation: Boolean
     ) {
-        val title = getAlertTitle(alertType)
-        val body = buildAlertBody(alertType, description, isAnonymous, shareLocation)
+        val title = EmergencyTypes.getNotificationTitle(alertType)
+        val body = EmergencyTypes.buildNotificationBody(alertType, description, isAnonymous, shareLocation)
         val summary = EmergencyTypes.buildNotificationSummary(description, isAnonymous, shareLocation)
         val expanded = if (body.isNotEmpty()) body else summary
 
@@ -473,14 +697,13 @@ class GuardianBackgroundService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
+            .setSound(resolveEmergencySoundUri())
             .setVibrate(GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS)
             .setLights(
                 GuardianNativeConfig.Notifications.ALERT_LIGHT_COLOR,
                 GuardianNativeConfig.Durations.NOTIFICATION_LIGHT_FLASH_MS.toInt(),
                 GuardianNativeConfig.Durations.NOTIFICATION_LIGHT_FLASH_MS.toInt(),
             )
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setFullScreenIntent(pendingIntent, true)
             .setTimeoutAfter(GuardianNativeConfig.Durations.EMERGENCY_NOTIFICATION_TIMEOUT_MS)
             .setStyle(
@@ -495,81 +718,12 @@ class GuardianBackgroundService : Service() {
         notificationManager.notify((System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification)
     }
     
-    private fun getAlertTitle(alertType: String): String {
-        return EmergencyTypes.getNotificationTitle(alertType)
-    }
-    
-    private fun buildAlertBody(
-        alertType: String,
-        description: String?,
-        isAnonymous: Boolean,
-        shareLocation: Boolean
-    ): String {
-        return EmergencyTypes.buildNotificationBody(alertType, description, isAnonymous, shareLocation)
-    }
-    
-    private fun triggerVibration() {
-        try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = getSystemService(VibratorManager::class.java)
-                vibratorManager?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                getSystemService(Vibrator::class.java)
-            }
-
-            if (vibrator != null && vibrator.hasVibrator()) {
-                println("📳 Iniciando vibración de emergencia...")
-                
-                val emergencyPattern = GuardianNativeConfig.Vibration.EMERGENCY_PATTERN_MS
-                val continuousDurationMs = GuardianNativeConfig.Durations.ACTIVE_ALERT_FEEDBACK_MS
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    try {
-                        // Usar patrón de vibración más agresivo
-                        val effect = VibrationEffect.createWaveform(emergencyPattern, 0) // repeat
-                        vibrator.vibrate(effect)
-                        
-                        println("📳 Vibración con patrón agresivo activada")
-                        
-                        // Safety: cancel vibration after the duration
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            try { 
-                                vibrator.cancel() 
-                                println("📳 Vibración cancelada después de $continuousDurationMs ms")
-                            } catch (ignored: Exception) {}
-                        }, continuousDurationMs)
-                    } catch (e: Exception) {
-                        println("❌ Error con patrón de vibración, usando fallback: ${e.message}")
-                        // Fallback más simple
-                        @Suppress("DEPRECATION")
-                        vibrator.vibrate(continuousDurationMs)
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            try { vibrator.cancel() } catch (ignored: Exception) {}
-                        }, continuousDurationMs)
-                    }
-                } else {
-                    // Deprecated API fallback
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(emergencyPattern, 0) // repeat
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        try { vibrator.cancel() } catch (ignored: Exception) {}
-                    }, continuousDurationMs)
-                }
-
-                println("📳 Vibración de emergencia activada por $continuousDurationMs ms")
-            } else {
-                println("❌ Vibrator no disponible o no soportado")
-            }
-        } catch (e: Exception) {
-            println("❌ Error en vibración manual: ${e.message}")
-        }
-    }
-    
     override fun onDestroy() {
-        super.onDestroy()
-        stopAlertsListener()
+        authStateListener?.let { auth.removeAuthStateListener(it) }
+        stopAlertInboxListener()
+        stopCommunityMessagesListener()
         isServiceRunning = false
+        super.onDestroy()
         println("🔄 Guardian Background Service destroyed")
         
         // Intentar reiniciar el servicio si fue eliminado inesperadamente

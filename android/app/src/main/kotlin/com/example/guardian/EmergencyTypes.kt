@@ -1,7 +1,6 @@
 package com.example.guardian
 
 import android.content.Context
-import android.graphics.Color
 
 /**
  * Tipos de emergencia alineados con [lib/core/alert_detail_catalog.dart] y
@@ -16,103 +15,9 @@ object EmergencyTypes {
         this.context = context
     }
 
-    /**
-     * Catálogo canónico: claves = valor `alertType` en Firestore (mismo que Flutter).
-     */
-    val catalogTypes: Map<String, EmergencyType> = mapOf(
-        "HEALTH" to EmergencyType(
-            type = "HEALTH",
-            icon = "🏥",
-            color = Color.parseColor("#26C6DA"),
-            title = "HEALTH",
-        ),
-        "casa" to EmergencyType(
-            type = "casa",
-            icon = "🏠",
-            color = Color.parseColor("#66BB6A"),
-            title = "casa",
-        ),
-        "policial" to EmergencyType(
-            type = "policial",
-            icon = "🚔",
-            color = Color.parseColor("#1565C0"),
-            title = "policial",
-        ),
-        "FIRE" to EmergencyType(
-            type = "FIRE",
-            icon = "🔥",
-            color = Color.parseColor("#E53935"),
-            title = "FIRE",
-        ),
-        "seguridad" to EmergencyType(
-            type = "seguridad",
-            icon = "🛡️",
-            color = Color.parseColor("#C62828"),
-            title = "seguridad",
-        ),
-        "vial" to EmergencyType(
-            type = "vial",
-            icon = "🚗",
-            color = Color.parseColor("#FF7043"),
-            title = "vial",
-        ),
-        "ambiental" to EmergencyType(
-            type = "ambiental",
-            icon = "🌿",
-            color = Color.parseColor("#43A047"),
-            title = "ambiental",
-        ),
-        "ACCOMPANIMENT" to EmergencyType(
-            type = "ACCOMPANIMENT",
-            icon = "👥",
-            color = Color.parseColor("#8E24AA"),
-            title = "ACCOMPANIMENT",
-        ),
-        "acoso" to EmergencyType(
-            type = "acoso",
-            icon = "✋",
-            color = Color.parseColor("#7B1FA2"),
-            title = "acoso",
-        ),
-        "URGENCY" to EmergencyType(
-            type = "URGENCY",
-            icon = "🚨",
-            color = Color.parseColor("#F44336"),
-            title = "URGENCY",
-        ),
-    )
-
-    /**
-     * Resuelve por `alertType` de Firestore; acepta alias heredados.
-     */
-    fun getTypeByName(typeName: String): EmergencyType? {
-        val key = normalizeAliasToCanonicalKey(typeName)
-        return catalogTypes[key]
-    }
-
     private fun getCurrentLanguage(): String {
-        val ctx = context ?: return "es"
-        return try {
-            val flutterPrefs = ctx.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            var lang = flutterPrefs.getString("flutter.selected_language", null)
-            if (lang == null) {
-                for (k in flutterPrefs.all.keys) {
-                    if (k.contains("selected_language")) {
-                        lang = flutterPrefs.getString(k, null)
-                        break
-                    }
-                }
-            }
-            if (lang != null) {
-                ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-                    .edit().putString("language", lang).apply()
-                return lang
-            }
-            ctx.getSharedPreferences("flutter_localization", Context.MODE_PRIVATE)
-                .getString("language", "es") ?: "es"
-        } catch (_: Exception) {
-            "es"
-        }
+        val ctx = context ?: return GuardianNativeConfig.Locale.DEFAULT_LANGUAGE
+        return LocaleHelper.getCurrentLanguage(ctx)
     }
 
     /**
@@ -256,10 +161,3 @@ object EmergencyTypes {
         return parts.joinToString(" · ")
     }
 }
-
-data class EmergencyType(
-    val type: String,
-    val icon: String,
-    val color: Int,
-    val title: String,
-)

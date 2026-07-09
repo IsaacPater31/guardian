@@ -1280,6 +1280,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get myAlertsTitle => 'Mis alertas';
 
   @override
+  String get communityMessagesTitle => 'Mensajes de comunidad';
+
+  @override
+  String get communityMessagesEmpty => 'No hay mensajes de tus comunidades.';
+
+  @override
+  String get communityMessagesSignIn => 'Inicia sesión para ver mensajes.';
+
+  @override
+  String get communityMessageDefaultTitle => 'Mensaje';
+
+  @override
+  String communityMessageFrom(String sender) {
+    return 'De $sender';
+  }
+
+  @override
   String get myAlertsProfileSubtitle => 'Historial de alertas que enviaste';
 
   @override

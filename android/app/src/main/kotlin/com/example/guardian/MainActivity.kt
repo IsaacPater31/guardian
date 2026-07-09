@@ -19,6 +19,46 @@ class MainActivity : FlutterActivity() {
     private lateinit var audioPreviewChannel: MethodChannel
     private var audioPreviewPlayer: MediaPlayer? = null
 
+    companion object {
+        private const val PREFS_NAV = "guardian_navigation"
+        private const val KEY_OPEN_COMMUNITY_MESSAGES = "open_community_messages"
+    }
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        storeNotificationNavigationIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        GuardianBackgroundService.setAppInForeground(true)
+    }
+
+    override fun onPause() {
+        GuardianBackgroundService.setAppInForeground(false)
+        super.onPause()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        storeNotificationNavigationIntent(intent)
+    }
+
+    private fun storeNotificationNavigationIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(
+                GuardianNativeConfig.Notifications.EXTRA_OPEN_COMMUNITY_MESSAGES,
+                false,
+            ) == true
+        ) {
+            getSharedPreferences(PREFS_NAV, MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_OPEN_COMMUNITY_MESSAGES, true)
+                .apply()
+            intent.removeExtra(GuardianNativeConfig.Notifications.EXTRA_OPEN_COMMUNITY_MESSAGES)
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -79,7 +119,11 @@ class MainActivity : FlutterActivity() {
                     val intent = Intent(this, GuardianBackgroundService::class.java).apply {
                         action = GuardianNativeConfig.Service.ACTION_START
                     }
-                    startService(intent)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
                     result.success(true)
                 }
                 "stopService" -> {
@@ -103,15 +147,6 @@ class MainActivity : FlutterActivity() {
                     requestWhitelistPermission()
                     result.success(true)
                 }
-                "scheduleWorker" -> {
-                    // Schedule WorkManager periodic work from native side
-                    try {
-                        GuardianStarterWorker.schedulePeriodicWork(this)
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("WORKER_ERROR", e.message, null)
-                    }
-                }
                 "checkNotificationPermissions" -> {
                     result.success(checkNotificationPermissions())
                 }
@@ -123,6 +158,19 @@ class MainActivity : FlutterActivity() {
                     val language = call.argument<String>("language")
                     setLanguage(language)
                     result.success(true)
+                }
+                "setAppForeground" -> {
+                    val foreground = call.argument<Boolean>("foreground") ?: false
+                    GuardianBackgroundService.setAppInForeground(foreground)
+                    result.success(true)
+                }
+                "consumeOpenCommunityMessages" -> {
+                    val prefs = getSharedPreferences(PREFS_NAV, MODE_PRIVATE)
+                    val open = prefs.getBoolean(KEY_OPEN_COMMUNITY_MESSAGES, false)
+                    if (open) {
+                        prefs.edit().remove(KEY_OPEN_COMMUNITY_MESSAGES).apply()
+                    }
+                    result.success(open)
                 }
                 else -> {
                     result.notImplemented()
@@ -249,24 +297,8 @@ class MainActivity : FlutterActivity() {
      */
     private fun syncFlutterLocaleToNative() {
         try {
-            val locale = GuardianNativeConfig.Locale
-            val flutterPrefs = getSharedPreferences(locale.PREFS_FLUTTER, MODE_PRIVATE)
-            var lang = flutterPrefs.getString(locale.KEY_FLUTTER_SELECTED_LANGUAGE, null)
-            if (lang == null) {
-                for (key in flutterPrefs.all.keys) {
-                    if (key.contains("selected_language")) {
-                        lang = flutterPrefs.getString(key, null)
-                        break
-                    }
-                }
-            }
-            if (lang != null) {
-                getSharedPreferences(locale.PREFS_NATIVE, MODE_PRIVATE)
-                    .edit()
-                    .putString(locale.KEY_LANGUAGE, lang)
-                    .apply()
-                println("✅ Synced Flutter locale to native: $lang")
-            }
+            val lang = LocaleHelper.getCurrentLanguage(this)
+            println("✅ Synced Flutter locale to native: $lang")
         } catch (e: Exception) {
             println("⚠️ syncFlutterLocaleToNative: ${e.message}")
         }

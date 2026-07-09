@@ -21,6 +21,7 @@ import 'package:guardian/services/user_service.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/active_alert_highlight_service.dart';
+import 'package:guardian/services/native_background_service.dart';
 import 'package:guardian/widgets/adaptive_fit_text.dart';
 import 'package:guardian/widgets/pulsing_highlight_wrapper.dart';
 
@@ -83,12 +84,8 @@ class _HomeViewState extends State<HomeView> {
     };
     _highlightService.addListener(_highlightListener);
     _initializeController();
-    _checkServiceStatus();
     _loadCurrentLocationForNearby();
     _loadUserNonOfficialCommunities();
-
-    // Refrescar el estado del servicio cada 2 segundos para sincronización
-    _startServiceStatusRefresh();
   }
 
   Future<void> _loadCurrentLocationForNearby() async {
@@ -115,17 +112,7 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  void _startServiceStatusRefresh() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _checkServiceStatus();
-        _startServiceStatusRefresh(); // Continuar refrescando
-      }
-    });
-  }
-
   Future<void> _initializeController() async {
-    // Configurar callbacks
     _homeHandler.onAlertsUpdated = (alerts) {
       setState(() {
         _recentAlerts = alerts;
@@ -134,7 +121,6 @@ class _HomeViewState extends State<HomeView> {
     };
 
     _homeHandler.onNewAlertReceived = (alert) {
-      // Mostrar un snackbar adicional para alertas nuevas
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -168,6 +154,7 @@ class _HomeViewState extends State<HomeView> {
     try {
       await _homeHandler.initialize();
       await _homeHandler.refreshRecentAlerts();
+      await _openCommunityMessagesIfNeeded();
     } catch (e) {
       AppLogger.e('HomeView._initializeController', e);
       if (mounted) {
@@ -183,18 +170,13 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  Future<void> _checkServiceStatus() async {
-    try {
-      final isRunning = await _homeHandler.isServiceRunning();
-      AppLogger.d('Background service running: $isRunning');
-    } catch (e) {
-      AppLogger.e('HomeView._checkServiceStatus', e);
-    }
-  }
-
-  // Método para refrescar el estado del servicio desde otros lugares
-  Future<void> refreshServiceStatus() async {
-    await _checkServiceStatus();
+  Future<void> _openCommunityMessagesIfNeeded() async {
+    final open =
+        await NativeBackgroundService.consumeOpenCommunityMessagesNavigation();
+    if (!open || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationsView()),
+    );
   }
 
   @override

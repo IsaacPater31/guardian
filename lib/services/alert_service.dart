@@ -11,6 +11,7 @@ import '../repositories/community_repository.dart';
 import 'location_service.dart';
 import 'permission_service.dart';
 import 'quick_alert_config_service.dart';
+import 'alert_fanout_service.dart';
 import 'user_service.dart';
 
 /// Business rules for alerts: permissions, feed visibility, sending, forwarding.
@@ -25,6 +26,7 @@ class AlertService {
   final AlertRepository _alertRepository = AlertRepository();
   final CommunityRepository _communityRepository = CommunityRepository();
   final UserService _userService = UserService();
+  final AlertFanoutService _alertFanoutService = AlertFanoutService();
 
   List<String>? _cachedUserCommunityIds;
   Map<String, String>? _cachedUserRolesByCommunityId;
@@ -462,7 +464,7 @@ class AlertService {
         communityIds: const [],
       );
 
-      await _alertRepository.saveAlert(alert);
+      await _saveAlertWithFanout(alert);
       return true;
     } catch (e) {
       AppLogger.e('AlertService.sendDetailedAlert', e);
@@ -520,7 +522,7 @@ class AlertService {
         reportsCount: 0,
       );
 
-      await _alertRepository.saveAlert(alert);
+      await _saveAlertWithFanout(alert);
       AppLogger.d(
         'Quick alert sent to ${destinations.length} communities in 1 document',
       );
@@ -591,7 +593,7 @@ class AlertService {
         reportsCount: 0,
       );
 
-      await _alertRepository.saveAlert(alert);
+      await _saveAlertWithFanout(alert);
       AppLogger.d(
         'Typed alert sent to ${communityIds.length} communities in 1 document',
       );
@@ -686,14 +688,23 @@ class AlertService {
       );
     }
 
-    final count = await _alertRepository.commitForwardBatch(
+    final created = await _alertRepository.commitForwardBatch(
       originalAlertId: alertId,
       forwardedAlerts: forwardedAlerts,
       previousForwardsCount: originalAlert.forwardsCount,
     );
 
-    AppLogger.d('Alert forwarded to $count communities');
-    return count;
+    for (final item in created) {
+      await _alertFanoutService.fanoutAlert(item.id, item.alert);
+    }
+
+    AppLogger.d('Alert forwarded to ${created.length} communities');
+    return created.length;
+  }
+
+  Future<void> _saveAlertWithFanout(AlertModel alert) async {
+    final alertId = await _alertRepository.saveAlert(alert);
+    await _alertFanoutService.fanoutAlert(alertId, alert);
   }
 
   /// Un reporte a entidad va **solo** a esa entidad (un id). Las alertas

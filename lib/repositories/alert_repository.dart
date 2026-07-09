@@ -100,27 +100,28 @@ class AlertRepository {
   }
 
   /// Creates forwarded alert docs and updates [forwardsCount] on the original.
-  Future<int> commitForwardBatch({
+  /// Returns created alert id + model pairs for fan-out.
+  Future<List<({String id, AlertModel alert})>> commitForwardBatch({
     required String originalAlertId,
     required List<AlertModel> forwardedAlerts,
     required int previousForwardsCount,
   }) async {
     final batch = _firestore.batch();
-    var successCount = 0;
+    final created = <({String id, AlertModel alert})>[];
 
     for (final forwarded in forwardedAlerts) {
       final ref = _firestore.collection(FirestoreCollections.alerts).doc();
       batch.set(ref, forwarded.toFirestore());
-      successCount++;
+      created.add((id: ref.id, alert: forwarded));
     }
 
     batch.update(
       _firestore.collection(FirestoreCollections.alerts).doc(originalAlertId),
-      {AlertFields.forwardsCount: previousForwardsCount + successCount},
+      {AlertFields.forwardsCount: previousForwardsCount + created.length},
     );
 
     await batch.commit();
-    return successCount;
+    return created;
   }
 
   // ─── Reads (unfiltered) ──────────────────────────────────────────────────

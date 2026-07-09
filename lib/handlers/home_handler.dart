@@ -27,7 +27,6 @@ class HomeHandler {
 
   Function(List<AlertModel>)? onAlertsUpdated;
   Function(AlertModel)? onNewAlertReceived;
-  Function(bool)? onServiceStatusChanged;
 
   Future<void> initialize() async {
     if (_isInitialized) {
@@ -64,26 +63,6 @@ class HomeHandler {
     AppLogger.d('HomeHandler disposed');
   }
 
-  Future<void> disposeCompletely() async {
-    AppLogger.d('HomeHandler completely disposing');
-    await _alertsSubscription?.cancel();
-    _alertsSubscription = null;
-
-    if (Platform.isAndroid) {
-      try {
-        await NativeBackgroundService.stopService();
-        AppLogger.d('Background service stopped on complete dispose');
-      } catch (e) {
-        AppLogger.e('HomeHandler.disposeCompletely: stop service error', e);
-      }
-    }
-
-    _isInitialized = false;
-    _lastKnownAlerts.clear();
-    _processedAlertIds.clear();
-    AppLogger.d('HomeHandler completely disposed');
-  }
-
   Future<List<AlertModel>> getRecentAlerts() async {
     try {
       final alerts = await _alertService.getRecentAlerts();
@@ -111,33 +90,6 @@ class HomeHandler {
   Future<void> refreshRecentAlerts() async {
     AppLogger.d('HomeHandler: refreshing alerts');
     await _loadRecentAlerts();
-  }
-
-  Future<bool> isServiceRunning() async {
-    if (Platform.isAndroid) return NativeBackgroundService.isServiceRunning();
-    return false;
-  }
-
-  Future<void> startBackgroundService() async {
-    if (!Platform.isAndroid) return;
-    try {
-      await NativeBackgroundService.startService();
-      onServiceStatusChanged?.call(true);
-      AppLogger.d('Background service started');
-    } catch (e) {
-      AppLogger.e('HomeHandler.startBackgroundService', e);
-    }
-  }
-
-  Future<void> stopBackgroundService() async {
-    if (!Platform.isAndroid) return;
-    try {
-      await NativeBackgroundService.stopService();
-      onServiceStatusChanged?.call(false);
-      AppLogger.d('Background service stopped');
-    } catch (e) {
-      AppLogger.e('HomeHandler.stopBackgroundService', e);
-    }
   }
 
   Future<void> markAlertAsViewed(String alertId) async {

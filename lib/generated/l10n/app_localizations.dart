@@ -2420,6 +2420,36 @@ abstract class AppLocalizations {
   /// **'Mis alertas'**
   String get myAlertsTitle;
 
+  /// No description provided for @communityMessagesTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensajes de comunidad'**
+  String get communityMessagesTitle;
+
+  /// No description provided for @communityMessagesEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay mensajes de tus comunidades.'**
+  String get communityMessagesEmpty;
+
+  /// No description provided for @communityMessagesSignIn.
+  ///
+  /// In es, this message translates to:
+  /// **'Inicia sesión para ver mensajes.'**
+  String get communityMessagesSignIn;
+
+  /// No description provided for @communityMessageDefaultTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensaje'**
+  String get communityMessageDefaultTitle;
+
+  /// No description provided for @communityMessageFrom.
+  ///
+  /// In es, this message translates to:
+  /// **'De {sender}'**
+  String communityMessageFrom(String sender);
+
   /// No description provided for @myAlertsProfileSubtitle.
   ///
   /// In es, this message translates to:

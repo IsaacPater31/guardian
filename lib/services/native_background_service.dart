@@ -52,6 +52,17 @@ class NativeBackgroundService {
     }
   }
 
+  /// Informa al servicio nativo si la app está en primer plano (evita notificaciones duplicadas).
+  static Future<void> setAppForeground(bool foreground) async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      await _channel.invokeMethod('setAppForeground', {'foreground': foreground});
+    } on PlatformException catch (e) {
+      AppLogger.e('NativeBackgroundService.setAppForeground', e.message ?? e);
+    }
+  }
+
   /// Solicita exención de optimización de batería.
   static Future<bool> requestBatteryOptimizationExemption() async {
     if (!Platform.isAndroid) return false;
@@ -78,20 +89,6 @@ class NativeBackgroundService {
     } on PlatformException catch (e) {
       AppLogger.e(
           'NativeBackgroundService.isBatteryOptimizationIgnored', e.message ?? e);
-      return false;
-    }
-  }
-
-  /// Solicita que la app sea añadida a la lista blanca del sistema.
-  static Future<bool> requestWhitelistPermission() async {
-    if (!Platform.isAndroid) return false;
-
-    try {
-      final bool result = await _channel.invokeMethod('requestWhitelistPermission');
-      AppLogger.d('Whitelist permission result: $result');
-      return result;
-    } on PlatformException catch (e) {
-      AppLogger.e('NativeBackgroundService.requestWhitelistPermission', e.message ?? e);
       return false;
     }
   }
@@ -123,6 +120,19 @@ class NativeBackgroundService {
     } on PlatformException catch (e) {
       AppLogger.e(
           'NativeBackgroundService.requestNotificationPermissions', e.message ?? e);
+      return false;
+    }
+  }
+
+  /// True si el usuario abrió la app desde una notificación de mensaje de comunidad.
+  static Future<bool> consumeOpenCommunityMessagesNavigation() async {
+    if (!Platform.isAndroid) return false;
+
+    try {
+      final result = await _channel.invokeMethod<bool>('consumeOpenCommunityMessages');
+      return result ?? false;
+    } on PlatformException catch (e) {
+      AppLogger.e('NativeBackgroundService.consumeOpenCommunityMessagesNavigation', e.message ?? e);
       return false;
     }
   }
