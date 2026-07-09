@@ -2,9 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/community_message_service.dart';
-import 'package:guardian/views/main_app/widgets/my_alerts_entry_tile.dart';
 
-/// Notificaciones: mensajes de comunidad + acceso a historial propio de alertas.
+/// Notificaciones: mensajes de comunidad.
 class NotificationsView extends StatefulWidget {
   const NotificationsView({super.key});
 
@@ -94,18 +93,6 @@ class _NotificationsViewState extends State<NotificationsView> {
                   );
                 },
               ),
-            const SizedBox(height: 28),
-            Text(
-              l10n.myAlertsTitle,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const MyAlertsEntryTile(),
           ],
         ),
       ),

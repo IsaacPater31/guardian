@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:guardian/views/main_app/widgets/my_alerts_entry_tile.dart';
 
-/// Pestaña Estadísticas: espacio para métricas y reportes futuros.
+/// Pestaña Estadísticas: historial personal de alertas y métricas futuras.
 class EstadisticasView extends StatelessWidget {
   const EstadisticasView({super.key});
 
@@ -26,30 +27,21 @@ class EstadisticasView extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(pad),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.bar_chart_rounded,
-                  size: 56,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.comingSoon,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ],
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(pad, 12, pad, 32),
+          children: [
+            Text(
+              l10n.myAlertsStatisticsSectionLabel,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+                letterSpacing: 0.3,
+              ),
             ),
-          ),
+            const SizedBox(height: 10),
+            const MyAlertsEntryTile(),
+          ],
         ),
       ),
     );
