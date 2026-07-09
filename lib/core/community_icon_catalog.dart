@@ -8,6 +8,45 @@ class CommunityIconCatalog {
 
   static const int defaultIconCodePoint = 58502;
   static const String defaultIconColor = '#5B6ABF';
+  static const IconData defaultIcon = IconData(
+    defaultIconCodePoint,
+    fontFamily: 'MaterialIcons',
+  );
+
+  static const Map<int, IconData> _iconsByCodePoint = {
+    58502: IconData(58502, fontFamily: 'MaterialIcons'),
+    58094: IconData(58094, fontFamily: 'MaterialIcons'),
+    57943: IconData(57943, fontFamily: 'MaterialIcons'),
+    985180: IconData(985180, fontFamily: 'MaterialIcons'),
+    984766: IconData(984766, fontFamily: 'MaterialIcons'),
+    58136: IconData(58136, fontFamily: 'MaterialIcons'),
+    58280: IconData(58280, fontFamily: 'MaterialIcons'),
+    57481: IconData(57481, fontFamily: 'MaterialIcons'),
+    58412: IconData(58412, fontFamily: 'MaterialIcons'),
+    58312: IconData(58312, fontFamily: 'MaterialIcons'),
+    58713: IconData(58713, fontFamily: 'MaterialIcons'),
+    59122: IconData(59122, fontFamily: 'MaterialIcons'),
+    57627: IconData(57627, fontFamily: 'MaterialIcons'),
+    58714: IconData(58714, fontFamily: 'MaterialIcons'),
+    58333: IconData(58333, fontFamily: 'MaterialIcons'),
+    58866: IconData(58866, fontFamily: 'MaterialIcons'),
+    57997: IconData(57997, fontFamily: 'MaterialIcons'),
+    57820: IconData(57820, fontFamily: 'MaterialIcons'),
+    58854: IconData(58854, fontFamily: 'MaterialIcons'),
+    58588: IconData(58588, fontFamily: 'MaterialIcons'),
+    58262: IconData(58262, fontFamily: 'MaterialIcons'),
+    57947: IconData(57947, fontFamily: 'MaterialIcons'),
+    58116: IconData(58116, fontFamily: 'MaterialIcons'),
+    59078: IconData(59078, fontFamily: 'MaterialIcons'),
+    984269: IconData(984269, fontFamily: 'MaterialIcons'),
+    57535: IconData(57535, fontFamily: 'MaterialIcons'),
+    58389: IconData(58389, fontFamily: 'MaterialIcons'),
+    58964: IconData(58964, fontFamily: 'MaterialIcons'),
+    58774: IconData(58774, fontFamily: 'MaterialIcons'),
+    58729: IconData(58729, fontFamily: 'MaterialIcons'),
+    984314: IconData(984314, fontFamily: 'MaterialIcons'),
+    58448: IconData(58448, fontFamily: 'MaterialIcons'),
+  };
 
   static const List<CommunityIconCatalogEntry> entries = [
     CommunityIconCatalogEntry(codePoint: 58502, label: 'Grupo', colorHex: '#5B6ABF'),
@@ -49,10 +88,7 @@ class CommunityIconCatalog {
   };
 
   static IconData iconFromCodePoint(int codePoint) {
-    return IconData(
-      codePoint,
-      fontFamily: 'MaterialIcons',
-    );
+    return _iconsByCodePoint[codePoint] ?? defaultIcon;
   }
 
   static Color colorFromHex(String hex) {
