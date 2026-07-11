@@ -14,10 +14,12 @@ import 'package:guardian/views/main_app/widgets/home_sections/latest_recent_aler
 import 'package:guardian/views/main_app/widgets/home_sections/nearby_alerts_section.dart';
 import 'package:guardian/views/main_app/notifications_view.dart';
 import 'package:guardian/views/main_app/settings_view.dart';
+import 'package:guardian/services/community_message_service.dart';
 import 'package:guardian/services/community_service.dart';
 import 'package:guardian/services/localization_service.dart';
 import 'package:guardian/services/location_service.dart';
 import 'package:guardian/services/user_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:guardian/models/emergency_types.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/services/active_alert_highlight_service.dart';
@@ -444,16 +446,9 @@ class _HomeViewState extends State<HomeView> {
     required double spacing,
   }) {
     return [
-      _buildHeaderButton(
-        icon: Icons.notifications_outlined,
+      _buildNotificationsButton(
         iconSize: iconSize,
         buttonSize: buttonSize,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const NotificationsView()),
-          );
-        },
       ),
       SizedBox(width: spacing),
       _buildLanguageButton(buttonSize: buttonSize),
@@ -470,6 +465,78 @@ class _HomeViewState extends State<HomeView> {
         },
       ),
     ];
+  }
+
+  Widget _buildNotificationsButton({
+    required double iconSize,
+    required double buttonSize,
+  }) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final l10n = AppLocalizations.of(context)!;
+
+    return StreamBuilder<bool>(
+      stream: uid == null
+          ? Stream<bool>.value(false)
+          : CommunityMessageService().watchHasUnread(uid),
+      builder: (context, snap) {
+        final hasUnread = snap.data == true;
+        return Semantics(
+          button: true,
+          label: hasUnread
+              ? '${l10n.notifications}. ${Localizations.localeOf(context).languageCode == 'es' ? 'No leído' : 'Unread'}'
+              : l10n.notifications,
+          child: Material(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsView(),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: buttonSize,
+                height: buttonSize,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      Icons.notifications_outlined,
+                      color: const Color(0xFF1A1A1A),
+                      size: iconSize,
+                    ),
+                    if (hasUnread)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 11,
+                          height: 11,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE53935),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildHeaderButton({

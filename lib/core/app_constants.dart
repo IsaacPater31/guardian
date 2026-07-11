@@ -121,6 +121,29 @@ abstract final class AlertInboxFields {
   static const String alertStatus = 'alert_status';
 }
 
+/// Soft inbox at `users/{uid}/community_messages/{id}` (messages + membership).
+abstract final class CommunityInboxFields {
+  static const String kind = 'kind';
+  static const String messageId = 'message_id';
+  static const String communityId = 'community_id';
+  static const String communityName = 'community_name';
+  static const String communityIds = 'community_ids';
+  static const String title = 'title';
+  static const String body = 'body';
+  static const String senderId = 'sender_id';
+  static const String senderName = 'sender_name';
+  static const String role = 'role';
+  static const String previousRole = 'previous_role';
+  static const String targetUserId = 'target_user_id';
+  static const String read = 'read';
+  static const String createdAt = 'created_at';
+
+  static const String kindMessage = 'community_message';
+  static const String kindMemberAdded = 'member_added';
+  static const String kindMemberRemoved = 'member_removed';
+  static const String kindRoleChanged = 'role_changed';
+}
+
 // ─── SharedPreferences keys ──────────────────────────────────────────────────
 
 abstract final class PrefKeys {

@@ -124,6 +124,10 @@ class MainActivity : FlutterActivity() {
                     } else {
                         startService(intent)
                     }
+                    // FlutterFire may terminate Firestore during engine start; retry after Dart is up.
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        GuardianBackgroundService.requestListenerRefresh("post startService")
+                    }, 2_000L)
                     result.success(true)
                 }
                 "stopService" -> {
@@ -162,6 +166,10 @@ class MainActivity : FlutterActivity() {
                 "setAppForeground" -> {
                     val foreground = call.argument<Boolean>("foreground") ?: false
                     GuardianBackgroundService.setAppInForeground(foreground)
+                    result.success(true)
+                }
+                "refreshInboxListeners" -> {
+                    GuardianBackgroundService.requestListenerRefresh("flutter firestore ready")
                     result.success(true)
                 }
                 "consumeOpenCommunityMessages" -> {

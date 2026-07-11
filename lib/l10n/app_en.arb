@@ -489,6 +489,17 @@
       "sender": { "type": "String" }
     }
   },
+  "communityMessageOpenHint": "Open message",
+  "communityMessageClose": "Close",
+  "communityMessageUnread": "Unread",
+  "communityMessageRead": "Read",
+  "communityMessageDetailLabel": "Message detail",
+  "communityMessageCommunityLabel": "Community",
+  "communityMessageDateLabel": "Date",
+  "communityMessageBodyLabel": "Content",
+  "communityMessageSenderLabel": "Sent by",
+  "communityMessagesFilteredEmpty": "No notifications match these filters.",
+  "communityNotificationSection": "Notification",
   "myAlertsProfileSubtitle": "History of alerts you sent",
   "myAlertsEmptyTitle": "No alerts yet",
   "myAlertsEmptySubtitle": "Alerts you send from the main button will appear here.",

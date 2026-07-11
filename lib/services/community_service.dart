@@ -10,6 +10,7 @@ import '../core/app_logger.dart';
 import '../models/join_result.dart';
 import '../models/member_report_model.dart';
 import '../repositories/community_repository.dart';
+import '../repositories/community_message_repository.dart';
 import 'alert_service.dart';
 
 /// Business rules for communities, memberships, invites, and moderation.
@@ -23,6 +24,9 @@ class CommunityService {
 
   final CommunityRepository _repo = CommunityRepository();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Serializa [ensureDefaultCommunitiesForUser] por uid (registro + AuthGate en paralelo).
+  static final Map<String, Future<void>> _defaultCommunitiesInFlight = {};
 
   void _invalidateAlertCommunityCache() {
     AlertService().invalidateCommunityCache();
@@ -65,6 +69,21 @@ class CommunityService {
     return _repo.watchMembershipsForUser(userId).asyncMap((_) => getMyCommunities());
   }
 
+  /// All communities the user belongs to (normal + entity) — for inbox scoping.
+  Stream<List<Map<String, dynamic>>> getAllMyCommunitiesStream() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return _repo.watchMembershipsForUser(userId).asyncMap((_) async {
+      try {
+        return await _repo.fetchUserCommunities(userId);
+      } catch (e) {
+        AppLogger.e('getAllMyCommunitiesStream', e);
+        return <Map<String, dynamic>>[];
+      }
+    });
+  }
+
   // ─── Alert recipients ────────────────────────────────────────────────────
 
   Future<List<String>> getAlertRecipients(String communityId) async {
@@ -89,17 +108,34 @@ class CommunityService {
   /// Crea las comunidades por defecto si el usuario no pertenece a ninguna.
   ///
   /// Idempotente: reintentos tras fallo de red o sync duplicado no duplican Hogar.
-  Future<void> ensureDefaultCommunitiesForUser(String userId) async {
+  /// Registro + AuthGate pueden disparar esto a la vez; se serializa por [userId].
+  Future<void> ensureDefaultCommunitiesForUser(String userId) {
+    final existing = _defaultCommunitiesInFlight[userId];
+    if (existing != null) return existing;
+
+    final future = _ensureDefaultCommunitiesForUserImpl(userId).whenComplete(() {
+      _defaultCommunitiesInFlight.remove(userId);
+    });
+    _defaultCommunitiesInFlight[userId] = future;
+    return future;
+  }
+
+  Future<void> _ensureDefaultCommunitiesForUserImpl(String userId) async {
     try {
       final memberships = await _repo.queryMembershipsForUser(userId, limit: 1);
       if (memberships.docs.isNotEmpty) return;
 
       for (final template in DefaultCommunities.templates) {
+        // Re-check per slug in case a parallel caller already created it.
         final existing = await _repo.queryDefaultCommunityForUser(
           userId,
           template.slug,
         );
         if (existing.docs.isNotEmpty) continue;
+
+        final membershipsAgain =
+            await _repo.queryMembershipsForUser(userId, limit: 1);
+        if (membershipsAgain.docs.isNotEmpty) return;
 
         await _createCommunityForUser(
           userId: userId,
@@ -269,9 +305,24 @@ class CommunityService {
     required String targetUserId,
     required String communityId,
   }) async {
+    final commSnap = await _repo.getCommunitySnapshot(communityId);
+    final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+
+    // Inbox notify first — must not depend on ephemeral welcome signal.
     try {
-      final commSnap = await _repo.getCommunitySnapshot(communityId);
-      final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+      await CommunityMessageRepository().writeMembershipNotification(
+        targetUserId: targetUserId,
+        kind: CommunityInboxFields.kindMemberAdded,
+        communityId: communityId,
+        communityName: commName,
+        actorId: _auth.currentUser?.uid,
+      );
+    } catch (e) {
+      AppLogger.e('emitMemberAddedWelcomeSignal inbox', e);
+      rethrow;
+    }
+
+    try {
       await _repo.addMemberAddedSignal({
         MemberAddedSignalFields.targetUserId: targetUserId,
         MemberAddedSignalFields.communityId: communityId,
@@ -279,7 +330,7 @@ class CommunityService {
         MemberAddedSignalFields.createdAt: FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      AppLogger.e('emitMemberAddedWelcomeSignal', e);
+      AppLogger.e('emitMemberAddedWelcomeSignal snackbar signal', e);
     }
   }
 
@@ -703,6 +754,32 @@ class CommunityService {
         }
       }
 
+      // Notify + purge BEFORE delete. If notify fails, do not remove membership
+      // (user would lose access with no kick notice / leftover inbox).
+      try {
+        final commSnap = await _repo.getCommunitySnapshot(communityId);
+        final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+        final inbox = CommunityMessageRepository();
+        await inbox.writeMembershipNotification(
+          targetUserId: targetUserId,
+          kind: CommunityInboxFields.kindMemberRemoved,
+          communityId: communityId,
+          communityName: commName,
+          actorId: userId,
+        );
+        await inbox.purgeCommunityMessagesExceptRemoval(
+          userId: targetUserId,
+          communityId: communityId,
+        );
+        await inbox.purgeAlertInboxForCommunity(
+          userId: targetUserId,
+          communityId: communityId,
+        );
+      } catch (e) {
+        AppLogger.e('removeMember notify/purge', e);
+        return false;
+      }
+
       await _repo.deleteMemberDoc(targetSnap.docs.first.reference);
       AppLogger.d('Member removed from $communityId');
       return true;
@@ -745,6 +822,21 @@ class CommunityService {
         MemberFields.role: destinationRole,
       });
       AppLogger.d('Member promoted to $destinationRole');
+      try {
+        final commSnap = await _repo.getCommunitySnapshot(communityId);
+        final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+        await CommunityMessageRepository().writeMembershipNotification(
+          targetUserId: targetUserId,
+          kind: CommunityInboxFields.kindRoleChanged,
+          communityId: communityId,
+          communityName: commName,
+          actorId: userId,
+          role: destinationRole,
+          previousRole: targetRole,
+        );
+      } catch (e) {
+        AppLogger.e('promoteToAdmin notify', e);
+      }
       return true;
     } catch (e) {
       AppLogger.e('promoteToAdmin', e);

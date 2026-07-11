@@ -1288,6 +1288,40 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get communityMessageOpenHint => 'Open message';
+
+  @override
+  String get communityMessageClose => 'Close';
+
+  @override
+  String get communityMessageUnread => 'Unread';
+
+  @override
+  String get communityMessageRead => 'Read';
+
+  @override
+  String get communityMessageDetailLabel => 'Message detail';
+
+  @override
+  String get communityMessageCommunityLabel => 'Community';
+
+  @override
+  String get communityMessageDateLabel => 'Date';
+
+  @override
+  String get communityMessageBodyLabel => 'Content';
+
+  @override
+  String get communityMessageSenderLabel => 'Sent by';
+
+  @override
+  String get communityMessagesFilteredEmpty =>
+      'No notifications match these filters.';
+
+  @override
+  String get communityNotificationSection => 'Notification';
+
+  @override
   String get myAlertsProfileSubtitle => 'History of alerts you sent';
 
   @override

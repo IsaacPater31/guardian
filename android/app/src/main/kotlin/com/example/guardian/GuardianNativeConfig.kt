@@ -139,6 +139,14 @@ object GuardianNativeConfig {
         const val ACTION_STOP = "STOP_SERVICE"
     }
 
+    /**
+     * Secondary FirebaseApp used only by [GuardianBackgroundService].
+     * FlutterFire terminates the *default* Firestore on engine reinit; this app is untouched.
+     */
+    object Firebase {
+        const val BACKGROUND_APP_NAME = "guardian-bg"
+    }
+
     // ─── WorkManager (reinicio del servicio) ────────────────────────────────
 
     object WorkManager {

@@ -32,6 +32,9 @@ class HomeHandler {
     if (_isInitialized) {
       AppLogger.d('HomeHandler already initialised — refreshing alerts');
       await _loadRecentAlerts();
+      if (Platform.isAndroid) {
+        await NativeBackgroundService.refreshInboxListeners();
+      }
       return;
     }
 
@@ -48,6 +51,12 @@ class HomeHandler {
 
     _startAlertsListener();
     await _loadRecentAlerts();
+
+    // Log race: service may attach while FlutterFire still has Firestore terminated.
+    // After Dart successfully talks to Firestore, re-bind native listeners.
+    if (Platform.isAndroid) {
+      await NativeBackgroundService.refreshInboxListeners();
+    }
 
     _isInitialized = true;
     AppLogger.d('HomeHandler initialised');

@@ -2450,6 +2450,72 @@ abstract class AppLocalizations {
   /// **'De {sender}'**
   String communityMessageFrom(String sender);
 
+  /// No description provided for @communityMessageOpenHint.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir mensaje'**
+  String get communityMessageOpenHint;
+
+  /// No description provided for @communityMessageClose.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar'**
+  String get communityMessageClose;
+
+  /// No description provided for @communityMessageUnread.
+  ///
+  /// In es, this message translates to:
+  /// **'No leído'**
+  String get communityMessageUnread;
+
+  /// No description provided for @communityMessageRead.
+  ///
+  /// In es, this message translates to:
+  /// **'Leído'**
+  String get communityMessageRead;
+
+  /// No description provided for @communityMessageDetailLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle del mensaje'**
+  String get communityMessageDetailLabel;
+
+  /// No description provided for @communityMessageCommunityLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Comunidad'**
+  String get communityMessageCommunityLabel;
+
+  /// No description provided for @communityMessageDateLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha'**
+  String get communityMessageDateLabel;
+
+  /// No description provided for @communityMessageBodyLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Contenido'**
+  String get communityMessageBodyLabel;
+
+  /// No description provided for @communityMessageSenderLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviado por'**
+  String get communityMessageSenderLabel;
+
+  /// No description provided for @communityMessagesFilteredEmpty.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay notificaciones con estos filtros.'**
+  String get communityMessagesFilteredEmpty;
+
+  /// No description provided for @communityNotificationSection.
+  ///
+  /// In es, this message translates to:
+  /// **'Notificación'**
+  String get communityNotificationSection;
+
   /// No description provided for @myAlertsProfileSubtitle.
   ///
   /// In es, this message translates to:

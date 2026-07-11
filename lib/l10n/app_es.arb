@@ -489,6 +489,17 @@
       "sender": { "type": "String" }
     }
   },
+  "communityMessageOpenHint": "Abrir mensaje",
+  "communityMessageClose": "Cerrar",
+  "communityMessageUnread": "No leído",
+  "communityMessageRead": "Leído",
+  "communityMessageDetailLabel": "Detalle del mensaje",
+  "communityMessageCommunityLabel": "Comunidad",
+  "communityMessageDateLabel": "Fecha",
+  "communityMessageBodyLabel": "Contenido",
+  "communityMessageSenderLabel": "Enviado por",
+  "communityMessagesFilteredEmpty": "No hay notificaciones con estos filtros.",
+  "communityNotificationSection": "Notificación",
   "myAlertsProfileSubtitle": "Historial de alertas que enviaste",
   "myAlertsEmptyTitle": "Sin alertas aún",
   "myAlertsEmptySubtitle": "Las alertas que envíes desde el botón principal aparecerán aquí.",

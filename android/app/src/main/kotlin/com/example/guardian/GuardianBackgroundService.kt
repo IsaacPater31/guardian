@@ -4,7 +4,9 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -12,25 +14,41 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.core.app.NotificationCompat
+import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.auth.FirebaseAuth
+import java.lang.ref.WeakReference
 
 class GuardianBackgroundService : Service() {
     
     companion object {
         private var isServiceRunning = false
         private const val PREFS_NOTIFIED_MESSAGES = "guardian_notified_messages"
+        private val LISTENER_RETRY_DELAYS_MS = longArrayOf(1_000L, 2_000L, 5_000L, 10_000L)
 
         @Volatile
         private var appInForeground = false
+
+        @Volatile
+        private var instanceRef: WeakReference<GuardianBackgroundService>? = null
 
         fun isRunning(): Boolean = isServiceRunning
 
         fun setAppInForeground(foreground: Boolean) {
             appInForeground = foreground
             println("📱 App foreground: $foreground")
+            // FlutterFire terminates default Firestore on engine teardown/reinit.
+            // When UI is back, force-reattach so soft membership notifies work again.
+            if (foreground) {
+                instanceRef?.get()?.forceRefreshListeners("app foreground")
+            }
+        }
+
+        /** Re-bind inbox listeners after Flutter has reinitialized Firestore. */
+        fun requestListenerRefresh(reason: String) {
+            instanceRef?.get()?.forceRefreshListeners(reason)
         }
     }
     
@@ -40,12 +58,30 @@ class GuardianBackgroundService : Service() {
     private var communityMessagesListener: ListenerRegistration? = null
     private var communityMessagesInitialSnapshot = true
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
-    private var lastInboxListenerUserId: String? = null
+    /** Separate UIDs so alert vs message listeners cannot skip each other on auth switch. */
+    private var lastAlertInboxUserId: String? = null
+    private var lastCommunityMessagesUserId: String? = null
     private lateinit var auth: FirebaseAuth
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var listenerRetryAttempt = 0
+    private val listenerRetryRunnable = Runnable {
+        if (!isServiceRunning) return@Runnable
+        println("🔁 Retrying Firestore inbox listeners (attempt ${listenerRetryAttempt + 1})")
+        ensureAlertInboxListener()
+        ensureCommunityMessagesListener()
+        val alertsOk = alertInboxListener != null
+        val messagesOk = communityMessagesListener != null
+        if (alertsOk && messagesOk) {
+            listenerRetryAttempt = 0
+            return@Runnable
+        }
+        scheduleListenerRetry()
+    }
     
     override fun onCreate() {
         super.onCreate()
-        firestore = FirebaseFirestore.getInstance()
+        instanceRef = WeakReference(this)
+        firestore = firestoreForBackgroundService()
         auth = FirebaseAuth.getInstance()
         createNotificationChannels()
         
@@ -55,18 +91,84 @@ class GuardianBackgroundService : Service() {
         authStateListener = FirebaseAuth.AuthStateListener {
             if (!isServiceRunning) return@AuthStateListener
             val uid = auth.currentUser?.uid
-            if (uid == lastInboxListenerUserId) return@AuthStateListener
+            val sameUser = uid != null &&
+                uid == lastAlertInboxUserId &&
+                uid == lastCommunityMessagesUserId &&
+                alertInboxListener != null &&
+                communityMessagesListener != null
+            if (sameUser) return@AuthStateListener
             println("🔐 Auth user changed — refreshing inbox listeners")
             if (uid == null) {
                 stopAlertInboxListener()
                 stopCommunityMessagesListener()
-                lastInboxListenerUserId = null
+                lastAlertInboxUserId = null
+                lastCommunityMessagesUserId = null
             } else {
                 ensureAlertInboxListener()
                 ensureCommunityMessagesListener()
             }
         }
         auth.addAuthStateListener(authStateListener!!)
+    }
+
+    /** Fresh Firestore for the service — never the Flutter-default instance. */
+    private fun refreshFirestoreClient() {
+        firestore = firestoreForBackgroundService()
+    }
+
+    /**
+     * Dedicated FirebaseApp so FlutterFire's didReinitializeFirebaseCore()
+     * (terminates default Firestore on engine restart) cannot kill our listeners.
+     * Auth UID still comes from the default [auth] instance.
+     */
+    private fun firestoreForBackgroundService(): FirebaseFirestore {
+        val appName = GuardianNativeConfig.Firebase.BACKGROUND_APP_NAME
+        val app = try {
+            FirebaseApp.getInstance(appName)
+        } catch (_: IllegalStateException) {
+            val options = FirebaseApp.getInstance().options
+            FirebaseApp.initializeApp(applicationContext, options, appName)
+                ?: FirebaseApp.getInstance(appName)
+        }
+        println("🔥 Service Firestore app=${app.name}")
+        return FirebaseFirestore.getInstance(app)
+    }
+
+    private fun isTerminatedClientError(error: Any?): Boolean {
+        val msg = when (error) {
+            is Exception -> error.message
+            else -> error?.toString()
+        } ?: return false
+        return msg.contains("terminated", ignoreCase = true)
+    }
+
+    private fun scheduleListenerRetry() {
+        if (!isServiceRunning) return
+        if (listenerRetryAttempt >= LISTENER_RETRY_DELAYS_MS.size) {
+            println("⚠️ Exhausted Firestore listener retries — will retry on next foreground")
+            listenerRetryAttempt = 0
+            return
+        }
+        val delay = LISTENER_RETRY_DELAYS_MS[listenerRetryAttempt]
+        listenerRetryAttempt += 1
+        mainHandler.removeCallbacks(listenerRetryRunnable)
+        mainHandler.postDelayed(listenerRetryRunnable, delay)
+    }
+
+    private fun forceRefreshListeners(reason: String) {
+        if (!isServiceRunning) return
+        println("🔄 Force refresh inbox listeners ($reason)")
+        mainHandler.removeCallbacks(listenerRetryRunnable)
+        listenerRetryAttempt = 0
+        stopAlertInboxListener()
+        stopCommunityMessagesListener()
+        lastAlertInboxUserId = null
+        lastCommunityMessagesUserId = null
+        ensureAlertInboxListener()
+        ensureCommunityMessagesListener()
+        if (alertInboxListener == null || communityMessagesListener == null) {
+            scheduleListenerRetry()
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -107,11 +209,16 @@ class GuardianBackgroundService : Service() {
         // Siempre asegurar listeners (p. ej. login posterior al arranque del servicio).
         ensureAlertInboxListener()
         ensureCommunityMessagesListener()
+        if (alertInboxListener == null || communityMessagesListener == null) {
+            scheduleListenerRetry()
+        }
     }
 
-    private fun shouldDeliverNativeNotification(): Boolean {
+    private fun shouldDeliverNativeNotification(softChannel: Boolean = false): Boolean {
+        // Soft channel (messages / membership): always notify — including foreground.
+        if (softChannel) return true
         if (appInForeground) {
-            println("📱 App en primer plano — notificación nativa omitida (Flutter maneja UI)")
+            println("📱 App en primer plano — alerta nativa omitida (Flutter maneja UI)")
             return false
         }
         return true
@@ -119,16 +226,17 @@ class GuardianBackgroundService : Service() {
 
     private fun ensureAlertInboxListener() {
         val uid = auth.currentUser?.uid ?: return
-        if (alertInboxListener != null && lastInboxListenerUserId == uid) return
-        lastInboxListenerUserId = uid
+        if (alertInboxListener != null && lastAlertInboxUserId == uid) return
         stopAlertInboxListener()
+        lastAlertInboxUserId = uid
         startAlertInboxListener()
     }
 
     private fun ensureCommunityMessagesListener() {
         val uid = auth.currentUser?.uid ?: return
-        if (communityMessagesListener != null && lastInboxListenerUserId == uid) return
+        if (communityMessagesListener != null && lastCommunityMessagesUserId == uid) return
         stopCommunityMessagesListener()
+        lastCommunityMessagesUserId = uid
         startCommunityMessagesListener()
     }
     
@@ -138,7 +246,8 @@ class GuardianBackgroundService : Service() {
         // Detener escuchas
         stopAlertInboxListener()
         stopCommunityMessagesListener()
-        lastInboxListenerUserId = null
+        lastAlertInboxUserId = null
+        lastCommunityMessagesUserId = null
         
         // Detener servicio en primer plano
         stopForeground(true)
@@ -224,7 +333,7 @@ class GuardianBackgroundService : Service() {
             val messagesChannel = NotificationChannel(
                 GuardianNativeConfig.Notifications.CHANNEL_COMMUNITY_MESSAGES,
                 messagesChannelName,
-                NotificationManager.IMPORTANCE_HIGH,
+                NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = messagesChannelDescription
                 setShowBadge(true)
@@ -343,6 +452,7 @@ class GuardianBackgroundService : Service() {
         }
 
         alertInboxInitialSnapshot = true
+        refreshFirestoreClient()
         val fs = GuardianNativeConfig.Firestore
 
         try {
@@ -355,6 +465,11 @@ class GuardianBackgroundService : Service() {
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         println("❌ Error listening to alert inbox (non-fatal): $error")
+                        if (isTerminatedClientError(error)) {
+                            alertInboxListener = null
+                            lastAlertInboxUserId = null
+                            scheduleListenerRetry()
+                        }
                         return@addSnapshotListener
                     }
                     if (snapshot == null) return@addSnapshotListener
@@ -383,7 +498,9 @@ class GuardianBackgroundService : Service() {
                         }
 
                         snapshot.documentChanges.forEach { change ->
-                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED &&
+                                change.type != com.google.firebase.firestore.DocumentChange.Type.MODIFIED
+                            ) {
                                 return@forEach
                             }
                             val docId = change.document.id
@@ -393,6 +510,8 @@ class GuardianBackgroundService : Service() {
                                 markAlertNotified(docId)
                                 return@forEach
                             }
+                            val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
+                            if (createdAt == null) return@forEach
                             deliverInboxAlertNotification(data, docId)
                             markAlertNotified(docId)
                         }
@@ -404,11 +523,19 @@ class GuardianBackgroundService : Service() {
         } catch (e: Exception) {
             println("❌ Failed to start alert inbox listener (non-fatal): ${e.message}")
             alertInboxListener = null
+            lastAlertInboxUserId = null
+            if (isTerminatedClientError(e)) {
+                scheduleListenerRetry()
+            }
         }
     }
 
     private fun stopAlertInboxListener() {
-        alertInboxListener?.remove()
+        try {
+            alertInboxListener?.remove()
+        } catch (e: Exception) {
+            println("⚠️ stopAlertInboxListener: ${e.message}")
+        }
         alertInboxListener = null
         alertInboxInitialSnapshot = true
     }
@@ -484,11 +611,16 @@ class GuardianBackgroundService : Service() {
     private fun messageNotifiedPrefs() =
         getSharedPreferences(PREFS_NOTIFIED_MESSAGES, Context.MODE_PRIVATE)
 
+    private fun messageNotifiedKey(docId: String): String {
+        val uid = auth.currentUser?.uid ?: "anon"
+        return "msg_${uid}_$docId"
+    }
+
     private fun isMessageAlreadyNotified(docId: String): Boolean =
-        messageNotifiedPrefs().getBoolean("msg_$docId", false)
+        messageNotifiedPrefs().getBoolean(messageNotifiedKey(docId), false)
 
     private fun markMessageNotified(docId: String) {
-        messageNotifiedPrefs().edit().putBoolean("msg_$docId", true).apply()
+        messageNotifiedPrefs().edit().putBoolean(messageNotifiedKey(docId), true).apply()
     }
 
     private fun startCommunityMessagesListener() {
@@ -499,6 +631,7 @@ class GuardianBackgroundService : Service() {
         }
 
         communityMessagesInitialSnapshot = true
+        refreshFirestoreClient()
 
         val fs = GuardianNativeConfig.Firestore
         try {
@@ -511,6 +644,11 @@ class GuardianBackgroundService : Service() {
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         println("❌ Error listening to community messages (non-fatal): $error")
+                        if (isTerminatedClientError(error)) {
+                            communityMessagesListener = null
+                            lastCommunityMessagesUserId = null
+                            scheduleListenerRetry()
+                        }
                         return@addSnapshotListener
                     }
                     if (snapshot == null) return@addSnapshotListener
@@ -522,24 +660,47 @@ class GuardianBackgroundService : Service() {
                             val startupWindow = fs.MESSAGES_STARTUP_NOTIFY_WINDOW_MS
                             snapshot.documents.forEach { doc ->
                                 val data = doc.data
-                                if (data != null && !isMessageAlreadyNotified(doc.id)) {
-                                    if (!shouldSkipCommunityMessage(data, doc.id)) {
-                                        val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
-                                        if (createdAt != null) {
-                                            val ageMs = now - createdAt.toDate().time
-                                            if (ageMs in 0..startupWindow) {
-                                                deliverCommunityMessageNotification(data, doc.id)
-                                            }
-                                        }
-                                    }
+                                if (data == null || isMessageAlreadyNotified(doc.id)) {
+                                    return@forEach
                                 }
-                                markMessageNotified(doc.id)
+                                if (shouldSkipCommunityMessage(data, doc.id)) {
+                                    markMessageNotified(doc.id)
+                                    return@forEach
+                                }
+                                val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
+                                if (createdAt == null) {
+                                    println("⏳ Skip mark (null created_at): ${doc.id}")
+                                    return@forEach
+                                }
+                                val ageMs = now - createdAt.toDate().time
+                                val kind = (data["kind"] as? String)?.trim().orEmpty()
+                                val isMembership = kind == "member_added" ||
+                                    kind == "member_removed" ||
+                                    kind == "role_changed"
+                                // Membership events: notify if unread within a wider window.
+                                // Allow small negative age (web/device clock skew).
+                                val window = if (isMembership) {
+                                    startupWindow * 4
+                                } else {
+                                    startupWindow
+                                }
+                                if (ageMs in -60_000L..window) {
+                                    if (deliverCommunityMessageNotification(data, doc.id)) {
+                                        markMessageNotified(doc.id)
+                                    }
+                                } else {
+                                    markMessageNotified(doc.id)
+                                }
                             }
                             return@addSnapshotListener
                         }
 
                         snapshot.documentChanges.forEach { change ->
-                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                            // ADDED = new doc; MODIFIED covers serverTimestamp resolve /
+                            // docs that enter the orderBy query after created_at is set.
+                            if (change.type != com.google.firebase.firestore.DocumentChange.Type.ADDED &&
+                                change.type != com.google.firebase.firestore.DocumentChange.Type.MODIFIED
+                            ) {
                                 return@forEach
                             }
                             val docId = change.document.id
@@ -549,8 +710,12 @@ class GuardianBackgroundService : Service() {
                                 markMessageNotified(docId)
                                 return@forEach
                             }
-                            deliverCommunityMessageNotification(data, docId)
-                            markMessageNotified(docId)
+                            // Wait until created_at exists (orderBy-ready).
+                            val createdAt = data[fs.FIELD_CREATED_AT] as? com.google.firebase.Timestamp
+                            if (createdAt == null) return@forEach
+                            if (deliverCommunityMessageNotification(data, docId)) {
+                                markMessageNotified(docId)
+                            }
                         }
                     } catch (e: Exception) {
                         println("❌ Community message handler error (non-fatal): ${e.message}")
@@ -560,11 +725,19 @@ class GuardianBackgroundService : Service() {
         } catch (e: Exception) {
             println("❌ Failed to start community messages listener (non-fatal): ${e.message}")
             communityMessagesListener = null
+            lastCommunityMessagesUserId = null
+            if (isTerminatedClientError(e)) {
+                scheduleListenerRetry()
+            }
         }
     }
 
     private fun stopCommunityMessagesListener() {
-        communityMessagesListener?.remove()
+        try {
+            communityMessagesListener?.remove()
+        } catch (e: Exception) {
+            println("⚠️ stopCommunityMessagesListener: ${e.message}")
+        }
         communityMessagesListener = null
         communityMessagesInitialSnapshot = true
     }
@@ -579,8 +752,15 @@ class GuardianBackgroundService : Service() {
             return true
         }
 
+        val kind = (data["kind"] as? String)?.trim().orEmpty()
+        val isMembershipEvent = kind == "member_added" ||
+            kind == "member_removed" ||
+            kind == "role_changed"
+
+        // Own broadcasts: skip native notify (still in Flutter feed).
+        // Membership events must always reach the affected user.
         val senderId = data[fs.FIELD_SENDER_ID] as? String
-        if (senderId != null && senderId == currentUser.uid) {
+        if (!isMembershipEvent && senderId != null && senderId == currentUser.uid) {
             println("🚫 Skipping own community message: $documentId")
             return true
         }
@@ -595,32 +775,50 @@ class GuardianBackgroundService : Service() {
         return false
     }
 
-    private fun deliverCommunityMessageNotification(data: Map<String, Any>, documentId: String) {
-        if (!shouldDeliverNativeNotification()) return
+    /** @return true if a system notification was posted */
+    private fun deliverCommunityMessageNotification(data: Map<String, Any>, documentId: String): Boolean {
+        if (!shouldDeliverNativeNotification(softChannel = true)) return false
 
         val fs = GuardianNativeConfig.Firestore
         val title = (data[fs.FIELD_MESSAGE_TITLE] as? String)?.trim().orEmpty()
         val body = (data[fs.FIELD_MESSAGE_BODY] as? String)?.trim().orEmpty()
         val senderName = (data[fs.FIELD_SENDER_NAME] as? String)?.trim()
-        showCommunityMessageNotification(title, body, senderName, documentId)
-        println("💬 Community message notification sent: $documentId")
+        val communityName = (data["community_name"] as? String)?.trim()
+        return try {
+            showCommunityMessageNotification(title, body, senderName, communityName, documentId)
+            println("💬 Community message notification sent: $documentId")
+            true
+        } catch (e: Exception) {
+            println("❌ Failed to show community message notification: ${e.message}")
+            false
+        }
     }
 
     private fun showCommunityMessageNotification(
         title: String,
         body: String,
         senderName: String?,
+        communityName: String?,
         documentId: String,
     ) {
         val language = LocaleHelper.getCurrentLanguage(this)
         val defaultTitle = if (language == "es") "Mensaje de tu comunidad" else "Message from your community"
         val contentTitle = if (title.isNotEmpty()) title else defaultTitle
-        val summary = if (body.isNotEmpty()) {
-            body
-        } else if (!senderName.isNullOrEmpty()) {
-            if (language == "es") "De $senderName" else "From $senderName"
+        val communityLine = if (!communityName.isNullOrEmpty()) {
+            if (language == "es") "Comunidad: $communityName" else "Community: $communityName"
         } else {
-            if (language == "es") "Tienes un nuevo mensaje" else "You have a new message"
+            null
+        }
+        val summary = when {
+            body.isNotEmpty() && communityLine != null -> "$communityLine\n$body"
+            body.isNotEmpty() -> body
+            communityLine != null -> communityLine
+            !senderName.isNullOrEmpty() -> {
+                if (language == "es") "De $senderName" else "From $senderName"
+            }
+            else -> {
+                if (language == "es") "Tienes una nueva notificación" else "You have a new notification"
+            }
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -644,7 +842,7 @@ class GuardianBackgroundService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(android.provider.Settings.System.DEFAULT_NOTIFICATION_URI)
@@ -657,7 +855,7 @@ class GuardianBackgroundService : Service() {
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .setBigContentTitle(contentTitle)
-                    .bigText(if (body.isNotEmpty()) body else summary),
+                    .bigText(summary),
             )
             .build()
 
@@ -719,6 +917,10 @@ class GuardianBackgroundService : Service() {
     }
     
     override fun onDestroy() {
+        mainHandler.removeCallbacks(listenerRetryRunnable)
+        if (instanceRef?.get() === this) {
+            instanceRef = null
+        }
         authStateListener?.let { auth.removeAuthStateListener(it) }
         stopAlertInboxListener()
         stopCommunityMessagesListener()

@@ -10,6 +10,9 @@ class CommunityMessageService {
   Stream<List<Map<String, dynamic>>> watchInbox(String userId) =>
       _repository.watchInbox(userId);
 
+  Stream<bool> watchHasUnread(String userId) =>
+      _repository.watchHasUnread(userId);
+
   Future<void> markRead(String userId, String inboxDocId) =>
       _repository.markRead(userId, inboxDocId);
 }

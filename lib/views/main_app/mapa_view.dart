@@ -59,15 +59,17 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
 
   Future<void> _initializeMap() async {
     await _getCurrentLocation();
+    if (!mounted) return;
     _subscribeToAlerts();
 
     if (widget.selectedAlert != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         _focusOnAlert(widget.selectedAlert!);
       });
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   // ─── Suscripción reactiva a alertas ────────────────────────────────────────
@@ -138,6 +140,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
           accuracy: LocationAccuracy.high,
         ),
       );
+      if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
       });

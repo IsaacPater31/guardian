@@ -136,4 +136,18 @@ class NativeBackgroundService {
       return false;
     }
   }
+
+  /// Re-bind native inbox listeners after Flutter Firestore is known to work.
+  /// Fixes the race where the service attaches while FlutterFire still has
+  /// the default client terminated (see log: "client has already been terminated").
+  static Future<void> refreshInboxListeners() async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      await _channel.invokeMethod('refreshInboxListeners');
+      AppLogger.d('Native inbox listeners refresh requested');
+    } on PlatformException catch (e) {
+      AppLogger.e('NativeBackgroundService.refreshInboxListeners', e.message ?? e);
+    }
+  }
 }
