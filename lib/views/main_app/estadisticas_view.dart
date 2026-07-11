@@ -3,8 +3,19 @@ import 'package:guardian/generated/l10n/app_localizations.dart';
 import 'package:guardian/views/main_app/widgets/my_alerts_entry_tile.dart';
 
 /// Pestaña Estadísticas: historial personal de alertas y métricas futuras.
-class EstadisticasView extends StatelessWidget {
+class EstadisticasView extends StatefulWidget {
   const EstadisticasView({super.key});
+
+  @override
+  State<EstadisticasView> createState() => _EstadisticasViewState();
+}
+
+class _EstadisticasViewState extends State<EstadisticasView> {
+  Future<void> _onRefresh() async {
+    // Rebuild so entry tiles / future metrics pick up latest state.
+    if (mounted) setState(() {});
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,21 +38,28 @@ class EstadisticasView extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(pad, 12, pad, 32),
-          children: [
-            Text(
-              l10n.myAlertsStatisticsSectionLabel,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-                letterSpacing: 0.3,
-              ),
+        child: RefreshIndicator(
+          color: const Color(0xFF007AFF),
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-            const SizedBox(height: 10),
-            const MyAlertsEntryTile(),
-          ],
+            padding: EdgeInsets.fromLTRB(pad, 12, pad, 32),
+            children: [
+              Text(
+                l10n.myAlertsStatisticsSectionLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const MyAlertsEntryTile(),
+            ],
+          ),
         ),
       ),
     );

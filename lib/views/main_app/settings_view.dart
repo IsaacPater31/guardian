@@ -31,52 +31,62 @@ class SettingsView extends StatelessWidget {
     return Scaffold(
       backgroundColor: _kBg,
       appBar: _AppleAppBar(title: l10n.settingsTitle),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        children: [
-          _SectionLabel(l10n.alertsSection.toUpperCase()),
-          _AppleCard(
-            children: [
-              _AppleTile(
-                icon: Icons.bolt_rounded,
-                iconColor: _kOrange,
-                title: 'Urgencia (deslizante)',
-                subtitle: 'Configura destinos para la alerta de urgencia.',
-                onTap: () => Navigator.push(
-                  context,
-                  _slide(const QuickAlertConfigView()),
-                ),
-              ),
-              const _CardDivider(),
-              _AppleTile(
-                icon: Icons.category_rounded,
-                iconColor: _kBlue,
-                title: 'Alertas por tipo y subtipo',
-                subtitle:
-                    'Agrupa por tipo/subtipo y define comunidades destino.',
-                onTap: () => Navigator.push(
-                  context,
-                  _slide(const TypedAlertConfigView()),
-                ),
-              ),
-            ],
+      body: RefreshIndicator(
+        color: _kBlue,
+        onRefresh: () async {
+          // Static hub; brief delay so the indicator is visible.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          const SizedBox(height: 28),
-          _SectionLabel(l10n.generalSection.toUpperCase()),
-          _AppleCard(
-            children: [
-              _AppleTile(
-                icon: Icons.info_rounded,
-                iconColor: _kSecondary,
-                title: l10n.about,
-                subtitle: l10n.aboutVersion('1.0'),
-                showChevron: false,
-                onTap: null,
-              ),
-            ],
-          ),
-          const SizedBox(height: 40),
-        ],
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          children: [
+            _SectionLabel(l10n.alertsSection.toUpperCase()),
+            _AppleCard(
+              children: [
+                _AppleTile(
+                  icon: Icons.bolt_rounded,
+                  iconColor: _kOrange,
+                  title: 'Urgencia (deslizante)',
+                  subtitle: 'Configura destinos para la alerta de urgencia.',
+                  onTap: () => Navigator.push(
+                    context,
+                    _slide(const QuickAlertConfigView()),
+                  ),
+                ),
+                const _CardDivider(),
+                _AppleTile(
+                  icon: Icons.category_rounded,
+                  iconColor: _kBlue,
+                  title: 'Alertas por tipo y subtipo',
+                  subtitle:
+                      'Agrupa por tipo/subtipo y define comunidades destino.',
+                  onTap: () => Navigator.push(
+                    context,
+                    _slide(const TypedAlertConfigView()),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+            _SectionLabel(l10n.generalSection.toUpperCase()),
+            _AppleCard(
+              children: [
+                _AppleTile(
+                  icon: Icons.info_rounded,
+                  iconColor: _kSecondary,
+                  title: l10n.about,
+                  subtitle: l10n.aboutVersion('1.0'),
+                  showChevron: false,
+                  onTap: null,
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }
@@ -118,8 +128,10 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
     super.dispose();
   }
 
-  Future<void> _loadConfiguration() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadConfiguration({bool showFullScreenLoader = true}) async {
+    if (showFullScreenLoader && mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final destinations = await _configService.getAvailableDestinations();
       final currentConfig = await _configService.getQuickAlertDestinations();
@@ -197,62 +209,70 @@ class _QuickAlertConfigViewState extends State<QuickAlertConfigView>
       ),
       body: _isLoading
           ? const _Loader()
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                    child: _InfoBanner(
-                      icon: Icons.bolt_rounded,
-                      color: _kOrange,
-                      text: l10n.selectCommunitiesForQuickAlerts,
-                    ),
-                  ),
+          : RefreshIndicator(
+              color: _kBlue,
+              onRefresh: () => _loadConfiguration(showFullScreenLoader: false),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
-                if (communities.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _SectionLabel(
-                      l10n.myCommunities.toUpperCase(),
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-                    ),
-                  ),
+                slivers: [
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _AppleCard(
-                        children: communities.asMap().entries.map((entry) {
-                          final d = entry.value;
-                          final isLast = entry.key == communities.length - 1;
-                          return Column(
-                            children: [
-                              _CommunityCheckTile(
-                                community: d,
-                                isSelected: _selectedIds.contains(
-                                  d['id'] as String,
-                                ),
-                                onChanged: (val) => setState(() {
-                                  val == true
-                                      ? _selectedIds.add(d['id'] as String)
-                                      : _selectedIds.remove(d['id'] as String);
-                                }),
-                              ),
-                              if (!isLast) const _CardDivider(),
-                            ],
-                          );
-                        }).toList(),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                      child: _InfoBanner(
+                        icon: Icons.bolt_rounded,
+                        color: _kOrange,
+                        text: l10n.selectCommunitiesForQuickAlerts,
                       ),
                     ),
                   ),
-                ],
-                if (_destinations.isEmpty)
-                  SliverFillRemaining(
-                    child: _EmptyState(
-                      icon: Icons.group_off_rounded,
-                      message: l10n.noCommunitiesAvailableEmptyState,
+                  if (communities.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: _SectionLabel(
+                        l10n.myCommunities.toUpperCase(),
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+                      ),
                     ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _AppleCard(
+                          children: communities.asMap().entries.map((entry) {
+                            final d = entry.value;
+                            final isLast = entry.key == communities.length - 1;
+                            return Column(
+                              children: [
+                                _CommunityCheckTile(
+                                  community: d,
+                                  isSelected: _selectedIds.contains(
+                                    d['id'] as String,
+                                  ),
+                                  onChanged: (val) => setState(() {
+                                    val == true
+                                        ? _selectedIds.add(d['id'] as String)
+                                        : _selectedIds.remove(d['id'] as String);
+                                  }),
+                                ),
+                                if (!isLast) const _CardDivider(),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (_destinations.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _EmptyState(
+                        icon: Icons.group_off_rounded,
+                        message: l10n.noCommunitiesAvailableEmptyState,
+                      ),
+                    ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
             ),
     );
   }
@@ -285,8 +305,10 @@ class _TypedAlertConfigViewState extends State<TypedAlertConfigView> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
+  Future<void> _load({bool showFullScreenLoader = true}) async {
+    if (showFullScreenLoader && mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final communities = await _configService.getAvailableCommunities();
       final Map<String, Set<String>> byType = {};
@@ -297,7 +319,9 @@ class _TypedAlertConfigViewState extends State<TypedAlertConfigView> {
       if (mounted) {
         setState(() {
           _communities = communities;
-          _selectedByType.addAll(byType);
+          _selectedByType
+            ..clear()
+            ..addAll(byType);
           _isLoading = false;
         });
       }
@@ -376,74 +400,81 @@ class _TypedAlertConfigViewState extends State<TypedAlertConfigView> {
       ),
       body: _isLoading
           ? const _Loader()
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                    child: _InfoBanner(
-                      icon: Icons.category_rounded,
-                      color: _kBlue,
-                      text:
-                          'Configura comunidades por tipo y subtipo. Si un tipo no está configurado, se pedirá al enviar.',
+          : RefreshIndicator(
+              color: _kBlue,
+              onRefresh: () => _load(showFullScreenLoader: false),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                      child: _InfoBanner(
+                        icon: Icons.category_rounded,
+                        color: _kBlue,
+                        text:
+                            'Configura comunidades por tipo y subtipo. Si un tipo no está configurado, se pedirá al enviar.',
+                      ),
                     ),
                   ),
-                ),
-                SliverToBoxAdapter(
-                  child: _SectionLabel(
-                    AppLocalizations.of(context)!.swipeAlertsSectionLabel,
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+                  SliverToBoxAdapter(
+                    child: _SectionLabel(
+                      AppLocalizations.of(context)!.swipeAlertsSectionLabel,
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+                    ),
                   ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final entry = types[index];
-                      final typeData = entry.value;
-                      final typeName = typeData['type'] as String;
-                      final color = typeData['color'] as Color;
-                      final icon = typeData['icon'] as IconData;
-                      final label = EmergencyTypes.getTranslatedType(
-                        typeName,
-                        context,
-                      );
-                      final selected = _selectedByType[typeName] ?? {};
-                      final isHighlighted = widget.initialAlertType == typeName;
-                      final isExpanded = _expandedType == typeName;
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final entry = types[index];
+                        final typeData = entry.value;
+                        final typeName = typeData['type'] as String;
+                        final color = typeData['color'] as Color;
+                        final icon = typeData['icon'] as IconData;
+                        final label = EmergencyTypes.getTranslatedType(
+                          typeName,
+                          context,
+                        );
+                        final selected = _selectedByType[typeName] ?? {};
+                        final isHighlighted = widget.initialAlertType == typeName;
+                        final isExpanded = _expandedType == typeName;
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _AlertTypeCard(
-                          typeName: typeName,
-                          label: label,
-                          color: color,
-                          icon: icon,
-                          selected: selected,
-                          communities: _communities,
-                          isHighlighted: isHighlighted,
-                          isExpanded: isExpanded,
-                          onExpansionChanged: (val) => setState(() {
-                            _expandedType = val ? typeName : null;
-                          }),
-                          onToggleCommunity: (communityId, val) {
-                            setState(() {
-                              final set = Set<String>.from(
-                                _selectedByType[typeName] ?? {},
-                              );
-                              val
-                                  ? set.add(communityId)
-                                  : set.remove(communityId);
-                              _selectedByType[typeName] = set;
-                            });
-                          },
-                        ),
-                      );
-                    }, childCount: types.length),
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _AlertTypeCard(
+                            typeName: typeName,
+                            label: label,
+                            color: color,
+                            icon: icon,
+                            selected: selected,
+                            communities: _communities,
+                            isHighlighted: isHighlighted,
+                            isExpanded: isExpanded,
+                            onExpansionChanged: (val) => setState(() {
+                              _expandedType = val ? typeName : null;
+                            }),
+                            onToggleCommunity: (communityId, val) {
+                              setState(() {
+                                final set = Set<String>.from(
+                                  _selectedByType[typeName] ?? {},
+                                );
+                                val
+                                    ? set.add(communityId)
+                                    : set.remove(communityId);
+                                _selectedByType[typeName] = set;
+                              });
+                            },
+                          ),
+                        );
+                      }, childCount: types.length),
+                    ),
                   ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
-              ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
             ),
     );
   }

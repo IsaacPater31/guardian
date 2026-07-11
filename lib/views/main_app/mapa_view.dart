@@ -349,112 +349,126 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
             ],
           ),
 
+          // ── Pull-to-refresh strip (top; leaves filter button free) ──
+          // Avoids wrapping the map itself so pan/zoom stay intact.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 104,
+            height: 88,
+            child: RefreshIndicator(
+              color: const Color(0xFF007AFF),
+              displacement: 28,
+              onRefresh: _refreshAlerts,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: EdgeInsets.zero,
+                children: [
+                  const SizedBox(height: 16),
+                  if (_alerts.isEmpty && !_isLoading)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  _filters.hasFilters
+                                      ? 'Sin alertas para los filtros aplicados'
+                                      : AppLocalizations.of(context)!
+                                          .noRecentAlerts,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_filters.hasFilters && _alerts.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: _buildResultCountChip(),
+                      ),
+                    )
+                  else if (_isLoading && _alerts.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  AppLocalizations.of(context)!.mapRefreshing,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 48),
+                  const SizedBox(height: 48),
+                ],
+              ),
+            ),
+          ),
+
           // ── Botón de filtro (esquina superior derecha) ──
           Positioned(top: 16, right: 16, child: _buildFilterButton()),
-
-          // ── Chip: sin alertas ──
-          // right: 104 deja libre la zona del botón "Filtros" en pantallas chicas.
-          if (_alerts.isEmpty && !_isLoading)
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 104,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          _filters.hasFilters
-                              ? 'Sin alertas para los filtros aplicados'
-                              : AppLocalizations.of(context)!.noRecentAlerts,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          // ── Chip: conteo de resultados (cuando hay filtros activos) ──
-          if (_filters.hasFilters && _alerts.isNotEmpty)
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 104,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: _buildResultCountChip(),
-              ),
-            ),
-
-          // ── Loading overlay (actualizando) ──
-          if (_isLoading && _alerts.isNotEmpty)
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 104,
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          AppLocalizations.of(context)!.mapRefreshing,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
 
           // ── Panel de detalle de alerta ──
           if (_selectedAlertForDetails != null)
@@ -597,10 +611,16 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: RefreshIndicator(
+        color: const Color(0xFF007AFF),
+        onRefresh: _refreshAlerts,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Header
             Container(
               padding: const EdgeInsets.all(16),
@@ -785,6 +805,7 @@ class _MapaViewState extends State<MapaView> with TickerProviderStateMixin {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

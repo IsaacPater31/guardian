@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:guardian/models/entity_report_type.dart';
 
 class CommunityModel {
   final String? id;
@@ -12,8 +13,8 @@ class CommunityModel {
   final int? iconCodePoint; // Material Icons codePoint (ej: Icons.people.codePoint)
   final String? iconColor; // Color en hex (ej: '#FF9500')
   final String? reportButtonColor; // Color botón reportar (ej: '#0D1B3E')
-  /// Tipos de alerta aceptados como reportes (solo entidades).
-  final List<String> reportAlertTypes;
+  /// Tipos de reporte personalizados (solo entidades).
+  final List<EntityReportType> reportAlertTypes;
 
   CommunityModel({
     this.id,
@@ -40,13 +41,8 @@ class CommunityModel {
       iconCodePoint: data['icon_code_point'] as int?,
       iconColor: data['icon_color'] as String?,
       reportButtonColor: data['report_button_color'] as String?,
-      reportAlertTypes: _parseReportAlertTypes(data['report_alert_types']),
+      reportAlertTypes: EntityReportType.parseList(data['report_alert_types']),
     );
-  }
-
-  static List<String> _parseReportAlertTypes(dynamic raw) {
-    if (raw is! List) return const [];
-    return raw.whereType<String>().where((s) => s.isNotEmpty).toList();
   }
 
   Map<String, dynamic> toFirestore() {
@@ -60,7 +56,7 @@ class CommunityModel {
       if (iconColor != null) 'icon_color': iconColor,
       if (reportButtonColor != null) 'report_button_color': reportButtonColor,
       if (isEntity && reportAlertTypes.isNotEmpty)
-        'report_alert_types': reportAlertTypes,
+        'report_alert_types': reportAlertTypes.map((t) => t.toMap()).toList(),
     };
   }
 
@@ -74,7 +70,7 @@ class CommunityModel {
     int? iconCodePoint,
     String? iconColor,
     String? reportButtonColor,
-    List<String>? reportAlertTypes,
+    List<EntityReportType>? reportAlertTypes,
   }) {
     return CommunityModel(
       id: id ?? this.id,

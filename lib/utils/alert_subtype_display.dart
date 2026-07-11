@@ -135,9 +135,14 @@ class AlertSubtypeDisplay {
     BuildContext context,
     String alertType,
     String? subtypeId,
-    String? customDetail,
-  ) {
-    final main = EmergencyTypes.getTranslatedType(alertType, context);
+    String? customDetail, {
+    String? alertTypeLabel,
+  }) {
+    final main = EmergencyTypes.labelForAlert(
+      alertType: alertType,
+      alertTypeLabel: alertTypeLabel,
+      context: context,
+    );
     final sub = line(context, alertType, subtypeId, customDetail);
     if (sub.isEmpty) return main;
     return '$main → $sub';

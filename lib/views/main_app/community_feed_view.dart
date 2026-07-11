@@ -10,9 +10,6 @@ import 'package:guardian/services/user_service.dart';
 import 'package:guardian/repositories/community_repository.dart';
 import 'package:guardian/utils/alert_subtype_display.dart';
 import 'package:guardian/views/main_app/widgets/alert_detail_dialog.dart';
-import 'package:guardian/views/main_app/widgets/report_send_sheet.dart';
-import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
-import 'package:guardian/core/community_icon_catalog.dart';
 import 'package:guardian/views/main_app/community_settings_view.dart';
 import 'package:guardian/views/main_app/community_members_view.dart';
 import 'package:latlong2/latlong.dart';
@@ -42,13 +39,10 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
 
   /// `true` si esta comunidad es una entidad (`is_entity`) — modo Reportes.
   bool _isEntity = false;
-  int? _entityIconCodePoint;
-  String? _entityIconColor;
-  String? _entityReportButtonColor;
-  List<String> _entityReportAlertTypes = const [];
-  static const String _defaultReportButtonHex = '#0D1B3E';
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  /// Bumps to force StreamBuilder re-subscribe on pull-to-refresh.
+  int _feedEpoch = 0;
 
   @override
   void initState() {
@@ -93,66 +87,20 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
       setState(() {
         _userRole = role;
         _isEntity = community?.isEntity ?? false;
-        _entityIconCodePoint = community?.iconCodePoint;
-        _entityIconColor = community?.iconColor;
-        _entityReportButtonColor = community?.reportButtonColor;
-        _entityReportAlertTypes = community?.reportAlertTypes ?? const [];
         _isLoadingRole = false;
       });
     }
   }
 
-  Color get _entityAccent {
-    final hex = _entityReportButtonColor;
-    if (hex != null && hex.isNotEmpty) {
-      return CommunityIconPicker.colorFromHex(hex);
-    }
-    return CommunityIconPicker.colorFromHex(_defaultReportButtonHex);
+  Future<void> _onRefresh() async {
+    _alertService.invalidateCommunityCache();
+    await _loadUserRole();
+    if (mounted) setState(() => _feedEpoch++);
   }
 
-  Color get _onEntityAccent =>
-      _entityAccent.computeLuminance() > 0.37 ? const Color(0xFF111111) : Colors.white;
-
-  Future<void> _openSendReport() async {
-    final l10n = AppLocalizations.of(context)!;
-    final sent = await ReportSendSheet.show(
-      context,
-      entityId: widget.communityId,
-      entityName: widget.communityName,
-      iconCodePoint: _entityIconCodePoint,
-      iconColor: _entityIconColor,
-      reportButtonColor: _entityReportButtonColor,
-      allowedAlertTypes: _entityReportAlertTypes,
-    );
-    if (!mounted || sent == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor:
-            sent ? const Color(0xFF34C759) : const Color(0xFFFF3B30),
-        content: Row(
-          children: [
-            Icon(
-              sent ? Icons.check_circle_rounded : Icons.error_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                sent ? l10n.reportSentSuccess : l10n.reportSentError,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  bool get _canManageAlerts => _isEntity
+      ? _userRole == MemberFields.roleOfficial
+      : _userRole == MemberFields.roleAdmin;
 
   String _getTimeAgo(DateTime dateTime) {
     final difference = DateTime.now().difference(dateTime);
@@ -167,10 +115,6 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
     if (difference.inDays == 1) return l10n.timeYesterday;
     return l10n.timeDaysAgoShort(difference.inDays);
   }
-
-  bool get _canManageAlerts => _isEntity
-      ? _userRole == MemberFields.roleOfficial
-      : _userRole == MemberFields.roleAdmin;
 
   String _formatExactTime(DateTime dateTime) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -265,9 +209,11 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
         ],
       ),
       body: StreamBuilder<List<AlertModel>>(
+        key: ValueKey(_feedEpoch),
         stream: _alertService.getCommunityAlertsStream(widget.communityId),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
@@ -293,10 +239,13 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           return FadeTransition(
             opacity: _fadeAnimation,
             child: RefreshIndicator(
-              onRefresh: () async => setState(() {}),
+              onRefresh: _onRefresh,
               color: const Color(0xFF007AFF),
               child: ListView.builder(
                 reverse: true,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 padding: EdgeInsets.fromLTRB(
                   isSmall ? 8 : 12,
                   40,
@@ -311,40 +260,8 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
           );
         },
       ),
-      // En entidades cualquier miembro puede enviar reportes; solo
-      // official recibe los reportes de terceros.
-      floatingActionButton: _isEntity
-          ? FloatingActionButton.extended(
-              onPressed: _openSendReport,
-              backgroundColor: _entityAccent,
-              foregroundColor: _onEntityAccent,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              icon: Icon(
-                CommunityIconPicker.iconFromCodePoint(
-                  _entityIconCodePoint ??
-                      CommunityIconCatalog.defaultIconCodePoint,
-                ),
-                size: 20,
-              ),
-              label: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.6,
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.sendReport,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            )
-          : null,
+      // Enviar reporte solo desde la tarjeta de la sección Reportes (home),
+      // no desde el feed de la entidad.
     );
   }
 
@@ -353,20 +270,36 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   Widget _buildBubble(AlertModel alert, double sw) {
     final l10n = AppLocalizations.of(context)!;
     final isOwn = _userService.isUserOwnerOfAlert(alert.userId, alert.userEmail);
-    final alertColor = EmergencyTypes.getColor(alert.alertType);
-    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
+    final alertColor = EmergencyTypes.colorForAlert(
+      alertType: alert.alertType,
+      alertTypeColor: alert.alertTypeColor,
+    );
+    final alertIcon = EmergencyTypes.iconForAlert(
+      alertType: alert.alertType,
+      alertTypeIconCodePoint: alert.alertTypeIconCodePoint,
+    );
     final timeAgo = _getTimeAgo(alert.timestamp);
     final isSmall = sw < 360;
     final headline = AlertSubtypeDisplay.primaryWithSubtypeLine(
           context,
           alert.alertType,
           alert.subtype,
-          alert.customDetail) ??
-        EmergencyTypes.getTranslatedType(alert.alertType, context);
+          alert.customDetail,
+          alertTypeLabel: alert.alertTypeLabel,
+        ) ??
+        EmergencyTypes.labelForAlert(
+          alertType: alert.alertType,
+          alertTypeLabel: alert.alertTypeLabel,
+          context: context,
+        );
     final subline = AlertSubtypeDisplay.line(
             context, alert.alertType, alert.subtype, alert.customDetail)
         .isNotEmpty
-        ? EmergencyTypes.getTranslatedType(alert.alertType, context)
+        ? EmergencyTypes.labelForAlert(
+            alertType: alert.alertType,
+            alertTypeLabel: alert.alertTypeLabel,
+            context: context,
+          )
         : null;
 
     // Burbujas grandes para mostrar todo el contenido sin recortes
@@ -968,88 +901,108 @@ class _CommunityFeedViewState extends State<CommunityFeedView>
   // ─── Empty / Error States ──────────────────────────────────────────────────
 
   Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF3B30).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.wifi_off_rounded,
-                  size: 34, color: Color(0xFFFF3B30)),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              AppLocalizations.of(context)!.alertsLoadErrorFeed,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1C1C1E),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.checkConnectionRetry,
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            TextButton.icon(
-              onPressed: () => setState(() {}),
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(AppLocalizations.of(context)!.retry),
-              style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF007AFF)),
-            ),
-          ],
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: const Color(0xFF007AFF),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
+          Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF3B30).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.wifi_off_rounded,
+                      size: 34, color: Color(0xFFFF3B30)),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  AppLocalizations.of(context)!.alertsLoadErrorFeed,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  AppLocalizations.of(context)!.checkConnectionRetry,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                TextButton.icon(
+                  onPressed: _onRefresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(AppLocalizations.of(context)!.retry),
+                  style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF007AFF)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Icon(Icons.notifications_none_rounded,
-                  size: 36, color: Colors.grey[400]),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context)!.communityFeedEmptyTitle,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1C1C1E),
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              AppLocalizations.of(context)!.communityFeedEmptySubtitle,
-              style:
-                  TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.4),
-              textAlign: TextAlign.center,
-            ),
-          ],
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: const Color(0xFF007AFF),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
+        children: [
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Icon(Icons.notifications_none_rounded,
+                      size: 36, color: Colors.grey[400]),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  AppLocalizations.of(context)!.communityFeedEmptyTitle,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  AppLocalizations.of(context)!.communityFeedEmptySubtitle,
+                  style: TextStyle(
+                      fontSize: 14, color: Colors.grey[500], height: 1.4),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

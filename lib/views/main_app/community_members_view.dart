@@ -1076,6 +1076,9 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
                     onRefresh: _loadMembers,
                     color: const Color(0xFF007AFF),
                     child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                       itemCount: _members.length + 1, // +1 for section header
                       itemBuilder: (context, index) {
@@ -1222,39 +1225,51 @@ class _CommunityMembersViewState extends State<CommunityMembersView>
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _loadMembers,
+      color: const Color(0xFF007AFF),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.people_outline_rounded,
-              size: 36,
-              color: Colors.grey[400],
-            ),
-          ),
-          const SizedBox(height: 16),
-           Text(
-            AppLocalizations.of(context)!.noMembers,
-             style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1C1E),
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppLocalizations.of(context)!.noMembersFound,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[500],
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.22),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.people_outline_rounded,
+                    size: 36,
+                    color: Colors.grey[400],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  AppLocalizations.of(context)!.noMembers,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  AppLocalizations.of(context)!.noMembersFound,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

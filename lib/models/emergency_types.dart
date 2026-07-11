@@ -256,6 +256,39 @@ class EmergencyTypes {
     }
   }
 
+  /// Label for an alert, preferring denormalized custom entity type names.
+  static String labelForAlert({
+    required String alertType,
+    String? alertTypeLabel,
+    required BuildContext context,
+  }) {
+    final custom = alertTypeLabel?.trim();
+    if (custom != null && custom.isNotEmpty) return custom;
+    return getTranslatedType(alertType, context);
+  }
+
+  static Color colorForAlert({
+    required String alertType,
+    String? alertTypeColor,
+  }) {
+    final hex = alertTypeColor?.trim();
+    if (hex != null && hex.isNotEmpty && RegExp(r'^#([0-9a-fA-F]{6})$').hasMatch(hex)) {
+      final v = int.parse(hex.substring(1), radix: 16);
+      return Color(0xFF000000 | v);
+    }
+    return getColor(alertType);
+  }
+
+  static IconData iconForAlert({
+    required String alertType,
+    int? alertTypeIconCodePoint,
+  }) {
+    if (alertTypeIconCodePoint != null && alertTypeIconCodePoint > 0) {
+      return IconData(alertTypeIconCodePoint, fontFamily: 'MaterialIcons');
+    }
+    return getIcon(alertType);
+  }
+
   static Map<String, dynamic>? getTypeByDirectionTranslated(
       String direction, BuildContext context) {
     final typeData = types[direction];

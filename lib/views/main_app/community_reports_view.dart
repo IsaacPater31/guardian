@@ -339,6 +339,9 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
                     onRefresh: _loadReports,
                     color: const Color(0xFF007AFF),
                     child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                       itemCount: _reports.length,
                       itemBuilder: (context, index) {
@@ -540,39 +543,51 @@ class _CommunityReportsViewState extends State<CommunityReportsView>
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _loadReports,
+      color: const Color(0xFF007AFF),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: const Color(0xFF34C759).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.check_circle_outline_rounded,
-              size: 36,
-              color: Color(0xFF34C759),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Todo en orden',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1C1E),
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppLocalizations.of(context)!.noPendingReportsEmpty,
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey[500],
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.22),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF34C759).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 36,
+                    color: Color(0xFF34C759),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Todo en orden',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1C1C1E),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  AppLocalizations.of(context)!.noPendingReportsEmpty,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -539,6 +539,9 @@ class AlertService {
     required List<String> communityIds,
     String? subtype,
     String? customDetail,
+    String? alertTypeLabel,
+    String? alertTypeColor,
+    int? alertTypeIconCodePoint,
     List<String> attachmentPlaceholders = const [],
     List<String>? imageBase64,
     String? audioBase64,
@@ -570,10 +573,11 @@ class AlertService {
       );
 
       final alert = AlertModel(
-        // New flow is type/subtype-based (tap groups), not direction-based swipe.
-        // Keep quick as a special flow for urgency; grouped types use `typed`.
         type: 'typed',
         alertType: alertType,
+        alertTypeLabel: alertTypeLabel,
+        alertTypeColor: alertTypeColor,
+        alertTypeIconCodePoint: alertTypeIconCodePoint,
         subtype: subtype,
         customDetail: customDetail,
         timestamp: DateTime.now(),
@@ -741,11 +745,17 @@ class AlertService {
       throw Exception('Un reporte solo puede enviarse a una entidad');
     }
 
-    if (soleEntity != null &&
-        alertType != null &&
-        soleEntity.reportAlertTypes.isNotEmpty &&
-        !soleEntity.reportAlertTypes.contains(alertType)) {
-      throw Exception('Este tipo de reporte no está habilitado para la entidad');
+    if (soleEntity != null && alertType != null) {
+      if (soleEntity.reportAlertTypes.isEmpty) {
+        throw Exception(
+          'Esta entidad no tiene tipos de reporte configurados',
+        );
+      }
+      if (!soleEntity.reportAlertTypes.any((t) => t.id == alertType)) {
+        throw Exception(
+          'Este tipo de reporte no está habilitado para la entidad',
+        );
+      }
     }
   }
 

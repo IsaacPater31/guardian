@@ -676,6 +676,7 @@ class GuardianBackgroundService : Service() {
                                 val kind = (data["kind"] as? String)?.trim().orEmpty()
                                 val isMembership = kind == "member_added" ||
                                     kind == "member_removed" ||
+                                    kind == "member_left" ||
                                     kind == "role_changed"
                                 // Membership events: notify if unread within a wider window.
                                 // Allow small negative age (web/device clock skew).
@@ -755,6 +756,7 @@ class GuardianBackgroundService : Service() {
         val kind = (data["kind"] as? String)?.trim().orEmpty()
         val isMembershipEvent = kind == "member_added" ||
             kind == "member_removed" ||
+            kind == "member_left" ||
             kind == "role_changed"
 
         // Own broadcasts: skip native notify (still in Flutter feed).
@@ -784,8 +786,16 @@ class GuardianBackgroundService : Service() {
         val body = (data[fs.FIELD_MESSAGE_BODY] as? String)?.trim().orEmpty()
         val senderName = (data[fs.FIELD_SENDER_NAME] as? String)?.trim()
         val communityName = (data["community_name"] as? String)?.trim()
+        val isEntity = data["is_entity"] == true
         return try {
-            showCommunityMessageNotification(title, body, senderName, communityName, documentId)
+            showCommunityMessageNotification(
+                title,
+                body,
+                senderName,
+                communityName,
+                documentId,
+                isEntity = isEntity,
+            )
             println("💬 Community message notification sent: $documentId")
             true
         } catch (e: Exception) {
@@ -800,12 +810,23 @@ class GuardianBackgroundService : Service() {
         senderName: String?,
         communityName: String?,
         documentId: String,
+        isEntity: Boolean = false,
     ) {
         val language = LocaleHelper.getCurrentLanguage(this)
-        val defaultTitle = if (language == "es") "Mensaje de tu comunidad" else "Message from your community"
+        val defaultTitle = when {
+            isEntity && language == "es" -> "Mensaje de tu reporte"
+            isEntity -> "Message from your report"
+            language == "es" -> "Mensaje de tu comunidad"
+            else -> "Message from your community"
+        }
         val contentTitle = if (title.isNotEmpty()) title else defaultTitle
         val communityLine = if (!communityName.isNullOrEmpty()) {
-            if (language == "es") "Comunidad: $communityName" else "Community: $communityName"
+            when {
+                isEntity && language == "es" -> "Reporte: $communityName"
+                isEntity -> "Report: $communityName"
+                language == "es" -> "Comunidad: $communityName"
+                else -> "Community: $communityName"
+            }
         } else {
             null
         }

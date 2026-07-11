@@ -185,190 +185,208 @@ class _JoinCommunityViewState extends State<JoinCommunityView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            const Icon(
-              Icons.group_add,
-              size: 64,
-              color: Color(0xFF1F2937),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.joinACommunity,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      body: RefreshIndicator(
+        color: const Color(0xFF007AFF),
+        onRefresh: () async {
+          final text = _tokenController.text.trim();
+          if (text.isEmpty) return;
+          await _validateToken(text);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              const Icon(
+                Icons.group_add,
+                size: 64,
                 color: Color(0xFF1F2937),
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.enterInviteLinkOrCode,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
+              const SizedBox(height: 16),
+              Text(
+                l10n.joinACommunity,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
+              const SizedBox(height: 8),
+              Text(
+                l10n.enterInviteLinkOrCode,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
 
-            // Input de token
-            Form(
-              key: _formKey,
-              child: TextFormField(
-                controller: _tokenController,
-                decoration: InputDecoration(
-                  labelText: l10n.inviteLinkOrCode,
-                  hintText: l10n.inviteLinkHint,
-                  prefixIcon: const Icon(Icons.link),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+              // Input de token
+              Form(
+                key: _formKey,
+                child: TextFormField(
+                  controller: _tokenController,
+                  decoration: InputDecoration(
+                    labelText: l10n.inviteLinkOrCode,
+                    hintText: l10n.inviteLinkHint,
+                    prefixIcon: const Icon(Icons.link),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: _isValidating
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: () =>
+                                _validateToken(_tokenController.text),
+                          ),
                   ),
-                  suffixIcon: _isValidating
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                  enabled: !_isLoading,
+                  onFieldSubmitted: _validateToken,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return l10n.enterLinkOrCode;
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Botón validar (si no hay preview)
+              if (_communityPreview == null && !_isValidating)
+                TextButton.icon(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      _validateToken(_tokenController.text);
+                    }
+                  },
+                  icon: const Icon(Icons.verified),
+                  label: Text(l10n.validateInvitation),
+                ),
+
+              // Error message
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          color: Colors.red[700], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red[700]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // Preview de la comunidad
+              if (_communityPreview != null) ...[
+                const SizedBox(height: 24),
+                _buildCommunityPreview(),
+                const SizedBox(height: 24),
+
+                // Botón unirse
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _joinCommunity,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F2937),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: () => _validateToken(_tokenController.text),
-                        ),
+                      : const Icon(Icons.check),
+                  label: Text(
+                    _isLoading ? l10n.joining : l10n.joinCommunityAction,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
-                enabled: !_isLoading,
-                onFieldSubmitted: _validateToken,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return l10n.enterLinkOrCode;
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            
-            // Botón validar (si no hay preview)
-            if (_communityPreview == null && !_isValidating)
-              TextButton.icon(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _validateToken(_tokenController.text);
-                  }
-                },
-                icon: const Icon(Icons.verified),
-                label: Text(l10n.validateInvitation),
-              ),
+              ],
 
-            // Error message
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
+
+              // Información adicional
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  color: Colors.blue.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red[700], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: Colors.red[700]),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.howItWorks,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue[700],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.howItWorksDetails,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        height: 1.5,
                       ),
                     ),
                   ],
                 ),
               ),
             ],
-
-            // Preview de la comunidad
-            if (_communityPreview != null) ...[
-              const SizedBox(height: 24),
-              _buildCommunityPreview(),
-              const SizedBox(height: 24),
-              
-              // Botón unirse
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : _joinCommunity,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1F2937),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.check),
-                label: Text(
-                  _isLoading ? l10n.joining : l10n.joinCommunityAction,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-            
-            // Información adicional
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          l10n.howItWorks,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[700],
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.howItWorksDetails,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

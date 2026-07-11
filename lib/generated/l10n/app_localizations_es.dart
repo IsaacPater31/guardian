@@ -800,9 +800,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get reportReasonHint => 'Escribe el motivo del reporte...';
 
   @override
-  String get sendReport => 'Enviar reporte';
-
-  @override
   String nowAdmin(String name) {
     return '$name ahora es administrador';
   }
@@ -931,6 +928,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get entityReportLabel => 'Entidad';
+
+  @override
+  String get sendReport => 'Enviar reporte';
+
+  @override
+  String get sendReportAction => 'Enviar';
 
   @override
   String sendReportTo(String name) {

@@ -30,6 +30,8 @@ class _NotificationsViewState extends State<NotificationsView> {
   final CommunityMessageService _messageService = CommunityMessageService();
   final CommunityService _communityService = CommunityService();
   bool _didInvalidateOnKick = false;
+  /// Bumps StreamBuilders so pull-to-refresh re-subscribes.
+  int _inboxEpoch = 0;
 
   String? _communityFilter;
   _DatePreset _datePreset = _DatePreset.all;
@@ -41,6 +43,12 @@ class _NotificationsViewState extends State<NotificationsView> {
   bool get _hasFilters =>
       _communityFilter != null || _datePreset != _DatePreset.all;
 
+  Future<void> _onRefresh() async {
+    AlertService().invalidateCommunityCache();
+    if (mounted) setState(() => _inboxEpoch++);
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+  }
+
   List<Map<String, dynamic>> _scopeToMemberships(
     List<Map<String, dynamic>> items,
     Set<String> memberCommunityIds,
@@ -49,6 +57,7 @@ class _NotificationsViewState extends State<NotificationsView> {
       final kind = m[CommunityInboxFields.kind] as String?;
       if (kind == CommunityInboxFields.kindMemberRemoved ||
           kind == CommunityInboxFields.kindMemberAdded ||
+          kind == CommunityInboxFields.kindMemberLeft ||
           kind == CommunityInboxFields.kindRoleChanged) {
         return true;
       }
@@ -217,21 +226,34 @@ class _NotificationsViewState extends State<NotificationsView> {
       ),
       body: SafeArea(
         child: uid == null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    l10n.communityMessagesSignIn,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: _kSub,
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
+            ? RefreshIndicator(
+                onRefresh: () async {
+                  if (mounted) setState(() {});
+                },
+                color: _kBlue,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
+                  children: [
+                    SizedBox(height: MediaQuery.sizeOf(context).height * 0.28),
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        l10n.communityMessagesSignIn,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: _kSub,
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               )
             : StreamBuilder<List<Map<String, dynamic>>>(
+                key: ValueKey('memberships_$_inboxEpoch'),
                 stream: _communityService.getAllMyCommunitiesStream(),
                 builder: (context, membershipSnap) {
                   final memberIds = <String>{
@@ -240,6 +262,7 @@ class _NotificationsViewState extends State<NotificationsView> {
                   };
 
                   return StreamBuilder<List<Map<String, dynamic>>>(
+                    key: ValueKey('inbox_$_inboxEpoch'),
                     stream: _messageService.watchInbox(uid),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting &&
@@ -279,42 +302,59 @@ class _NotificationsViewState extends State<NotificationsView> {
                             onClear: _clearFilters,
                           ),
                           Expanded(
-                            child: items.isEmpty
-                                ? Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(32),
-                                      child: Text(
-                                        raw.isEmpty
-                                            ? l10n.communityMessagesEmpty
-                                            : l10n
-                                                .communityMessagesFilteredEmpty,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: _kSub,
-                                          fontSize: 15,
-                                          height: 1.4,
-                                        ),
+                            child: RefreshIndicator(
+                              color: _kBlue,
+                              onRefresh: _onRefresh,
+                              child: items.isEmpty
+                                  ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(
+                                        parent: BouncingScrollPhysics(),
                                       ),
+                                      padding: const EdgeInsets.all(32),
+                                      children: [
+                                        SizedBox(
+                                          height: MediaQuery.sizeOf(context)
+                                                  .height *
+                                              0.2,
+                                        ),
+                                        Text(
+                                          raw.isEmpty
+                                              ? l10n.communityMessagesEmpty
+                                              : l10n
+                                                  .communityMessagesFilteredEmpty,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: _kSub,
+                                            fontSize: 15,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : ListView.separated(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(
+                                        parent: BouncingScrollPhysics(),
+                                      ),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        4,
+                                        16,
+                                        28,
+                                      ),
+                                      itemCount: items.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 8),
+                                      itemBuilder: (context, i) {
+                                        final m = items[i];
+                                        return _InboxRow(
+                                          message: m,
+                                          onOpen: () => _openMessage(uid, m),
+                                        );
+                                      },
                                     ),
-                                  )
-                                : ListView.separated(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      4,
-                                      16,
-                                      28,
-                                    ),
-                                    itemCount: items.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(height: 8),
-                                    itemBuilder: (context, i) {
-                                      final m = items[i];
-                                      return _InboxRow(
-                                        message: m,
-                                        onOpen: () => _openMessage(uid, m),
-                                      );
-                                    },
-                                  ),
+                            ),
                           ),
                         ],
                       );

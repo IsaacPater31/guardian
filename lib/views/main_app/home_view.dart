@@ -250,20 +250,47 @@ class _HomeViewState extends State<HomeView> {
     return (h * fraction).clamp(minPanel, maxPanel);
   }
 
+  Future<void> _onRefresh() async {
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _homeHandler.refreshRecentAlerts(),
+        _loadCurrentLocationForNearby(),
+        _loadUserNonOfficialCommunities(),
+      ]);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.alertsUpdateError),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
-        child: ListView(
-          physics: const BouncingScrollPhysics(),
-          children: [
-            _buildHeader(),
-            _buildLatestRecentAlertSection(),
-            _buildAlertButtonSection(),
-            _buildNearbyAlertsSection(),
-            const SizedBox(height: 8),
-          ],
+        child: RefreshIndicator(
+          color: const Color(0xFF007AFF),
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            children: [
+              _buildHeader(),
+              _buildLatestRecentAlertSection(),
+              _buildAlertButtonSection(),
+              _buildNearbyAlertsSection(),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -783,22 +810,7 @@ class _HomeViewState extends State<HomeView> {
     bool dense = false,
   }) {
     return RefreshIndicator(
-      onRefresh: () async {
-        setState(() => _isLoading = true);
-        try {
-          await _homeHandler.refreshRecentAlerts();
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppLocalizations.of(context)!.alertsUpdateError),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-        if (mounted) setState(() => _isLoading = false);
-      },
+      onRefresh: _onRefresh,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
@@ -833,12 +845,19 @@ class _HomeViewState extends State<HomeView> {
     bool compact = false,
     bool dense = false,
   }) {
-    final localizedType = EmergencyTypes.getTranslatedType(
-      alert.alertType,
-      context,
+    final localizedType = EmergencyTypes.labelForAlert(
+      alertType: alert.alertType,
+      alertTypeLabel: alert.alertTypeLabel,
+      context: context,
     );
-    final alertIcon = EmergencyTypes.getIcon(alert.alertType);
-    final alertColor = EmergencyTypes.getColor(alert.alertType);
+    final alertIcon = EmergencyTypes.iconForAlert(
+      alertType: alert.alertType,
+      alertTypeIconCodePoint: alert.alertTypeIconCodePoint,
+    );
+    final alertColor = EmergencyTypes.colorForAlert(
+      alertType: alert.alertType,
+      alertTypeColor: alert.alertTypeColor,
+    );
     final timeAgo = _getTimeAgo(alert.timestamp);
     final isAttended = alert.alertStatus == 'attended';
     final statusColor = isAttended

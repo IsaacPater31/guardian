@@ -39,8 +39,10 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     _loadCommunity();
   }
 
-  Future<void> _loadCommunity() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadCommunity({bool showFullScreenLoader = true}) async {
+    if (showFullScreenLoader && mounted) {
+      setState(() => _isLoading = true);
+    }
     try {
       final community =
           await _communityRepository.getCommunityById(widget.communityId);
@@ -730,27 +732,39 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
       return Scaffold(
         backgroundColor: const Color(0xFFF2F2F7),
         appBar: _buildAppBar(),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+        body: RefreshIndicator(
+          color: const Color(0xFF007AFF),
+          onRefresh: () => _loadCommunity(showFullScreenLoader: false),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
             children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF3B30).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(Icons.error_outline_rounded,
-                    size: 36, color: Color(0xFFFF3B30)),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context)!.errorLoadingCommunity,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1C1C1E),
+              SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF3B30).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.error_outline_rounded,
+                          size: 36, color: Color(0xFFFF3B30)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.of(context)!.errorLoadingCommunity,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -766,137 +780,144 @@ class _CommunitySettingsViewState extends State<CommunitySettingsView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: _buildAppBar(),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
-        children: [
-          // ─── Community Header ─────────────────────────
-          _buildHeaderCard(canManageFromMobile),
-          const SizedBox(height: 24),
+      body: RefreshIndicator(
+        color: const Color(0xFF007AFF),
+        onRefresh: () => _loadCommunity(showFullScreenLoader: false),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+          children: [
+            // ─── Community Header ─────────────────────────
+            _buildHeaderCard(canManageFromMobile),
+            const SizedBox(height: 24),
 
-          // ─── Community Section ────────────────────────
-          _buildSectionHeader(AppLocalizations.of(context)!.communitySection),
-          const SizedBox(height: 8),
-          _buildGroupedCard([
-            _buildSettingsTile(
-              icon: Icons.people_outline_rounded,
-              iconColor: const Color(0xFF007AFF),
-              title: AppLocalizations.of(context)!.viewMembers,
-              subtitle: AppLocalizations.of(context)!.allMembers,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CommunityMembersView(
-                      communityId: widget.communityId,
-                      communityName: _community?.name ?? '',
-                      userRole: widget.userRole,
-                    ),
-                  ),
-                ).then((_) {
-                  if (mounted) _loadCommunity();
-                });
-              },
-            ),
-            if (canManageFromMobile)
+            // ─── Community Section ────────────────────────
+            _buildSectionHeader(AppLocalizations.of(context)!.communitySection),
+            const SizedBox(height: 8),
+            _buildGroupedCard([
               _buildSettingsTile(
-                icon: Icons.flag_outlined,
-                iconColor: _pendingReportsCount > 0
-                    ? const Color(0xFFFF9500)
-                    : const Color(0xFF8E8E93),
-                title: AppLocalizations.of(context)!.reports,
-                subtitle: _pendingReportsCount > 0
-                    ? AppLocalizations.of(context)!.pendingCount(_pendingReportsCount, _pendingReportsCount > 1 ? 's' : '')
-                    : AppLocalizations.of(context)!.noPendingReports,
-                badge: _pendingReportsCount > 0 ? _pendingReportsCount : null,
-                onTap: () async {
-                  await Navigator.push(
+                icon: Icons.people_outline_rounded,
+                iconColor: const Color(0xFF007AFF),
+                title: AppLocalizations.of(context)!.viewMembers,
+                subtitle: AppLocalizations.of(context)!.allMembers,
+                onTap: () {
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CommunityReportsView(
+                      builder: (_) => CommunityMembersView(
                         communityId: widget.communityId,
                         communityName: _community?.name ?? '',
+                        userRole: widget.userRole,
                       ),
                     ),
-                  );
-                  _loadCommunity();
+                  ).then((_) {
+                    if (mounted) _loadCommunity();
+                  });
                 },
               ),
-          ]),
-          const SizedBox(height: 24),
+              if (canManageFromMobile)
+                _buildSettingsTile(
+                  icon: Icons.flag_outlined,
+                  iconColor: _pendingReportsCount > 0
+                      ? const Color(0xFFFF9500)
+                      : const Color(0xFF8E8E93),
+                  title: AppLocalizations.of(context)!.reports,
+                  subtitle: _pendingReportsCount > 0
+                      ? AppLocalizations.of(context)!.pendingCount(_pendingReportsCount, _pendingReportsCount > 1 ? 's' : '')
+                      : AppLocalizations.of(context)!.noPendingReports,
+                  badge: _pendingReportsCount > 0 ? _pendingReportsCount : null,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommunityReportsView(
+                          communityId: widget.communityId,
+                          communityName: _community?.name ?? '',
+                        ),
+                      ),
+                    );
+                    _loadCommunity();
+                  },
+                ),
+            ]),
+            const SizedBox(height: 24),
 
-          // ─── Invite Section ───────────────────────────
-          if (!isEntity) ...[
-            _buildSectionHeader(AppLocalizations.of(context)!.addMembersSection),
+            // ─── Invite Section ───────────────────────────
+            if (!isEntity) ...[
+              _buildSectionHeader(AppLocalizations.of(context)!.addMembersSection),
+              const SizedBox(height: 8),
+              _buildGroupedCard([
+                if (canManageFromMobile)
+                  _buildSettingsTile(
+                    icon: Icons.person_search_rounded,
+                    iconColor: const Color(0xFF34C759),
+                    title: AppLocalizations.of(context)!.searchAndAdd,
+                    subtitle: AppLocalizations.of(context)!.addByEmailOrName,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CommunityMembersView(
+                            communityId: widget.communityId,
+                            communityName: _community?.name ?? '',
+                            userRole: widget.userRole,
+                            autoOpenAddSheet: true,
+                          ),
+                        ),
+                      ).then((_) {
+                        if (mounted) _loadCommunity();
+                      });
+                    },
+                  ),
+                _buildSettingsTile(
+                  icon: Icons.link_rounded,
+                  iconColor: const Color(0xFF007AFF),
+                  title: AppLocalizations.of(context)!.generateInviteLink,
+                  subtitle: _isGeneratingLink
+                      ? AppLocalizations.of(context)!.generating
+                      : AppLocalizations.of(context)!.shareToInvite,
+                  trailing: _isGeneratingLink
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF007AFF),
+                          ),
+                        )
+                      : null,
+                  onTap: _isGeneratingLink ? null : _generateInviteLink,
+                ),
+              ]),
+              const SizedBox(height: 24),
+            ],
+
+            // ─── Danger Zone ──────────────────────────────
+            _buildSectionHeader(AppLocalizations.of(context)!.dangerZone),
             const SizedBox(height: 8),
             _buildGroupedCard([
               if (canManageFromMobile)
                 _buildSettingsTile(
-                  icon: Icons.person_search_rounded,
-                  iconColor: const Color(0xFF34C759),
-                  title: AppLocalizations.of(context)!.searchAndAdd,
-                  subtitle: AppLocalizations.of(context)!.addByEmailOrName,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CommunityMembersView(
-                          communityId: widget.communityId,
-                          communityName: _community?.name ?? '',
-                          userRole: widget.userRole,
-                          autoOpenAddSheet: true,
-                        ),
-                      ),
-                    ).then((_) {
-                      if (mounted) _loadCommunity();
-                    });
-                  },
+                  icon: Icons.delete_forever_rounded,
+                  iconColor: const Color(0xFFFF3B30),
+                  title: AppLocalizations.of(context)!.deleteCommunityAction,
+                  subtitle: AppLocalizations.of(context)!.deletePermanently,
+                  titleColor: const Color(0xFFFF3B30),
+                  onTap: _deleteCommunity,
                 ),
               _buildSettingsTile(
-                icon: Icons.link_rounded,
-                iconColor: const Color(0xFF007AFF),
-                title: AppLocalizations.of(context)!.generateInviteLink,
-                subtitle: _isGeneratingLink
-                    ? AppLocalizations.of(context)!.generating
-                    : AppLocalizations.of(context)!.shareToInvite,
-                trailing: _isGeneratingLink
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFF007AFF),
-                        ),
-                      )
-                    : null,
-                onTap: _isGeneratingLink ? null : _generateInviteLink,
+                icon: Icons.exit_to_app_rounded,
+                iconColor: const Color(0xFFFF9500),
+                title: AppLocalizations.of(context)!.leaveCommunity,
+                subtitle: AppLocalizations.of(context)!.stopReceivingAlerts,
+                titleColor: const Color(0xFFFF9500),
+                onTap: _leaveCommunity,
               ),
             ]),
-            const SizedBox(height: 24),
           ],
-
-          // ─── Danger Zone ──────────────────────────────
-          _buildSectionHeader(AppLocalizations.of(context)!.dangerZone),
-          const SizedBox(height: 8),
-          _buildGroupedCard([
-            if (canManageFromMobile)
-              _buildSettingsTile(
-                icon: Icons.delete_forever_rounded,
-                iconColor: const Color(0xFFFF3B30),
-                title: AppLocalizations.of(context)!.deleteCommunityAction,
-                subtitle: AppLocalizations.of(context)!.deletePermanently,
-                titleColor: const Color(0xFFFF3B30),
-                onTap: _deleteCommunity,
-              ),
-            _buildSettingsTile(
-              icon: Icons.exit_to_app_rounded,
-              iconColor: const Color(0xFFFF9500),
-              title: AppLocalizations.of(context)!.leaveCommunity,
-              subtitle: AppLocalizations.of(context)!.stopReceivingAlerts,
-              titleColor: const Color(0xFFFF9500),
-              onTap: _leaveCommunity,
-            ),
-          ]),
-        ],
+        ),
       ),
     );
   }

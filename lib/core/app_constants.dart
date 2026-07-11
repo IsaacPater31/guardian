@@ -141,6 +141,7 @@ abstract final class CommunityInboxFields {
   static const String kindMessage = 'community_message';
   static const String kindMemberAdded = 'member_added';
   static const String kindMemberRemoved = 'member_removed';
+  static const String kindMemberLeft = 'member_left';
   static const String kindRoleChanged = 'role_changed';
 }
 

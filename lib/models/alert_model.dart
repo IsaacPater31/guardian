@@ -10,8 +10,17 @@ class AlertModel {
   /// Legacy documents may still contain `'swiped'`.
   final String type;
 
-  /// Emergency type identifier (Firestore), p. ej. `'FIRE'`, `'casa'`, `'policial'`.
+  /// Emergency type identifier (Firestore), p. ej. `'FIRE'`, `'casa'`, o id custom `ert_…`.
   final String alertType;
+
+  /// Denormalized label for custom entity report types.
+  final String? alertTypeLabel;
+
+  /// Denormalized color hex for custom entity report types.
+  final String? alertTypeColor;
+
+  /// Denormalized Material icon code point for custom entity report types.
+  final int? alertTypeIconCodePoint;
 
   final String? description;
   final String? subtype;
@@ -51,6 +60,9 @@ class AlertModel {
     this.id,
     required this.type,
     required this.alertType,
+    this.alertTypeLabel,
+    this.alertTypeColor,
+    this.alertTypeIconCodePoint,
     this.description,
     this.subtype,
     this.customDetail,
@@ -118,6 +130,12 @@ class AlertModel {
       id: doc.id,
       type: flowType,
       alertType: alertType,
+      alertTypeLabel: data['alertTypeLabel'] as String? ??
+          data['alert_type_label'] as String?,
+      alertTypeColor: data['alertTypeColor'] as String? ??
+          data['alert_type_color'] as String?,
+      alertTypeIconCodePoint: data['alertTypeIconCodePoint'] as int? ??
+          data['alert_type_icon_code_point'] as int?,
       description: data['description'],
       subtype: data['subtype'],
       customDetail: data['custom_detail'],
@@ -154,6 +172,10 @@ class AlertModel {
   Map<String, dynamic> toFirestore() => {
     'type': type,
     'alertType': alertType,
+    if (alertTypeLabel != null) 'alertTypeLabel': alertTypeLabel,
+    if (alertTypeColor != null) 'alertTypeColor': alertTypeColor,
+    if (alertTypeIconCodePoint != null)
+      'alertTypeIconCodePoint': alertTypeIconCodePoint,
     'description': description,
     'subtype': subtype,
     'custom_detail': customDetail,
@@ -182,6 +204,9 @@ class AlertModel {
     String? id,
     String? type,
     String? alertType,
+    String? alertTypeLabel,
+    String? alertTypeColor,
+    int? alertTypeIconCodePoint,
     String? description,
     String? subtype,
     String? customDetail,
@@ -207,6 +232,10 @@ class AlertModel {
       id: id ?? this.id,
       type: type ?? this.type,
       alertType: alertType ?? this.alertType,
+      alertTypeLabel: alertTypeLabel ?? this.alertTypeLabel,
+      alertTypeColor: alertTypeColor ?? this.alertTypeColor,
+      alertTypeIconCodePoint:
+          alertTypeIconCodePoint ?? this.alertTypeIconCodePoint,
       description: description ?? this.description,
       subtype: subtype ?? this.subtype,
       customDetail: customDetail ?? this.customDetail,

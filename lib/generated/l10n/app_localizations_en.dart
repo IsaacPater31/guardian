@@ -793,9 +793,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportReasonHint => 'Write the reason for the report...';
 
   @override
-  String get sendReport => 'Send report';
-
-  @override
   String nowAdmin(String name) {
     return '$name is now an admin';
   }
@@ -924,6 +921,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get entityReportLabel => 'Entity';
+
+  @override
+  String get sendReport => 'Send report';
+
+  @override
+  String get sendReportAction => 'Send';
 
   @override
   String sendReportTo(String name) {

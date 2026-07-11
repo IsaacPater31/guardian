@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:guardian/core/app_logger.dart';
 import 'package:guardian/models/alert_model.dart';
+import 'package:guardian/models/emergency_types.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:guardian/handlers/alert_handler.dart';
@@ -291,6 +292,7 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
       widget.alert.alertType,
       widget.alert.subtype,
       widget.alert.customDetail,
+      alertTypeLabel: widget.alert.alertTypeLabel,
     )!;
 
     return Container(
@@ -1221,65 +1223,17 @@ class _AlertDetailDialogState extends State<AlertDetailDialog> {
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
   IconData _getAlertIcon(String alertType) {
-    switch (alertType) {
-      case 'HEALTH':       return Icons.medical_services_rounded;
-      case 'casa':
-      case 'HOME_HELP':    return Icons.home_rounded;
-      case 'policial':
-      case 'POLICE':       return Icons.local_police_rounded;
-      case 'FIRE':         return Icons.local_fire_department_rounded;
-      case 'seguridad':
-      case 'SECURITY_BREACH': return Icons.security_rounded;
-      case 'ACCOMPANIMENT':return Icons.people_rounded;
-      case 'ambiental':
-      case 'ENVIRONMENTAL':return Icons.eco_rounded;
-      case 'vial':
-      case 'ROAD_EMERGENCY': return Icons.directions_car_rounded;
-      case 'URGENCY':      return Icons.emergency_rounded;
-      case 'acoso':
-      case 'HARASSMENT':   return Icons.front_hand_rounded;
-      case 'ROBBERY':      return Icons.person_off_rounded;
-      case 'ACCIDENT':     return Icons.car_crash_rounded;
-      case 'STREET ESCORT':return Icons.people_rounded;
-      case 'UNSAFETY':     return Icons.warning_rounded;
-      case 'PHYSICAL RISK':return Icons.accessibility_rounded;
-      case 'PUBLIC SERVICES EMERGENCY': return Icons.construction_rounded;
-      case 'VIAL EMERGENCY': return Icons.directions_car_rounded;
-      case 'ASSISTANCE':   return Icons.help_rounded;
-      case 'EMERGENCY':    return Icons.emergency_rounded;
-      default:             return Icons.warning_rounded;
-    }
+    return EmergencyTypes.iconForAlert(
+      alertType: alertType,
+      alertTypeIconCodePoint: widget.alert.alertTypeIconCodePoint,
+    );
   }
 
   Color _getAlertColor(String alertType) {
-    switch (alertType) {
-      case 'HEALTH':       return const Color(0xFF26C6DA);
-      case 'casa':
-      case 'HOME_HELP':    return const Color(0xFF66BB6A);
-      case 'policial':
-      case 'POLICE':       return const Color(0xFF1565C0);
-      case 'FIRE':         return const Color(0xFFE53935);
-      case 'seguridad':
-      case 'SECURITY_BREACH': return const Color(0xFFC62828);
-      case 'ACCOMPANIMENT':return const Color(0xFF8E24AA);
-      case 'ambiental':
-      case 'ENVIRONMENTAL':return const Color(0xFF43A047);
-      case 'vial':
-      case 'ROAD_EMERGENCY':return const Color(0xFFFF7043);
-      case 'URGENCY':     return const Color(0xFFF44336);
-      case 'acoso':
-      case 'HARASSMENT':  return const Color(0xFF7B1FA2);
-      case 'ROBBERY':      return const Color(0xFF9C27B0);
-      case 'EMERGENCY':    return const Color(0xFFF44336);
-      case 'ACCIDENT':     return const Color(0xFFFF9800);
-      case 'UNSAFETY':     return const Color(0xFFFF9800);
-      case 'PHYSICAL RISK':return const Color(0xFF673AB7);
-      case 'PUBLIC SERVICES EMERGENCY': return const Color(0xFFFFC107);
-      case 'VIAL EMERGENCY': return const Color(0xFF00BCD4);
-      case 'ASSISTANCE':   return const Color(0xFF4CAF50);
-      case 'STREET ESCORT':return const Color(0xFF2196F3);
-      default:             return const Color(0xFF9E9E9E);
-    }
+    return EmergencyTypes.colorForAlert(
+      alertType: alertType,
+      alertTypeColor: widget.alert.alertTypeColor,
+    );
   }
 
   String _formatDateTime(DateTime dt) {

@@ -6,35 +6,20 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:guardian/core/alert_detail_catalog.dart';
 import 'package:guardian/core/community_icon_catalog.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
-import 'package:guardian/models/emergency_types.dart';
+import 'package:guardian/models/entity_report_type.dart';
 import 'package:guardian/services/alert_service.dart';
 import 'package:guardian/services/alert_attachments_service.dart';
 import 'package:guardian/services/audio_preview_service.dart';
 import 'package:guardian/views/main_app/widgets/community_icon_picker.dart';
 
-/// Bottom sheet para enviar un reporte a una entidad (`is_entity`).
-class ReportSendSheet extends StatefulWidget {
-  final String entityId;
-  final String entityName;
-  final int? iconCodePoint;
-  final String? iconColor;
-  final String? reportButtonColor;
-  final List<String> allowedAlertTypes;
+/// Fullscreen report flow: type + detail + send in a single step
+/// (same mental model as community alert confirmation).
+class ReportSendSheet {
+  ReportSendSheet._();
 
-  const ReportSendSheet({
-    super.key,
-    required this.entityId,
-    required this.entityName,
-    this.iconCodePoint,
-    this.iconColor,
-    this.reportButtonColor,
-    this.allowedAlertTypes = const [],
-  });
-
-  /// Muestra el sheet y devuelve `true` si el reporte se envió.
+  /// Opens the flow and returns `true` if a report was sent.
   static Future<bool?> show(
     BuildContext context, {
     required String entityId,
@@ -42,86 +27,94 @@ class ReportSendSheet extends StatefulWidget {
     int? iconCodePoint,
     String? iconColor,
     String? reportButtonColor,
-    List<String> allowedAlertTypes = const [],
+    List<EntityReportType> allowedAlertTypes = const [],
+    @Deprecated('Use allowedAlertTypes') List<String> allowedTypeIds = const [],
   }) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ReportSendSheet(
-        entityId: entityId,
-        entityName: entityName,
-        iconCodePoint: iconCodePoint,
-        iconColor: iconColor,
-        reportButtonColor: reportButtonColor,
-        allowedAlertTypes: allowedAlertTypes,
+    final types = allowedAlertTypes.isNotEmpty
+        ? allowedAlertTypes
+        : EntityReportType.parseList(
+            allowedTypeIds.map((id) => {'id': id, 'name': id}).toList(),
+          );
+
+    return Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ReportComposePage(
+          entityId: entityId,
+          entityName: entityName,
+          iconCodePoint: iconCodePoint,
+          iconColor: iconColor,
+          reportButtonColor: reportButtonColor,
+          allowedTypes: types,
+        ),
       ),
     );
   }
-
-  @override
-  State<ReportSendSheet> createState() => _ReportSendSheetState();
 }
 
-class _ReportSendSheetState extends State<ReportSendSheet> {
+class ReportComposePage extends StatefulWidget {
+  const ReportComposePage({
+    super.key,
+    required this.entityId,
+    required this.entityName,
+    required this.allowedTypes,
+    this.iconCodePoint,
+    this.iconColor,
+    this.reportButtonColor,
+  });
+
+  final String entityId;
+  final String entityName;
+  final List<EntityReportType> allowedTypes;
+  final int? iconCodePoint;
+  final String? iconColor;
+  final String? reportButtonColor;
+
+  @override
+  State<ReportComposePage> createState() => _ReportComposePageState();
+}
+
+class _ReportComposePageState extends State<ReportComposePage> {
   final AlertService _alertService = AlertService();
   final ImagePicker _picker = ImagePicker();
   final AlertAttachmentsService _attachments = AlertAttachmentsService.instance;
-  final TextEditingController _otherController = TextEditingController();
-  final FocusNode _otherFocus = FocusNode();
+  final TextEditingController _detailController = TextEditingController();
   final List<XFile> _pickedImages = [];
   AudioRecorder? _recorder;
   File? _audioFile;
-  final Set<String> _selectedTypes = <String>{};
-  final Map<String, String?> _selectedSubtypeByType = <String, String?>{};
+  EntityReportType? _selectedType;
   bool _isAnonymous = false;
   bool _isSending = false;
   bool _isRecording = false;
   int _recordElapsedSec = 0;
   Timer? _recordCapTimer;
   Timer? _recordUiTimer;
-  static const String _defaultReportButtonHex = '#0D1B3E';
 
-  Color get _accent {
+  Color get _entityAccent {
     final hex = widget.reportButtonColor;
     if (hex != null && hex.isNotEmpty) {
       return CommunityIconPicker.colorFromHex(hex);
     }
-    return CommunityIconPicker.colorFromHex(_defaultReportButtonHex);
+    return CommunityIconPicker.colorFromHex('#0D1B3E');
   }
 
-  IconData get _entityIcon {
-    final cp = widget.iconCodePoint ?? CommunityIconCatalog.defaultIconCodePoint;
-    return CommunityIconPicker.iconFromCodePoint(cp);
-  }
-
-  Color get _iconAccent {
-    final hex = widget.iconColor;
-    if (hex != null && hex.isNotEmpty) {
-      return CommunityIconPicker.colorFromHex(hex);
+  Color get _accent {
+    final selected = _selectedType;
+    if (selected != null) {
+      return CommunityIconPicker.colorFromHex(selected.color);
     }
-    return _accent;
+    return _entityAccent;
   }
 
   Color get _onAccent =>
       _accent.computeLuminance() > 0.37 ? const Color(0xFF111111) : Colors.white;
 
-  List<String> get _availableTypes {
-    final all = EmergencyTypes.typeMetadata.keys.toList();
-    if (widget.allowedAlertTypes.isEmpty) return all;
-    final allowed = widget.allowedAlertTypes.toSet();
-    return all.where(allowed.contains).toList();
-  }
-
-  bool get _requiresOtherDetail {
-    for (final type in _selectedTypes) {
-      final subtype = _selectedSubtypeByType[type];
-      if (subtype == null) continue;
-      if (AlertDetailCatalog.subtypeRequiresDetail(type, subtype)) {
-        return true;
-      }
+  @override
+  void initState() {
+    super.initState();
+    if (widget.allowedTypes.isNotEmpty) {
+      _selectedType = widget.allowedTypes.first;
     }
-    return false;
   }
 
   @override
@@ -129,8 +122,7 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
     _recordCapTimer?.cancel();
     _recordUiTimer?.cancel();
     _recorder?.dispose();
-    _otherController.dispose();
-    _otherFocus.dispose();
+    _detailController.dispose();
     super.dispose();
   }
 
@@ -142,11 +134,7 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
     final r = _recorder;
     _recorder = null;
     if (r == null) {
-      if (mounted) {
-        setState(() {
-          _isRecording = false;
-        });
-      }
+      if (mounted) setState(() => _isRecording = false);
       return;
     }
     try {
@@ -181,7 +169,8 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
         return;
       }
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/report_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final path =
+          '${dir.path}/report_${DateTime.now().millisecondsSinceEpoch}.m4a';
       await r.start(
         const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 96000),
         path: path,
@@ -211,329 +200,208 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
 
   Future<void> _send() async {
     final l10n = AppLocalizations.of(context)!;
-    if (_selectedTypes.isEmpty) {
+    final type = _selectedType;
+    if (type == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          content: Text(l10n.reportSelectTypeFirst),
+          content: Text(l10n.reportTypeLabel),
         ),
       );
       return;
     }
-    for (final type in _selectedTypes) {
-      if (_selectedSubtypeByType[type] == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            content: Text(l10n.selectSubtypeRequired),
-          ),
-        );
-        return;
-      }
-    }
-    if (_requiresOtherDetail && _otherController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(l10n.describeOtherCaseRequired),
-        ),
-      );
-      return;
-    }
+
     await _stopRecording();
     if (!mounted) return;
     setState(() => _isSending = true);
 
-    final prepared = await _attachments.prepareForFirestore(_pickedImages, _audioFile);
-    final notes = List<String>.from(prepared.notes);
-    final customDetail = _otherController.text.trim();
-    var anySent = false;
-    for (final type in _selectedTypes) {
-      final ok = await _alertService.sendTypedAlert(
-        alertType: type,
-        isAnonymous: _isAnonymous,
-        communityIds: [widget.entityId],
-        subtype: _selectedSubtypeByType[type],
-        customDetail: customDetail.isEmpty ? null : customDetail,
-        attachmentPlaceholders: notes,
-        imageBase64: prepared.imageBase64.isEmpty ? null : prepared.imageBase64,
-        audioBase64: prepared.audioBase64,
-      );
-      anySent = anySent || ok;
-    }
+    final prepared =
+        await _attachments.prepareForFirestore(_pickedImages, _audioFile);
+    final detail = _detailController.text.trim();
+    final ok = await _alertService.sendTypedAlert(
+      alertType: type.id,
+      alertTypeLabel: type.name,
+      alertTypeColor: type.color,
+      alertTypeIconCodePoint: type.iconCodePoint,
+      isAnonymous: _isAnonymous,
+      communityIds: [widget.entityId],
+      customDetail: detail.isEmpty ? null : detail,
+      attachmentPlaceholders: List<String>.from(prepared.notes),
+      imageBase64: prepared.imageBase64.isEmpty ? null : prepared.imageBase64,
+      audioBase64: prepared.audioBase64,
+    );
 
     if (!mounted) return;
     setState(() => _isSending = false);
-    Navigator.of(context).pop(anySent);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text(l10n.reportSentError),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
+  Widget _buildTypePicker(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.reportTypeLabel,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: _selectedType?.id,
+          isExpanded: true,
+          items: widget.allowedTypes
+              .map(
+                (type) => DropdownMenuItem<String>(
+                  value: type.id,
+                  child: Row(
+                    children: [
+                      Icon(
+                        CommunityIconPicker.iconFromCodePoint(
+                          type.iconCodePoint,
+                        ),
+                        size: 18,
+                        color: CommunityIconPicker.colorFromHex(type.color),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          type.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null) return;
+            EntityReportType? match;
+            for (final t in widget.allowedTypes) {
+              if (t.id == value) {
+                match = t;
+                break;
+              }
+            }
+            if (match == null) return;
+            setState(() => _selectedType = match);
+          },
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final types = _availableTypes;
-    final accent = _accent;
+    final entityIcon = CommunityIconPicker.iconFromCodePoint(
+      widget.iconCodePoint ?? CommunityIconCatalog.defaultIconCodePoint,
+    );
+    final iconAccent =
+        (widget.iconColor != null && widget.iconColor!.isNotEmpty)
+            ? CommunityIconPicker.colorFromHex(widget.iconColor!)
+            : _entityAccent;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(l10n.sendReportTo(widget.entityName)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1C1C1E),
+        elevation: 0,
       ),
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: _iconAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(_entityIcon, color: _iconAccent, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        l10n.sendReportTo(widget.entityName),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1C1C1E),
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+      body: widget.allowedTypes.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text(
-                  l10n.reportTypeLabel.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[500],
-                    letterSpacing: 0.5,
-                  ),
+                  l10n.reportNoTypesConfigured,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 15),
                 ),
               ),
-              const SizedBox(height: 10),
-              if (types.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    l10n.reportNoTypesConfigured,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: types.map((type) {
-                      final isActive = _selectedTypes.contains(type);
-                      final color = EmergencyTypes.getColor(type);
-                      final icon = EmergencyTypes.getIcon(type);
-                      final label =
-                          EmergencyTypes.getTranslatedType(type, context);
-
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            if (isActive) {
-                              _selectedTypes.remove(type);
-                              _selectedSubtypeByType.remove(type);
-                            } else {
-                              _selectedTypes.add(type);
-                              final options = AlertDetailCatalog.getSubtypes(type);
-                              _selectedSubtypeByType[type] =
-                                  options.isNotEmpty ? options.first.id : null;
-                            }
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
-                          ),
+            )
+          : SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: iconAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: iconAccent.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: isActive
-                                ? color.withValues(alpha: 0.12)
-                                : Colors.white,
+                            color: iconAccent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color:
-                                  isActive ? color : const Color(0xFFE5E7EB),
-                              width: isActive ? 1.5 : 1,
+                          ),
+                          child: Icon(entityIcon, color: iconAccent, size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            l10n.sendReportTo(widget.entityName),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(icon, color: Colors.white, size: 11),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                label,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isActive
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                  color: isActive
-                                      ? color
-                                      : const Color(0xFF374151),
-                                ),
-                              ),
-                              if (isActive) ...[
-                                const SizedBox(width: 6),
-                                Icon(Icons.check_circle, size: 14, color: color),
-                              ],
-                            ],
-                          ),
                         ),
-                      );
-                    }).toList(),
+                      ],
+                    ),
                   ),
-                ),
-              const SizedBox(height: 20),
-              if (_selectedTypes.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    l10n.subtypeOrReasonLabel,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ..._selectedTypes.map((type) {
-                  final options = AlertDetailCatalog.getSubtypes(type);
-                  final selectedSubtype = _selectedSubtypeByType[type];
-                  final color = EmergencyTypes.getColor(type);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.08),
+                  const SizedBox(height: 20),
+                  _buildTypePicker(l10n),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _detailController,
+                    minLines: 2,
+                    maxLines: 4,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: l10n.describeCaseLabel,
+                      hintText: l10n.describeCaseHint,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: color.withValues(alpha: 0.22)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            EmergencyTypes.getTranslatedType(type, context),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: selectedSubtype,
-                            items: options
-                                .map(
-                                  (option) => DropdownMenuItem<String>(
-                                    value: option.id,
-                                    child: Text(option.label),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _selectedSubtypeByType[type] = value);
-                              if (value == AlertDetailCatalog.otherSubtypeId) {
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (_otherFocus.canRequestFocus) {
-                                    _otherFocus.requestFocus();
-                                  }
-                                });
-                              }
-                            },
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-                if (_requiresOtherDetail) ...[
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: TextField(
-                      controller: _otherController,
-                      focusNode: _otherFocus,
-                      minLines: 2,
-                      maxLines: 4,
-                      keyboardType: TextInputType.multiline,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        labelText: l10n.describeCaseLabel,
-                        hintText: l10n.describeCaseHint,
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
                     ),
                   ),
-                ],
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
+                  const SizedBox(height: 16),
+                  Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: accent.withValues(alpha: 0.35)),
-                      color: accent.withValues(alpha: 0.08),
+                      border: Border.all(
+                        color: _accent.withValues(alpha: 0.35),
+                      ),
+                      color: _accent.withValues(alpha: 0.08),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,12 +410,14 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                           l10n.photosAndAudioSection,
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: accent,
+                            color: _accent,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          l10n.photosAndAudioPolicy(AlertAttachmentsService.maxImages),
+                          l10n.photosAndAudioPolicy(
+                            AlertAttachmentsService.maxImages,
+                          ),
                           style: TextStyle(
                             fontSize: 12.5,
                             color: Colors.grey[800],
@@ -559,7 +429,8 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                           runSpacing: 8,
                           children: [
                             OutlinedButton.icon(
-                              onPressed: _pickedImages.length >= AlertAttachmentsService.maxImages
+                              onPressed: _pickedImages.length >=
+                                      AlertAttachmentsService.maxImages
                                   ? null
                                   : () async {
                                       final x = await _picker.pickImage(
@@ -569,16 +440,21 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                                       );
                                       if (x == null) return;
                                       setState(() {
-                                        if (_pickedImages.length < AlertAttachmentsService.maxImages) {
+                                        if (_pickedImages.length <
+                                            AlertAttachmentsService.maxImages) {
                                           _pickedImages.add(x);
                                         }
                                       });
                                     },
-                              icon: const Icon(Icons.photo_library_outlined, size: 18),
+                              icon: const Icon(
+                                Icons.photo_library_outlined,
+                                size: 18,
+                              ),
                               label: Text(l10n.photoGallery),
                             ),
                             OutlinedButton.icon(
-                              onPressed: _pickedImages.length >= AlertAttachmentsService.maxImages
+                              onPressed: _pickedImages.length >=
+                                      AlertAttachmentsService.maxImages
                                   ? null
                                   : () async {
                                       final x = await _picker.pickImage(
@@ -588,12 +464,16 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                                       );
                                       if (x == null) return;
                                       setState(() {
-                                        if (_pickedImages.length < AlertAttachmentsService.maxImages) {
+                                        if (_pickedImages.length <
+                                            AlertAttachmentsService.maxImages) {
                                           _pickedImages.add(x);
                                         }
                                       });
                                     },
-                              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+                              icon: const Icon(
+                                Icons.photo_camera_outlined,
+                                size: 18,
+                              ),
                               label: Text(l10n.photoCamera),
                             ),
                           ],
@@ -605,9 +485,9 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _pickedImages.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 10),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
                               itemBuilder: (context, i) {
-                                final path = _pickedImages[i].path;
                                 return Stack(
                                   clipBehavior: Clip.none,
                                   children: [
@@ -617,7 +497,7 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                                         width: 80,
                                         height: 80,
                                         child: Image.file(
-                                          File(path),
+                                          File(_pickedImages[i].path),
                                           fit: BoxFit.cover,
                                         ),
                                       ),
@@ -628,13 +508,18 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                                       child: Material(
                                         color: Colors.black87,
                                         shape: const CircleBorder(),
-                                        clipBehavior: Clip.antiAlias,
                                         child: InkWell(
-                                          onTap: () => setState(() => _pickedImages.removeAt(i)),
+                                          onTap: () => setState(
+                                            () => _pickedImages.removeAt(i),
+                                          ),
                                           customBorder: const CircleBorder(),
                                           child: const Padding(
                                             padding: EdgeInsets.all(4),
-                                            child: Icon(Icons.close, size: 16, color: Colors.white),
+                                            child: Icon(
+                                              Icons.close,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -649,8 +534,10 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                         Row(
                           children: [
                             Icon(
-                              _isRecording ? Icons.fiber_manual_record : Icons.mic_none_rounded,
-                              color: _isRecording ? Colors.red : accent,
+                              _isRecording
+                                  ? Icons.fiber_manual_record
+                                  : Icons.mic_none_rounded,
+                              color: _isRecording ? Colors.red : _accent,
                               size: 22,
                             ),
                             const SizedBox(width: 8),
@@ -671,108 +558,95 @@ class _ReportSendSheetState extends State<ReportSendSheet> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: _isRecording ? _stopRecording : _startRecording,
-                                icon: Icon(_isRecording ? Icons.stop : Icons.mic),
+                                onPressed: _isRecording
+                                    ? _stopRecording
+                                    : _startRecording,
+                                icon: Icon(
+                                  _isRecording ? Icons.stop : Icons.mic,
+                                ),
                                 label: Text(
-                                  _isRecording ? l10n.stopRecording : l10n.startRecording,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  _isRecording
+                                      ? l10n.stopRecording
+                                      : l10n.startRecording,
                                 ),
                               ),
                             ),
                             if (_audioFile != null) ...[
                               const SizedBox(width: 8),
-                              Flexible(
-                                child: TextButton(
-                                  onPressed: () => setState(() => _audioFile = null),
-                                  child: Text(
-                                    l10n.removeAudio,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
+                              TextButton(
+                                onPressed: () =>
+                                    setState(() => _audioFile = null),
+                                child: Text(l10n.removeAudio),
                               ),
                             ],
                           ],
                         ),
                         if (_audioFile != null) ...[
                           const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: _LocalAudioPreview(
-                              key: ValueKey(_audioFile!.path),
-                              file: _audioFile!,
-                              listenLabel: l10n.attachmentListenPreview,
-                              pauseLabel: l10n.attachmentPausePreview,
-                            ),
+                          _LocalAudioPreview(
+                            key: ValueKey(_audioFile!.path),
+                            file: _audioFile!,
+                            listenLabel: l10n.attachmentListenPreview,
+                            pauseLabel: l10n.attachmentPausePreview,
                           ),
                         ],
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SwitchListTile(
-                  value: _isAnonymous,
-                  onChanged: (v) => setState(() => _isAnonymous = v),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    l10n.reportAnonymous,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  activeTrackColor: accent,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        _isSending || types.isEmpty ? null : _send,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: _onAccent,
-                      disabledBackgroundColor: accent.withValues(alpha: 0.4),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    icon: _isSending
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: _onAccent,
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded, size: 18),
-                    label: Text(
-                      l10n.sendReport,
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    value: _isAnonymous,
+                    onChanged: (v) => setState(() => _isAnonymous = v),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      l10n.reportAnonymous,
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    activeTrackColor: _accent,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSending || _selectedType == null
+                          ? null
+                          : _send,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: _onAccent,
+                        disabledBackgroundColor:
+                            _accent.withValues(alpha: 0.4),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: _isSending
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: _onAccent,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded, size: 18),
+                      label: Text(
+                        l10n.sendReport,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

@@ -271,18 +271,30 @@ class _MyAlertsViewState extends State<MyAlertsView> {
         ],
       ),
       body: user == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  l10n.myAlertsSignInRequired,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: _kSub,
-                    height: 1.35,
-                  ),
+          ? RefreshIndicator(
+              onRefresh: () async {
+                if (mounted) setState(() {});
+              },
+              color: const Color(0xFF007AFF),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
+                children: [
+                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.28),
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      l10n.myAlertsSignInRequired,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: _kSub,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             )
           : Column(

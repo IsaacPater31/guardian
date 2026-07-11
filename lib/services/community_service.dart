@@ -304,9 +304,11 @@ class CommunityService {
   Future<void> emitMemberAddedWelcomeSignal({
     required String targetUserId,
     required String communityId,
+    String? subjectName,
   }) async {
     final commSnap = await _repo.getCommunitySnapshot(communityId);
     final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+    final isEntity = commSnap.data()?[CommunityFields.isEntity] == true;
 
     // Inbox notify first — must not depend on ephemeral welcome signal.
     try {
@@ -315,7 +317,9 @@ class CommunityService {
         kind: CommunityInboxFields.kindMemberAdded,
         communityId: communityId,
         communityName: commName,
+        isEntity: isEntity,
         actorId: _auth.currentUser?.uid,
+        subjectName: subjectName,
       );
     } catch (e) {
       AppLogger.e('emitMemberAddedWelcomeSignal inbox', e);
@@ -380,6 +384,7 @@ class CommunityService {
       await emitMemberAddedWelcomeSignal(
         targetUserId: targetUserId,
         communityId: communityId,
+        subjectName: targetName,
       );
 
       return JoinResult(
@@ -478,9 +483,18 @@ class CommunityService {
       _invalidateAlertCommunityCache();
       AppLogger.d('User joined community via token');
 
+      String? subjectName;
+      try {
+        final profile = await _repo.getUserProfile(userId);
+        if (profile.exists) {
+          subjectName = _displayName(profile.data() ?? {});
+        }
+      } catch (_) {}
+
       await emitMemberAddedWelcomeSignal(
         targetUserId: userId,
         communityId: communityId,
+        subjectName: subjectName,
       );
 
       return JoinResult(
@@ -548,6 +562,37 @@ class CommunityService {
           'Eres el único administrador. Promueve a otro miembro antes de salir.',
         );
       }
+    }
+
+    final commName = communityDoc.data()?[CommunityFields.name] as String? ?? '';
+    String? subjectName;
+    try {
+      final profile = await _repo.getUserProfile(userId);
+      if (profile.exists) {
+        subjectName = _displayName(profile.data() ?? {});
+      }
+    } catch (_) {}
+
+    // Notify managers BEFORE delete. If notify fails, do not leave
+    // (managers would miss the event with no recovery path).
+    try {
+      await CommunityMessageRepository().writeMembershipNotification(
+        targetUserId: userId,
+        kind: CommunityInboxFields.kindMemberLeft,
+        communityId: communityId,
+        communityName: commName,
+        isEntity: isEntity,
+        actorId: userId,
+        actorName: subjectName,
+        subjectName: subjectName,
+        notifyTarget: false,
+        notifyManagers: true,
+      );
+    } catch (e) {
+      AppLogger.e('leaveCommunity notify managers', e);
+      throw Exception(
+        'No se pudo notificar a los gestores. Intenta salir de nuevo.',
+      );
     }
 
     await _repo.deleteMemberDoc(memberSnap.docs.first.reference);
@@ -759,13 +804,22 @@ class CommunityService {
       try {
         final commSnap = await _repo.getCommunitySnapshot(communityId);
         final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+        String? subjectName;
+        try {
+          final profile = await _repo.getUserProfile(targetUserId);
+          if (profile.exists) {
+            subjectName = _displayName(profile.data() ?? {});
+          }
+        } catch (_) {}
         final inbox = CommunityMessageRepository();
         await inbox.writeMembershipNotification(
           targetUserId: targetUserId,
           kind: CommunityInboxFields.kindMemberRemoved,
           communityId: communityId,
           communityName: commName,
+          isEntity: isEntity,
           actorId: userId,
+          subjectName: subjectName,
         );
         await inbox.purgeCommunityMessagesExceptRemoval(
           userId: targetUserId,
@@ -825,12 +879,21 @@ class CommunityService {
       try {
         final commSnap = await _repo.getCommunitySnapshot(communityId);
         final commName = commSnap.data()?[CommunityFields.name] as String? ?? '';
+        String? subjectName;
+        try {
+          final profile = await _repo.getUserProfile(targetUserId);
+          if (profile.exists) {
+            subjectName = _displayName(profile.data() ?? {});
+          }
+        } catch (_) {}
         await CommunityMessageRepository().writeMembershipNotification(
           targetUserId: targetUserId,
           kind: CommunityInboxFields.kindRoleChanged,
           communityId: communityId,
           communityName: commName,
+          isEntity: isEntity,
           actorId: userId,
+          subjectName: subjectName,
           role: destinationRole,
           previousRole: targetRole,
         );

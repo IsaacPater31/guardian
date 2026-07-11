@@ -327,6 +327,9 @@ class _ComunidadesViewState extends State<ComunidadesView>
             onRefresh: _loadCommunities,
             color: const Color(0xFF007AFF),
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
                 if (communities.isNotEmpty) ...[

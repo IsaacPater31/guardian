@@ -2,12 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
-class PerfilView extends StatelessWidget {
+class PerfilView extends StatefulWidget {
   const PerfilView({super.key});
 
-  Future<void> _signOut(BuildContext context) async {
+  @override
+  State<PerfilView> createState() => _PerfilViewState();
+}
+
+class _PerfilViewState extends State<PerfilView> {
+  User? _user = FirebaseAuth.instance.currentUser;
+
+  Future<void> _onRefresh() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.reload();
+    } catch (_) {
+      // Keep last known user if reload fails (offline, etc.).
+    }
+    if (!mounted) return;
+    setState(() => _user = FirebaseAuth.instance.currentUser);
+  }
+
+  Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
-    if (context.mounted) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.logout)),
       );
@@ -17,6 +34,13 @@ class PerfilView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final displayName = _user?.displayName?.trim();
+    final email = _user?.email?.trim();
+    final subtitle = (displayName != null && displayName.isNotEmpty)
+        ? displayName
+        : (email != null && email.isNotEmpty)
+            ? email
+            : l10n.profileInfo;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -33,26 +57,34 @@ class PerfilView extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            const CircleAvatar(
-              radius: 48,
-              backgroundColor: Color(0xFF1F2937),
-              child: Icon(Icons.person, size: 56, color: Colors.white),
+        child: RefreshIndicator(
+          color: const Color(0xFF007AFF),
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.profileInfo,
-              style: const TextStyle(fontSize: 16, color: Colors.black54),
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: SizedBox(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            children: [
+              const SizedBox(height: 40),
+              const Center(
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundColor: Color(0xFF1F2937),
+                  child: Icon(Icons.person, size: 56, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
+              SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _signOut(context),
+                  onPressed: _signOut,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD32F2F),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -71,8 +103,9 @@ class PerfilView extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

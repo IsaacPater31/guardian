@@ -1580,12 +1580,6 @@ abstract class AppLocalizations {
   /// **'Escribe el motivo del reporte...'**
   String get reportReasonHint;
 
-  /// No description provided for @sendReport.
-  ///
-  /// In es, this message translates to:
-  /// **'Enviar reporte'**
-  String get sendReport;
-
   /// No description provided for @nowAdmin.
   ///
   /// In es, this message translates to:
@@ -1819,6 +1813,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Entidad'**
   String get entityReportLabel;
+
+  /// No description provided for @sendReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar reporte'**
+  String get sendReport;
+
+  /// No description provided for @sendReportAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar'**
+  String get sendReportAction;
 
   /// No description provided for @sendReportTo.
   ///
