@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:guardian/core/alert_detail_catalog.dart';
+import 'package:guardian/core/community_icon_catalog.dart';
 import 'package:guardian/generated/l10n/app_localizations.dart';
 
 /// Clase centralizada para manejar todos los tipos de emergencia.
@@ -284,7 +285,8 @@ class EmergencyTypes {
     int? alertTypeIconCodePoint,
   }) {
     if (alertTypeIconCodePoint != null && alertTypeIconCodePoint > 0) {
-      return IconData(alertTypeIconCodePoint, fontFamily: 'MaterialIcons');
+      // Solo IconData const del catálogo (tree-shake friendly en release).
+      return CommunityIconCatalog.iconFromCodePoint(alertTypeIconCodePoint);
     }
     return getIcon(alertType);
   }
