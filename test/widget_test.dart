@@ -2,7 +2,7 @@
 // Replace this with real integration/widget tests as the app grows.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:guardian/main.dart';
+import 'package:guardian/app/main.dart';
 
 void main() {
   testWidgets('GuardianApp renders without throwing', (WidgetTester tester) async {

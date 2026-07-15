@@ -1,0 +1,1450 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:guardian/shared/logging/app_logger.dart';
+import 'package:guardian/features/alerts/domain/alert_model.dart';
+import 'package:guardian/features/alerts/domain/emergency_types.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:guardian/features/alerts/application/alert_handler.dart';
+import 'package:guardian/generated/l10n/app_localizations.dart';
+import 'package:intl/intl.dart';
+import 'package:guardian/features/alerts/presentation/alert_subtype_display.dart';
+import 'package:guardian/shared/utils/text_case_utils.dart';
+import 'package:guardian/features/communities/domain/community_model.dart';
+import 'package:guardian/features/communities/application/community_service.dart';
+import 'package:guardian/features/auth/application/user_service.dart';
+import 'package:guardian/features/alerts/application/audio_preview_service.dart';
+import 'package:path_provider/path_provider.dart';
+// ─── Shared design constants ───────────────────────────────────────────────────
+const Color _kAttended  = Color(0xFF34C759); // Apple green
+const Color _kPending   = Color(0xFFFF9F0A); // Apple amber
+const Color _kSurface   = Color(0xFFF8F9FA);
+const Color _kBorder    = Color(0xFFE5E7EB);
+const Color _kText      = Color(0xFF1F2937);
+const Color _kTextSub   = Color(0xFF6B7280);
+const Color _kBluePrim  = Color(0xFF007AFF); // Apple blue
+const Color _kDark      = Color(0xFF1C1C1E);
+const Color _kError     = Color(0xFFFF3B30);
+
+/// Pill badge showing the attendance status of an alert.
+/// Used in the header and anywhere else an at-a-glance signal is needed.
+class AlertStatusBadge extends StatelessWidget {
+  final bool isAttended;
+  final bool large;
+
+  const AlertStatusBadge({
+    super.key,
+    required this.isAttended,
+    this.large = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final color  = isAttended ? _kAttended : _kPending;
+    final icon   = isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
+    final label  = isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: large ? 12 : 8,
+        vertical:   large ? 6  : 4,
+      ),
+      decoration: BoxDecoration(
+        color:        color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border:       Border.all(color: color.withValues(alpha: 0.4), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: large ? 14 : 11, color: color),
+          SizedBox(width: large ? 5 : 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize:   large ? 13 : 11,
+              fontWeight: FontWeight.w600,
+              color:      color,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AlertDetailDialog extends StatefulWidget {
+  final AlertModel alert;
+
+  const AlertDetailDialog({super.key, required this.alert});
+
+  @override
+  State<AlertDetailDialog> createState() => _AlertDetailDialogState();
+}
+
+class _AlertDetailDialogState extends State<AlertDetailDialog> {
+  final AlertHandler      _alertHandler      = AlertHandler();
+  final CommunityService     _communityService     = CommunityService();
+  final UserService          _userService          = UserService();
+
+  /// Community id → name **only for communities the current user belongs to**.
+  /// Other destinations on the alert are omitted (no label, no UUID).
+  final Map<String, String> _communityNames = {};
+  bool    _userHasReported      = false;
+  int?    _reportsCountOverride;
+  bool    _isReporting          = false;
+
+  bool get _isAttended => widget.alert.alertStatus == 'attended';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.alert.id != null) {
+      _alertHandler.markAlertAsViewed(widget.alert.id!);
+    }
+    _scheduleCommunityNameLoad();
+  }
+
+  @override
+  void didUpdateWidget(covariant AlertDetailDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.alert.communityIds, widget.alert.communityIds)) {
+      _communityNames.clear();
+      _scheduleCommunityNameLoad();
+    }
+  }
+
+  /// After first frame so [AppLocalizations] is available (not safe in [initState]).
+  void _scheduleCommunityNameLoad() {
+    if (widget.alert.communityIds.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadCommunityNames();
+    });
+  }
+
+  Future<void> _loadCommunityNames() async {
+    final ids = widget.alert.communityIds
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) return;
+
+    if (!mounted || AppLocalizations.of(context) == null) return;
+
+    final myNameById = <String, String>{};
+    try {
+      final mine = await _communityService.getMyCommunities();
+      for (final m in mine) {
+        final mid = m.id?.trim();
+        final mname = m.name.trim();
+        if (mid != null && mid.isNotEmpty && mname.isNotEmpty) {
+          myNameById[mid] = capitalizeFirst(mname);
+        }
+      }
+    } catch (e) {
+      AppLogger.e('AlertDetailDialog._loadCommunityNames myCommunities', e);
+    }
+
+    // Only show names for communities the user is a member of. Do not resolve
+    // or display other IDs (privacy: no "deleted", no UUID, no guessing).
+    final resolved = <String, String>{};
+    for (final id in ids) {
+      final name = myNameById[id];
+      if (name != null && name.isNotEmpty) resolved[id] = name;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _communityNames
+        ..clear()
+        ..addAll(resolved);
+    });
+  }
+
+  // ─── Build ──────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    final sw       = MediaQuery.of(context).size.width;
+    final sh       = MediaQuery.of(context).size.height;
+    final isSmall  = sw < 360;
+    final padding  = isSmall ? 14.0 : 20.0;
+
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 10 : 16,
+        vertical:   isSmall ? 10 : 20,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: sh * (isSmall ? 0.90 : 0.87),
+          maxWidth:  (sw * 0.96).clamp(0.0, 480.0),
+        ),
+        decoration: BoxDecoration(
+          color:        Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color:      Colors.black.withValues(alpha: 0.18),
+              blurRadius: 32,
+              spreadRadius: 0,
+              offset:     const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(isSmall),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Estado de atención ───────────────────────────────────
+                    _buildStatusSection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Comunidad (solo miembros) ─────────────────────────────
+                    if (_communityNames.isNotEmpty) ...[
+                      _buildCommunityInfoSection(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // ── Fecha y hora (absoluta) ──────────────────────────────
+                    _buildDateTimeDetailSection(isSmall),
+                    SizedBox(height: isSmall ? 12 : 16),
+
+                    // ── Mensaje ──────────────────────────────────────────────
+                    if (widget.alert.description != null && widget.alert.description!.isNotEmpty) ...[
+                      _buildDescriptionSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // ── Counters ─────────────────────────────────────────────
+                    if (widget.alert.forwardsCount > 0 ||
+                        (_reportsCountOverride ?? widget.alert.reportsCount) > 0) ...[
+                      _buildCountersSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // ── Location ─────────────────────────────────────────────
+                    if (widget.alert.shareLocation && widget.alert.location != null) ...[
+                      _buildLocationSection(),
+                      const SizedBox(height: 12),
+                      _buildLocationMapSection(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    // ── Additional info (solo cuando aporta contexto útil) ───
+                    if (!widget.alert.shareLocation ||
+                        widget.alert.attachmentPlaceholders.isNotEmpty ||
+                        widget.alert.viewedCount > 0) ...[
+                      _buildAdditionalInfoSection(),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    if (widget.alert.imageBase64 != null &&
+                        widget.alert.imageBase64!.isNotEmpty) ...[
+                      _buildImageAttachmentsGallery(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    if (widget.alert.audioBase64 != null &&
+                        widget.alert.audioBase64!.isNotEmpty) ...[
+                      _buildAudioAttachmentNotice(isSmall),
+                      SizedBox(height: isSmall ? 12 : 16),
+                    ],
+
+                    SizedBox(height: isSmall ? 8 : 16),
+                  ],
+                ),
+              ),
+            ),
+            _buildActionButtons(context, isSmall),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader(bool isSmall) {
+    final alertColor = _getAlertColor(widget.alert.alertType);
+    final l10n = AppLocalizations.of(context)!;
+    final reporterName = widget.alert.isAnonymous
+        ? l10n.anonymousReportMap
+        : (widget.alert.userName?.trim().isNotEmpty ?? false)
+            ? widget.alert.userName!.trim()
+            : l10n.unknownUser;
+    final headline = AlertSubtypeDisplay.primaryWithSubtypeLine(
+      context,
+      widget.alert.alertType,
+      widget.alert.subtype,
+      widget.alert.customDetail,
+      alertTypeLabel: widget.alert.alertTypeLabel,
+    )!;
+
+    return Container(
+      decoration: BoxDecoration(
+        color:        alertColor,
+        borderRadius: const BorderRadius.only(
+          topLeft:  Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:      alertColor.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset:     const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.fromLTRB(
+        isSmall ? 16 : 24,
+        isSmall ? 20 : 28,
+        isSmall ? 16 : 24,
+        isSmall ? 20 : 28,
+      ),
+      child: Column(
+        children: [
+          // Alert icon circle
+          Container(
+            width:  isSmall ? 56 : 72,
+            height: isSmall ? 56 : 72,
+            decoration: BoxDecoration(
+              color:  Colors.white.withValues(alpha: 0.25),
+              shape:  BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color:      Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset:     const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(
+              _getAlertIcon(widget.alert.alertType),
+              color: Colors.white,
+              size:  isSmall ? 26 : 36,
+            ),
+          ),
+
+          SizedBox(height: isSmall ? 12 : 16),
+
+          Text(
+            reporterName,
+            style: TextStyle(
+              fontSize:   isSmall ? 20 : 24,
+              fontWeight: FontWeight.w800,
+              color:      Colors.white,
+              letterSpacing: 0.15,
+              height:     1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: isSmall ? 8 : 10),
+          Text(
+            headline,
+            style: TextStyle(
+              fontSize: isSmall ? 13 : 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.92),
+              height: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          SizedBox(height: isSmall ? 8 : 10),
+
+          // Datetime pill
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isSmall ? 10 : 12,
+              vertical:   isSmall ? 4  : 6,
+            ),
+            decoration: BoxDecoration(
+              color:        Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _formatDateTime(widget.alert.timestamp),
+              style: TextStyle(
+                fontSize:   isSmall ? 11 : 13,
+                color:      Colors.white.withValues(alpha: 0.92),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+
+          SizedBox(height: isSmall ? 10 : 12),
+
+          // ── Status badge — bright, on colored background ──────────────────
+          _buildHeaderStatusBadge(isSmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderStatusBadge(bool isSmall) {
+    final color = _isAttended ? Colors.white : Colors.white.withValues(alpha: 0.88);
+    final bg    = _isAttended
+        ? Colors.white.withValues(alpha: 0.28)
+        : Colors.white.withValues(alpha: 0.15);
+    final border = _isAttended
+        ? Colors.white.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.35);
+    final l10n = AppLocalizations.of(context)!;
+    final icon  = _isAttended ? Icons.check_circle_rounded : Icons.schedule_rounded;
+    final label = _isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmall ? 14 : 18,
+        vertical:   isSmall ? 6  : 8,
+      ),
+      decoration: BoxDecoration(
+        color:        bg,
+        borderRadius: BorderRadius.circular(24),
+        border:       Border.all(color: border, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,  size: isSmall ? 14 : 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize:   isSmall ? 13 : 14,
+              fontWeight: FontWeight.w700,
+              color:      color,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Status section (info card in body) ─────────────────────────────────────
+  Widget _buildStatusSection(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    final color   = _isAttended ? _kAttended : _kPending;
+    final bgColor = color.withValues(alpha: 0.08);
+    final icon    = _isAttended ? Icons.verified_rounded : Icons.pending_actions_rounded;
+    final title   = _isAttended
+        ? l10n.alertStatusAttendedShort
+        : l10n.alertStatusNotAttendedShort;
+    final sub     = _isAttended
+        ? l10n.alertStatusAttendedLong
+        : l10n.alertStatusPendingLong;
+
+    return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color:        bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding:    const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color:        color.withValues(alpha: 0.15),
+              shape:        BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.alertStatusSectionHeading,
+                  style: TextStyle(
+                    fontSize:   11,
+                    fontWeight: FontWeight.w600,
+                    color:      color.withValues(alpha: 0.75),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize:   15,
+                    fontWeight: FontWeight.w700,
+                    color:      color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:    color.withValues(alpha: 0.75),
+                    height:   1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Communities info — multi-community chips ───────────────────────────────
+  Widget _buildCommunityInfoSection(bool isSmall) {
+    return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color:        const Color(0xFF007AFF).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding:    const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color:        const Color(0xFF007AFF).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.groups_2_rounded, color: Color(0xFF007AFF), size: 18),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.communitiesHeadingShort.toUpperCase(),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _kBluePrim.withValues(alpha: 0.67), letterSpacing: 0.6),
+                ),
+                Text(
+                  () {
+                    final n = _communityNames.length;
+                    final isEs =
+                        Localizations.localeOf(context).languageCode == 'es';
+                    final plural = isEs
+                        ? (n == 1 ? '' : 'es')
+                        : (n == 1 ? 'y' : 'ies');
+                    return AppLocalizations.of(context)!
+                        .communityCount(n, plural);
+                  }(),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+                ),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final rawId in widget.alert.communityIds)
+                if (_communityNames.containsKey(rawId.trim()))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color:        const Color(0xFF007AFF).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border:       Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.people_rounded, size: 12, color: Color(0xFF007AFF)),
+                      const SizedBox(width: 5),
+                      Text(
+                        _communityNames[rawId.trim()]!,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF007AFF)),
+                      ),
+                    ]),
+                  ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateTimeDetailSection(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    return _buildInfoCard(
+      icon:      Icons.schedule_rounded,
+      iconColor: _kBluePrim,
+      iconBg:    _kBluePrim.withValues(alpha: 0.1),
+      label:     l10n.alertDetailDatetimeLabel,
+      value:     _formatFullDateTimeForDetail(widget.alert.timestamp),
+    );
+  }
+
+  String _formatFullDateTimeForDetail(DateTime dt) {
+    final locale = Localizations.localeOf(context).toString();
+    try {
+      return DateFormat.yMMMMEEEEd(locale).add_Hm().format(dt);
+    } catch (_) {
+      return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+    }
+  }
+
+  // ─── Description ─────────────────────────────────────────────────────────────
+  Widget _buildDescriptionSection() {
+    return _buildInfoCard(
+      icon:      Icons.chat_bubble_outline_rounded,
+      iconColor: _kText,
+      iconBg:    _kText.withValues(alpha: 0.08),
+      label:     AppLocalizations.of(context)!.alertDetailMessageLabel,
+      value:     widget.alert.description!,
+    );
+  }
+
+  // ─── Counters ────────────────────────────────────────────────────────────────
+  Widget _buildCountersSection() {
+    final reports = _reportsCountOverride ?? widget.alert.reportsCount;
+    return Row(
+      children: [
+        if (widget.alert.forwardsCount > 0)
+          Expanded(child: _buildCounterChip(
+            icon: Icons.forward_rounded, color: Colors.blue,
+            count: widget.alert.forwardsCount,
+            singular: 'reenvío', plural: 'reenvíos',
+          )),
+        if (widget.alert.forwardsCount > 0 && reports > 0)
+          const SizedBox(width: 12),
+        if (reports > 0)
+          Expanded(child: _buildCounterChip(
+            icon: Icons.report_rounded, color: Colors.orange,
+            count: reports,
+            singular: 'reporte', plural: 'reportes',
+          )),
+      ],
+    );
+  }
+
+  Widget _buildCounterChip({
+    required IconData icon,
+    required Color color,
+    required int count,
+    required String singular,
+    required String plural,
+  }) {
+    return Container(
+      padding:    const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color:        color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border:       Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            '$count ${count == 1 ? singular : plural}',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Location ────────────────────────────────────────────────────────────────
+  Widget _buildLocationSection() {
+    return _buildInfoCard(
+      icon:      Icons.location_on_rounded,
+      iconColor: Colors.green,
+      iconBg:    Colors.green.withValues(alpha: 0.1),
+      label:     AppLocalizations.of(context)!.location,
+      value:
+          '${widget.alert.location!.latitude.toStringAsFixed(6)}, ${widget.alert.location!.longitude.toStringAsFixed(6)}',
+    );
+  }
+
+  Widget _buildLocationMapSection(bool isSmall) {
+    if (widget.alert.location == null) return const SizedBox.shrink();
+    return Container(
+      height: isSmall ? 200 : 240,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border:       Border.all(color: _kBorder),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(
+                  widget.alert.location!.latitude,
+                  widget.alert.location!.longitude,
+                ),
+                initialZoom: 16.0,
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.guardian',
+                ),
+                MarkerLayer(markers: [
+                  Marker(
+                    point: LatLng(widget.alert.location!.latitude, widget.alert.location!.longitude),
+                    width: 40, height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _getAlertColor(widget.alert.alertType),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: Icon(_getAlertIcon(widget.alert.alertType), color: Colors.white, size: 20),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+            Positioned(
+              top: 8, left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.alertLocation,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Additional info ─────────────────────────────────────────────────────────
+  Widget _buildAdditionalInfoSection() {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: _kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.additionalInfoLabel.toUpperCase(),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _kTextSub, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 14),
+          if (!widget.alert.shareLocation)
+            _buildInfoRow(
+              icon:  Icons.location_off_rounded,
+              color: _kTextSub,
+              label: l10n.locationNotShared,
+            ),
+          if (!widget.alert.shareLocation &&
+              (widget.alert.viewedCount > 0 || widget.alert.attachmentPlaceholders.isNotEmpty))
+            const SizedBox(height: 10),
+          if (widget.alert.viewedCount > 0) ...[
+            _buildInfoRow(
+              icon:  Icons.visibility_rounded,
+              color: _kBluePrim,
+              label:
+                  '${l10n.viewedBy} ${widget.alert.viewedCount} ${widget.alert.viewedCount > 1 ? l10n.people : l10n.person}',
+            ),
+          ],
+          if (widget.alert.viewedCount > 0 &&
+              widget.alert.attachmentPlaceholders.isNotEmpty)
+            const SizedBox(height: 10),
+          if (widget.alert.attachmentPlaceholders.isNotEmpty)
+            const SizedBox(height: 10),
+          if (widget.alert.attachmentPlaceholders.isNotEmpty)
+            _buildInfoRow(
+              icon: Icons.info_outline_rounded,
+              color: _kTextSub,
+              label: widget.alert.attachmentPlaceholders.join(' · '),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({required IconData icon, required Color color, required String label}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w500, height: 1.3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAudioAttachmentNotice(bool isSmall) {
+    return Container(
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.mic_rounded, color: Colors.deepPurple.shade700, size: isSmall ? 22 : 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.photosAndAudioSection,
+                  style: TextStyle(
+                    fontSize: isSmall ? 14 : 15,
+                    fontWeight: FontWeight.w700,
+                    color: _kText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _AlertAudioPreview(audioBase64: widget.alert.audioBase64!),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageAttachmentsGallery(bool isSmall) {
+    final l10n = AppLocalizations.of(context)!;
+    final list = widget.alert.imageBase64!;
+    final maxH = isSmall ? 200.0 : 260.0;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmall ? 14 : 16),
+      decoration: BoxDecoration(
+        color: _kBluePrim.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBluePrim.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.photo_outlined, color: _kBluePrim, size: isSmall ? 22 : 24),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  l10n.imagesAttached,
+                  style: TextStyle(
+                    fontSize: isSmall ? 14 : 15,
+                    fontWeight: FontWeight.w700,
+                    color: _kText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) SizedBox(height: isSmall ? 10 : 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  try {
+                    final bytes = base64Decode(list[i]);
+                    return Image.memory(
+                      bytes,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                      width: c.maxWidth,
+                      height: maxH,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: double.infinity,
+                        height: 80,
+                        alignment: Alignment.center,
+                        color: _kSurface,
+                        child: Text(
+                          'Error al cargar imagen ${i + 1}',
+                          style: TextStyle(color: _kTextSub, fontSize: 13),
+                        ),
+                      ),
+                    );
+                  } catch (_) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      color: _kSurface,
+                      child: Text(
+                        'No se pudo mostrar la imagen ${i + 1}.',
+                        style: TextStyle(color: _kTextSub, fontSize: isSmall ? 13 : 14),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ─── Action buttons ──────────────────────────────────────────────────────────
+  Widget _buildActionButtons(BuildContext context, bool isSmall) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(isSmall ? 14 : 20, isSmall ? 14 : 18, isSmall ? 14 : 20, isSmall ? 14 : 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          bottomLeft:  Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, -2))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reenviar (keeps its function — creates new alerts in other communities)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.alert.id != null ? _showForwardDialog : null,
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: isSmall ? 13 : 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: BorderSide(color: _kBluePrim.withValues(alpha: 0.5), width: 1.5),
+              ),
+              icon: const Icon(Icons.forward_rounded, size: 18),
+              label: Text(
+                'Reenviar a comunidad',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+
+          SizedBox(height: isSmall ? 8 : 10),
+
+          // Reportar + Cerrar
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: (widget.alert.id != null && !_hasUserReported && !_isReporting)
+                      ? _showReportConfirm
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 12 : 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    side: BorderSide(
+                      color: _hasUserReported ? Colors.grey.withValues(alpha: 0.4) : _kBluePrim.withValues(alpha: 0.4),
+                      width: 1.5,
+                    ),
+                  ),
+                  icon: _isReporting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Icon(
+                          _hasUserReported ? Icons.check_circle_rounded : Icons.report_rounded,
+                          size: 16,
+                          color: _hasUserReported ? Colors.grey : _kBluePrim,
+                        ),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _hasUserReported ? 'Reportada' : (_isReporting ? 'Reportando…' : 'Reportar'),
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _hasUserReported ? Colors.grey : _kBluePrim,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _getAlertColor(widget.alert.alertType),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: isSmall ? 12 : 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
+                    shadowColor: _getAlertColor(widget.alert.alertType).withValues(alpha: 0.3),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppLocalizations.of(context)!.close,
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Reusable card builder ───────────────────────────────────────────────────
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding:    const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color:        _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: _kBorder),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding:    const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: _kTextSub, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kText, height: 1.3)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Reporting ──────────────────────────────────────────────────────────────
+  bool get _hasUserReported {
+    final uid = _userService.currentUserId ?? '';
+    return _userHasReported || (uid.isNotEmpty && widget.alert.reportedBy.contains(uid));
+  }
+
+  Future<void> _showReportConfirm() async {
+    if (widget.alert.id == null || _hasUserReported || _isReporting) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx)!;
+        return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(children: [
+          Icon(Icons.report_problem_rounded, color: Colors.orange[700]),
+          const SizedBox(width: 8),
+          Expanded(child: Text(l10n.reportAlertConfirmTitle)),
+        ]),
+        content: Text(l10n.reportAlertConfirmBody),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[700], foregroundColor: Colors.white),
+            child: Text(l10n.report),
+          ),
+        ],
+      );
+      },
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _isReporting = true);
+    try {
+      await _alertHandler.reportAlert(widget.alert.id!);
+      if (mounted) {
+        setState(() {
+          _userHasReported = true;
+          _reportsCountOverride = (widget.alert.reportsCount + 1);
+          _isReporting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(AppLocalizations.of(context)!.alertReportedOkSnack),
+          ]),
+          backgroundColor: _kDark,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isReporting = false);
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.errorSendingReport),
+          backgroundColor: _kError,
+          duration: const Duration(seconds: 3),
+        ));
+      }
+    }
+  }
+
+  // ─── Forward dialog ──────────────────────────────────────────────────────────
+  Future<void> _showForwardDialog() async {
+    if (widget.alert.id == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final allCommunities = await _communityService.getMyCommunities();
+      if (mounted) Navigator.pop(context);
+
+      final availableCommunities = allCommunities.where((c) {
+        final id = c.id!;
+        return !widget.alert.communityIds.contains(id);
+      }).toList();
+
+      if (availableCommunities.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.noCommunitiesToForward),
+            backgroundColor: _kDark,
+          ));
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      final selectedIds = await showDialog<Set<String>>(
+        context: context,
+        builder: (_) => _ForwardAlertDialog(
+          availableCommunities: availableCommunities,
+        ),
+      );
+
+      if (selectedIds == null || selectedIds.isEmpty) return;
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      try {
+        final count = await _alertHandler.forwardAlert(
+          alertId:             widget.alert.id!,
+          targetCommunityIds:  selectedIds.toList(),
+        );
+        if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+              count == 1
+                  ? l10n.alertForwardedToOne
+                  : l10n.alertForwardedToMany(count),
+            ),
+            backgroundColor: _kDark,
+            duration: const Duration(seconds: 3),
+          ));
+        }
+      } catch (_) {
+        if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l10n.forwardErrorPrefix),
+            backgroundColor: _kError,
+          ));
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.genericErrorPrefix),
+          backgroundColor: _kError,
+        ));
+      }
+    }
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  IconData _getAlertIcon(String alertType) {
+    return EmergencyTypes.iconForAlert(
+      alertType: alertType,
+      alertTypeIconCodePoint: widget.alert.alertTypeIconCodePoint,
+    );
+  }
+
+  Color _getAlertColor(String alertType) {
+    return EmergencyTypes.colorForAlert(
+      alertType: alertType,
+      alertTypeColor: widget.alert.alertTypeColor,
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final l10n = AppLocalizations.of(context)!;
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return l10n.detailRelativeNow;
+    if (diff.inMinutes < 60) return l10n.detailRelativeMinutes(diff.inMinutes);
+    if (diff.inHours < 24) return l10n.detailRelativeHours(diff.inHours);
+    if (diff.inDays == 1) return l10n.timeYesterday;
+    return l10n.detailRelativeDays(diff.inDays);
+  }
+
+}
+
+class _AlertAudioPreview extends StatefulWidget {
+  const _AlertAudioPreview({required this.audioBase64});
+
+  final String audioBase64;
+
+  @override
+  State<_AlertAudioPreview> createState() => _AlertAudioPreviewState();
+}
+
+class _AlertAudioPreviewState extends State<_AlertAudioPreview> {
+  String? _path;
+  bool _loading = true;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AudioPreviewService.setCompletionHandler(() {
+      if (mounted) setState(() => _playing = false);
+    });
+    _prepare();
+  }
+
+  Future<void> _prepare() async {
+    try {
+      final bytes = base64Decode(widget.audioBase64);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/alert_preview_${DateTime.now().millisecondsSinceEpoch}.m4a');
+      await file.writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      setState(() {
+        _path = file.path;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _path = null;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggle() async {
+    if (_path == null) return;
+    if (_playing) {
+      await AudioPreviewService.stop();
+      if (mounted) setState(() => _playing = false);
+      return;
+    }
+    try {
+      await AudioPreviewService.play(_path!);
+      if (mounted) setState(() => _playing = true);
+    } on PlatformException {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.audioPreviewFailed)),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    AudioPreviewService.clearCompletionHandler();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_loading) {
+      return const SizedBox(
+        height: 32,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_path == null) {
+      return Text(
+        l10n.audioPreviewFailed,
+        style: const TextStyle(fontSize: 12, color: _kTextSub),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: _toggle,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        side: BorderSide(color: Colors.deepPurple.withValues(alpha: 0.35)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      icon: Icon(_playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 18),
+      label: Text(
+        _playing ? l10n.attachmentPausePreview : l10n.attachmentListenPreview,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+// ─── Forward alert dialog ─────────────────────────────────────────────────────
+class _ForwardAlertDialog extends StatefulWidget {
+  final List<CommunityModel> availableCommunities;
+
+  const _ForwardAlertDialog({
+    required this.availableCommunities,
+  });
+
+  @override
+  State<_ForwardAlertDialog> createState() => _ForwardAlertDialogState();
+}
+
+class _ForwardAlertDialogState extends State<_ForwardAlertDialog> {
+  final Set<String> _selectedIds = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final targets = widget.availableCommunities;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(children: [
+        const Icon(Icons.forward_rounded, color: _kDark),
+        const SizedBox(width: 8),
+        Expanded(child: Text(l10n.forwardAlertDialogTitle)),
+      ]),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.forwardSelectTargetsHint, style: const TextStyle(fontSize: 14)),
+              const SizedBox(height: 16),
+              if (targets.isNotEmpty) ...[
+                Text(l10n.communities, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kText, letterSpacing: 0.5)),
+                const SizedBox(height: 8),
+                ...targets.map(_buildCommunityTile),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+        ElevatedButton(
+          onPressed: _selectedIds.isEmpty ? null : () => Navigator.pop(context, _selectedIds),
+          style: ElevatedButton.styleFrom(backgroundColor: _kDark, foregroundColor: Colors.white),
+          child: Text(l10n.forwardActionCount(_selectedIds.length)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommunityTile(CommunityModel community) {
+    final id       = community.id!;
+    final name     = capitalizeFirst(community.name);
+    final selected = _selectedIds.contains(id);
+
+    return Card(
+      margin:     const EdgeInsets.only(bottom: 8),
+      elevation:  0,
+      color:      selected ? _kBluePrim.withValues(alpha: 0.06) : Colors.grey[50],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: selected ? _kBluePrim.withValues(alpha: 0.4) : _kBorder,
+          width: 1.5,
+        ),
+      ),
+      child: CheckboxListTile(
+        value:    selected,
+        onChanged: (v) => setState(() => v == true ? _selectedIds.add(id) : _selectedIds.remove(id)),
+        activeColor: _kBluePrim,
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+        secondary: Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(
+            Icons.people_rounded,
+            color: Colors.green,
+            size: 18,
+          ),
+        ),
+      ),
+    );
+  }
+}
