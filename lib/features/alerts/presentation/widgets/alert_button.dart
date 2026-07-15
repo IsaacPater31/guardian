@@ -102,7 +102,7 @@ class _AlertButtonState extends State<AlertButton>
   Future<void> _sendQuickAlert() async {
     HapticFeedback.heavyImpact();
 
-    // Obtener los destinos configurados para alertas r�pidas
+    // Obtener los destinos configurados para alertas rápidas
     final quickConfig = QuickAlertConfigService();
     final destinations = await quickConfig.getQuickAlertDestinations();
 
@@ -110,7 +110,7 @@ class _AlertButtonState extends State<AlertButton>
     final messenger = ScaffoldMessenger.of(context);
 
     if (destinations.isEmpty) {
-      // Sin configuraci�n � redirigir a ajustes
+      // Sin configuración ? redirigir a ajustes
       messenger.clearSnackBars();
       messenger.showSnackBar(
         SnackBar(
@@ -176,7 +176,7 @@ class _AlertButtonState extends State<AlertButton>
     );
 
     // AlertHandler ? AlertService ? QuickAlertConfigService for destinations
-    // internally and sends to all of them in a single batch � just call it once.
+    // internally and sends to all of them in a single batch ? just call it once.
     final ok = await _alertHandler.sendQuickAlert(
       alertType: EmergencyTypes.quickAlertType,
       isAnonymous: false,
@@ -273,14 +273,14 @@ class _AlertButtonState extends State<AlertButton>
     );
 
     if (configuredIds != null && configuredIds.isNotEmpty) {
-      // Hay configuraci�n guardada � obtener los datos de esas comunidades
+      // Hay configuración guardada ? obtener los datos de esas comunidades
       final allCommunities = await _typedConfig.getAvailableCommunities();
       final preselected = allCommunities
           .where((c) => c.id != null && configuredIds.contains(c.id!))
           .toList();
 
       if (preselected.isNotEmpty && mounted) {
-        // Mostrar diag de confirmaci�n con las comunidades pre-seleccionadas
+        // Mostrar diag de confirmación con las comunidades pre-seleccionadas
         final selected = await _showCommunitySelectionDialog(
           emergencyType,
           preSelectedIds: configuredIds.toSet(),
@@ -295,7 +295,7 @@ class _AlertButtonState extends State<AlertButton>
       }
     }
 
-    // Sin config guardada � mostrar aviso y abrir configuraci�n
+    // Sin config guardada ? mostrar aviso y abrir configuración
     if (mounted) {
       _hideEmergencyOptions();
       final typeName = EmergencyTypes.getTranslatedType(emergencyType, context);
@@ -407,7 +407,7 @@ class _AlertButtonState extends State<AlertButton>
 
       if (!mounted) return null;
 
-      // Pre-seleccionar seg�n configuraci�n o keyword
+      // Pre-seleccionar según configuración o keyword
       final Set<String> selectedCommunityIds = Set<String>.from(preSelectedIds);
 
       final selectedCommunities = await showDialog<List<CommunityModel>>(
@@ -1537,7 +1537,7 @@ class _AlertButtonState extends State<AlertButton>
   }
 
   // ---------------------------------------------------------------------------
-  // Seis direcciones (estrella): la m�s cercana en �ngulo al gesto corregido.
+  // Seis direcciones (estrella): la más cercana en ángulo al gesto corregido.
   // ---------------------------------------------------------------------------
   String _getDirection(
     Offset offset,
@@ -1547,14 +1547,14 @@ class _AlertButtonState extends State<AlertButton>
     final distance = offset.distance;
     if (distance < minPanDistance) return '';
 
-    // Misma convenci�n que al pintar chips, pero con Y invertida respecto a la
-    // pantalla: hacia abajo-izquierda en pantalla ? �ngulo -3p/4 (no +3p/4).
+    // Misma convención que al pintar chips, pero con Y invertida respecto a la
+    // pantalla: hacia abajo-izquierda en pantalla ? ángulo -3p/4 (no +3p/4).
     final corrected = Offset(offset.dx, -offset.dy);
     final a = corrected.direction;
 
     const centers = <String, double>{
       'right': 0,
-      // Abajo: mismo rol (dcha / izq) que [_dirAngles], un poco m�s bajos en pantalla.
+      // Abajo: mismo rol (dcha / izq) que [_dirAngles], un poco más bajos en pantalla.
       'downRight': -5 * math.pi / 18,
       'downLeft': -13 * math.pi / 18,
       'left': math.pi,
@@ -1591,9 +1591,9 @@ class _AlertButtonState extends State<AlertButton>
     return best;
   }
 
-  /// �ngulos en radianes para posicionar chips (Y hacia abajo en pantalla).
-  /// Arriba y abajo comparten columnas X (�50� / �130�), logrando
-  /// alineaci�n vertical entre pares izquierdo/derecho.
+  /// Ángulos en radianes para posicionar chips (Y hacia abajo en pantalla).
+  /// Arriba y abajo comparten columnas X (±50° / ±130°), logrando
+  /// alineación vertical entre pares izquierdo/derecho.
   static const Map<String, double> _dirAngles = {
     'upLeft': -13 * math.pi / 18,
     'upRight': -5 * math.pi / 18,
@@ -1604,7 +1604,7 @@ class _AlertButtonState extends State<AlertButton>
   };
 
   // ===========================================================================
-  // BUILD � Premium radial swipe menu
+  // BUILD ? Premium radial swipe menu
   // ===========================================================================
 
   EdgeInsets _radialSafePadding(BuildContext context) {
@@ -1768,7 +1768,7 @@ class _AlertButtonState extends State<AlertButton>
               onConfirmed: triggerQuickAlert,
             ),
             HelpTypesHorizontalSection(
-              title: '�Qu� tipo de ayuda necesitas?',
+              title: 'Qué tipo de ayuda necesitas?',
               titleSize: sectionTitleSize,
               topGap: sectionGap,
               rowGap: rowGap,
